@@ -1,0 +1,87 @@
+{
+  "id": "dbhopper",
+  "name": "DBhopper",
+  "description": "NRW Mobilitätsgarantie claim workspace and guarded browser filing tools.",
+  "version": "0.1.0",
+  "activation": {
+    "onStartup": true
+  },
+  "skills": [
+    "./skills"
+  ],
+  "contracts": {
+    "tools": [
+      "dbhopper_claim_schema",
+      "dbhopper_list_claims",
+      "dbhopper_prepare_claim",
+      "dbhopper_validate_claim",
+      "dbhopper_browser_probe",
+      "dbhopper_run_claim"
+    ]
+  },
+  "toolMetadata": {
+    "dbhopper_claim_schema": {
+      "optional": true
+    },
+    "dbhopper_list_claims": {
+      "optional": true
+    },
+    "dbhopper_prepare_claim": {
+      "optional": true
+    },
+    "dbhopper_validate_claim": {
+      "optional": true
+    },
+    "dbhopper_browser_probe": {
+      "optional": true
+    },
+    "dbhopper_run_claim": {
+      "optional": true
+    }
+  },
+  "uiHints": {
+    "workspaceRoot": {
+      "label": "Workspace Root",
+      "help": "Directory containing claims/ and assets/ for DBhopper."
+    },
+    "browserExecutablePath": {
+      "label": "Browser Executable",
+      "help": "Chromium or Chrome executable used by Playwright."
+    },
+    "headless": {
+      "label": "Headless Browser",
+      "help": "Run browser filing without showing a window."
+    }
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "workspaceRoot": {
+        "type": "string",
+        "description": "Top-level directory containing claims/ and assets/. Defaults to the plugin package directory."
+      },
+      "browserExecutablePath": {
+        "type": "string",
+        "description": "Optional Chromium or Chrome executable path for browser filing."
+      },
+      "headless": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether browser filing runs headless by default."
+      },
+      "timeoutMs": {
+        "type": "integer",
+        "minimum": 10000,
+        "maximum": 600000,
+        "description": "Maximum runtime for one browser filing operation."
+      },
+      "approvalMode": {
+        "type": "string",
+        "enum": ["all", "mutating", "none"],
+        "default": "all",
+        "description": "Approval behavior. Defaults to all tools; use mutating for read-only schema/list/validate/probe without approval."
+      }
+    }
+  }
+}

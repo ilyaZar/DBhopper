@@ -1,0 +1,14 @@
+node_modules/
+coverage/
+lcov.info
+*.tgz
+
+# This repo keeps public design notes under specs/.
+!specs/
+!specs/**
+
+# User-managed runtime data. Keep the folders, not private contents.
+claims/*
+!claims/.gitkeep
+assets/private/*
+!assets/private/.gitkeep

@@ -1,0 +1,60 @@
+{
+  "name": "dbhopper",
+  "version": "0.1.0",
+  "description": "OpenClaw tools for NRW Mobilitätsgarantie claim workspaces and guarded browser filing",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "assets/.gitkeep",
+    "assets/private/.gitkeep",
+    "claims/.gitkeep",
+    "LICENSE",
+    "README.md",
+    "dist/",
+    "openclaw.plugin.json",
+    "skills/",
+    "specs/",
+    "src/"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "package:check": "node --test test/package.test.js",
+    "pretest": "npm run build",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "playwright-core": "1.59.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.0",
+    "typescript": "^5.9.0"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.5.3-beta.3"
+  },
+  "peerDependenciesMeta": {
+    "openclaw": {
+      "optional": true
+    }
+  },
+  "openclaw": {
+    "extensions": [
+      "./dist/index.js"
+    ],
+    "compat": {
+      "pluginApi": ">=2026.5.3-beta.3",
+      "minGatewayVersion": "2026.5.3-beta.3"
+    },
+    "build": {
+      "openclawVersion": "2026.5.3-beta.3",
+      "pluginSdkVersion": "2026.5.3-beta.3"
+    },
+    "release": {
+      "publishToClawHub": true,
+      "publishToNpm": false
+    }
+  }
+}
