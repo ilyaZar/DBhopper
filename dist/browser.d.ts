@@ -6,6 +6,7 @@ export interface BrowserRunParams {
     confirmSubmit?: boolean;
     headless?: boolean;
     browserExecutablePath?: string;
+    artifactRoot?: string;
     timeoutMs?: number;
 }
 export interface BrowserRunResult {
@@ -13,6 +14,7 @@ export interface BrowserRunResult {
     mode: "dry_run" | "submit";
     stage: string;
     claimDir: string;
+    artifactDir: string;
     artifacts: string[];
     submitted: boolean;
     needsUserAction: boolean;

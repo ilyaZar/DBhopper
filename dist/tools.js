@@ -75,7 +75,11 @@ function schemaTool() {
                 research: {
                     formUrl: "https://www.mobil.nrw/fahren/mobigarantie/einreichen.html",
                     embeddedAppUrl: "https://mg.kcm-nrw.de/elmapublic/",
-                    automationChoice: "No public CLI or documented stable API was found. The live form is a React app behind a token/session handshake, so DBhopper drives the rendered browser form.",
+                    automationChoice: [
+                        "No public CLI or documented stable API was found.",
+                        "The live form is a React app behind a token/session handshake,",
+                        "so DBhopper drives the rendered browser form.",
+                    ].join(" "),
                 },
                 schema: claimSchemaReference(),
             });
@@ -212,7 +216,10 @@ function runClaimTool() {
     return {
         name: "dbhopper_run_claim",
         label: "DBhopper Run Claim",
-        description: "Drive the NRW Mobilitätsgarantie browser form for a prepared claim. Dry run stops at summary; submit requires confirmSubmit.",
+        description: [
+            "Drive the NRW Mobilitätsgarantie browser form for a prepared claim.",
+            "Dry run stops at summary; submit requires confirmSubmit.",
+        ].join(" "),
         parameters: objectSchema({
             confirm: confirmSchema,
             claimId: { type: "string" },
@@ -265,6 +272,7 @@ function runClaimTool() {
                     confirmSubmit: params.confirmSubmit,
                     headless: params.headless ?? this.config.headless,
                     browserExecutablePath: this.config.browserExecutablePath,
+                    artifactRoot: this.config.artifactRoot,
                     timeoutMs: this.config.timeoutMs,
                 });
                 return textResult({

@@ -102,7 +102,11 @@ function schemaTool() {
           formUrl: "https://www.mobil.nrw/fahren/mobigarantie/einreichen.html",
           embeddedAppUrl: "https://mg.kcm-nrw.de/elmapublic/",
           automationChoice:
-            "No public CLI or documented stable API was found. The live form is a React app behind a token/session handshake, so DBhopper drives the rendered browser form.",
+            [
+              "No public CLI or documented stable API was found.",
+              "The live form is a React app behind a token/session handshake,",
+              "so DBhopper drives the rendered browser form.",
+            ].join(" "),
         },
         schema: claimSchemaReference(),
       });
@@ -249,7 +253,10 @@ function runClaimTool() {
     name: "dbhopper_run_claim",
     label: "DBhopper Run Claim",
     description:
-      "Drive the NRW Mobilitätsgarantie browser form for a prepared claim. Dry run stops at summary; submit requires confirmSubmit.",
+      [
+        "Drive the NRW Mobilitätsgarantie browser form for a prepared claim.",
+        "Dry run stops at summary; submit requires confirmSubmit.",
+      ].join(" "),
     parameters: objectSchema(
       {
         confirm: confirmSchema,
@@ -269,7 +276,13 @@ function runClaimTool() {
     ),
     async execute(
       _toolCallId: string,
-      params: { confirm?: boolean; claimId?: string; mode?: "dry_run" | "submit"; confirmSubmit?: boolean; headless?: boolean },
+      params: {
+        confirm?: boolean;
+        claimId?: string;
+        mode?: "dry_run" | "submit";
+        confirmSubmit?: boolean;
+        headless?: boolean;
+      },
     ) {
       try {
         if (params?.confirm !== true) {
@@ -310,6 +323,7 @@ function runClaimTool() {
           confirmSubmit: params.confirmSubmit,
           headless: params.headless ?? this.config.headless,
           browserExecutablePath: this.config.browserExecutablePath,
+          artifactRoot: this.config.artifactRoot,
           timeoutMs: this.config.timeoutMs,
         });
         return textResult({

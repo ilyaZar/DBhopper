@@ -17,6 +17,9 @@ Configure `plugins.entries.dbhopper.config.workspaceRoot` to this plugin
 directory. Put reusable private profile data under `assets/private/` and pass
 only the file name as `profileAssetName`.
 
+Start from [assets/private-profile.example.json](assets/private-profile.example.json)
+and copy it to `assets/private/default.json`. Keep the copied file private.
+
 ## Tools
 
 - `dbhopper_claim_schema`
@@ -28,6 +31,15 @@ only the file name as `profileAssetName`.
 
 `dbhopper_run_claim` defaults to dry-run behavior and only submits with explicit
 confirmation.
+
+Browser runs save screenshots and text captures below `tmp/`. A dry run stops at
+the summary page before `Angaben absenden`.
+
+## Troubleshooting
+
+If an OpenClaw-routed agent can describe the skill but cannot call
+`dbhopper_*`, check the sandbox tool policy. The local config needs DBhopper in
+both `tools.alsoAllow` and `tools.sandbox.tools.alsoAllow`.
 
 ## Development
 

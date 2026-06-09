@@ -17,6 +17,11 @@ const REQUIRED_BROWSER_FIELDS = [
   "claimant.email",
   "claimant.firstName",
   "claimant.lastName",
+  "claimant.phone",
+  "claimant.address.streetNumber",
+  "claimant.address.zip",
+  "claimant.address.city",
+  "claimant.address.country",
   "journey.date",
   "journey.scheduledDepartureTime",
   "journey.startStation",
@@ -66,7 +71,30 @@ export function claimSchemaReference() {
   return {
     requiredFacts: {
       privateProfile:
-        "Store reusable sensitive claimant and bank data in assets/private/*.json and pass only profileAssetName to dbhopper_prepare_claim.",
+        [
+          "Store reusable sensitive claimant and bank data in",
+          "assets/private/*.json and pass only profileAssetName to",
+          "dbhopper_prepare_claim.",
+        ].join(" "),
+      privateProfileShape: {
+        claimant: {
+          salutation: "FAMILY",
+          firstName: "Maria",
+          lastName: "Mustermann",
+          email: "maria@example.org",
+          phone: "+4922112345678",
+          address: {
+            streetNumber: "Musterstrasse 1",
+            zip: "50667",
+            city: "Koeln",
+            country: "Deutschland",
+          },
+        },
+        bank: {
+          accountOwner: "Maria Mustermann",
+          iban: "DE89370400440532013000",
+        },
+      },
       eligibility: [
         "departure delay or cancellation gap at the starting stop is at least 20 minutes",
         "claim is filed within 14 calendar days after the incident",

@@ -19,6 +19,8 @@ North Rhine-Westphalia.
 4. Put reusable sensitive personal data in an `assets/private/*.json` profile
    and pass its file name as `profileAssetName`; do not read that file into
    the conversation.
+5. Browser-run artifacts are saved under the plugin `tmp/` directory. Inspect
+   screenshots there before asking for real submission.
 
 ## Workflow
 

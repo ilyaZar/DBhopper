@@ -6,6 +6,25 @@ export declare function validateClaim(claim: DBhopperClaim, options?: {
 export declare function claimSchemaReference(): {
     requiredFacts: {
         privateProfile: string;
+        privateProfileShape: {
+            claimant: {
+                salutation: string;
+                firstName: string;
+                lastName: string;
+                email: string;
+                phone: string;
+                address: {
+                    streetNumber: string;
+                    zip: string;
+                    city: string;
+                    country: string;
+                };
+            };
+            bank: {
+                accountOwner: string;
+                iban: string;
+            };
+        };
         eligibility: string[];
         evidence: string[];
         formData: string[];

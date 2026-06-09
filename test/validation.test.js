@@ -10,6 +10,13 @@ function validClaim() {
       firstName: "Maria",
       lastName: "Mustermann",
       email: "maria@example.org",
+      phone: "+4922112345678",
+      address: {
+        streetNumber: "Musterstrasse 1",
+        zip: "50667",
+        city: "Koeln",
+        country: "Deutschland",
+      },
     },
     journey: {
       date: "2026-06-06",
@@ -82,4 +89,3 @@ describe("dbhopper validation", () => {
     assert.ok(result.messages.some((message) => message.code === "used_delayed_vehicle"));
   });
 });
-

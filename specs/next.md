@@ -21,7 +21,9 @@ This is the short design and todo list for the DBhopper MVP.
 - Smoke test from the phone with `dbhopper_claim_schema`,
   `dbhopper_validate_claim`, and `dbhopper_browser_probe`.
 - Test a real claim flow with file paths and `profileAssetName`, not pasted
-  private claim data.
+  private claim data. Use `assets/private/default.json`, copied from
+  `assets/private-profile.example.json`.
+- Keep dry-run and blocked-run screenshots under `tmp/` for inspection.
 - Keep submit mode behind explicit user confirmation and DBhopper approval.
 - If artifact delivery from the active channel is missing, fix that in OpenClaw
   channel/message APIs instead of adding transport code to DBhopper.

@@ -13,6 +13,7 @@ export interface BrowserRunParams {
   confirmSubmit?: boolean;
   headless?: boolean;
   browserExecutablePath?: string;
+  artifactRoot?: string;
   timeoutMs?: number;
 }
 
@@ -21,6 +22,7 @@ export interface BrowserRunResult {
   mode: "dry_run" | "submit";
   stage: string;
   claimDir: string;
+  artifactDir: string;
   artifacts: string[];
   submitted: boolean;
   needsUserAction: boolean;
@@ -62,6 +64,7 @@ export async function runBrowserClaim(params: BrowserRunParams): Promise<Browser
   const timeoutMs = params.timeoutMs || DEFAULT_TIMEOUT_MS;
   const started = Date.now();
   const artifacts: string[] = [];
+  const artifactDir = await createArtifactDir(params);
   let browser: Browser | undefined;
   let page: Page | undefined;
   let stage = "start";
@@ -79,30 +82,35 @@ export async function runBrowserClaim(params: BrowserRunParams): Promise<Browser
     stage = "open_form";
     await page.goto(FORM_URL, { waitUntil: "domcontentloaded" });
     await page.waitForSelector("#formCreator");
+    await captureStage(page, artifactDir, "open-form", artifacts);
 
     stage = "legal";
     await clickText(page, /Ich habe die Regeln/i);
     await clickVisibleSave(page);
+    await captureStage(page, artifactDir, "legal", artifacts);
 
     stage = "claimant";
     await fillClaimant(page, params.claim);
     await clickVisibleSave(page);
+    await captureStage(page, artifactDir, "claimant", artifacts);
 
     stage = "journey";
     await fillJourney(page, params.claim);
     await clickVisibleSave(page);
+    await captureStage(page, artifactDir, "journey", artifacts);
 
     stage = "ticket";
     await fillTicket(page, params.claim, params.claimDir);
     await clickVisibleSave(page);
+    await captureStage(page, artifactDir, "ticket", artifacts);
 
     stage = "bank";
     await fillBank(page, params.claim);
     await clickVisibleSave(page);
+    await captureStage(page, artifactDir, "bank", artifacts);
 
     stage = "summary";
-    artifacts.push(await savePageText(page, params.claimDir, "summary"));
-    artifacts.push(await saveScreenshot(page, params.claimDir, "summary"));
+    await captureStage(page, artifactDir, "summary", artifacts);
 
     if (Date.now() - started > timeoutMs) {
       throw new Error("browser run timed out");
@@ -114,6 +122,7 @@ export async function runBrowserClaim(params: BrowserRunParams): Promise<Browser
         mode,
         stage,
         claimDir: params.claimDir,
+        artifactDir,
         artifacts,
         submitted: false,
         needsUserAction: false,
@@ -122,18 +131,18 @@ export async function runBrowserClaim(params: BrowserRunParams): Promise<Browser
     }
 
     stage = "submit";
-    const download = await submitAndDownload(page, params.claimDir);
+    const download = await submitAndDownload(page, artifactDir);
     if (download) {
       artifacts.push(download);
     }
-    artifacts.push(await savePageText(page, params.claimDir, "submitted"));
-    artifacts.push(await saveScreenshot(page, params.claimDir, "submitted"));
+    await captureStage(page, artifactDir, "submitted", artifacts);
 
     return {
       ok: true,
       mode,
       stage,
       claimDir: params.claimDir,
+      artifactDir,
       artifacts,
       submitted: true,
       needsUserAction: false,
@@ -142,8 +151,7 @@ export async function runBrowserClaim(params: BrowserRunParams): Promise<Browser
   } catch (error) {
     if (page) {
       try {
-        artifacts.push(await savePageText(page, params.claimDir, `blocked-${stage}`));
-        artifacts.push(await saveScreenshot(page, params.claimDir, `blocked-${stage}`));
+        await captureStage(page, artifactDir, `blocked-${stage}`, artifacts);
       } catch {
         // Keep the original browser failure.
       }
@@ -153,6 +161,7 @@ export async function runBrowserClaim(params: BrowserRunParams): Promise<Browser
       mode,
       stage,
       claimDir: params.claimDir,
+      artifactDir,
       artifacts,
       submitted: false,
       needsUserAction: true,
@@ -307,7 +316,7 @@ async function submitAndDownload(page: Page, claimDir: string) {
   }
   const target = path.join(claimDir, "submission-confirmation.pdf");
   await download.saveAs(target);
-  return path.relative(claimDir, target);
+  return target;
 }
 
 async function chooseAutocomplete(page: Page, selector: string, value?: string) {
@@ -329,7 +338,7 @@ async function fill(page: Page, selector: string, value?: string | number) {
 }
 
 async function clickText(page: Page, text: RegExp) {
-  await page.getByText(text).first().click();
+  await page.getByText(text).filter({ visible: true }).first().click();
 }
 
 async function selectLabel(page: Page, selector: string, label: string, required = true) {
@@ -371,21 +380,45 @@ async function visibleControls(page: Page) {
   );
 }
 
-async function savePageText(page: Page, claimDir: string, label: string) {
-  const target = path.join(claimDir, `${safeArtifactLabel(label)}.txt`);
-  const text = await page.locator("body").innerText().catch(() => "");
-  await fs.writeFile(target, `${text}\n`, "utf8");
-  return path.relative(claimDir, target);
+async function captureStage(
+  page: Page,
+  artifactDir: string,
+  label: string,
+  artifacts: string[],
+) {
+  artifacts.push(await savePageText(page, artifactDir, label));
+  artifacts.push(await saveScreenshot(page, artifactDir, label));
 }
 
-async function saveScreenshot(page: Page, claimDir: string, label: string) {
-  const target = path.join(claimDir, `${safeArtifactLabel(label)}.png`);
+async function createArtifactDir(params: BrowserRunParams) {
+  const claimId = safeArtifactSegment(path.basename(params.claimDir));
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const artifactRoot =
+    params.artifactRoot || path.join(path.dirname(path.dirname(params.claimDir)), "tmp");
+  const artifactDir = path.join(artifactRoot, `${claimId}-${timestamp}`);
+  await fs.mkdir(artifactDir, { recursive: true });
+  return artifactDir;
+}
+
+async function savePageText(page: Page, artifactDir: string, label: string) {
+  const target = path.join(artifactDir, `${safeArtifactLabel(label)}.txt`);
+  const text = await page.locator("body").innerText().catch(() => "");
+  await fs.writeFile(target, `${text}\n`, "utf8");
+  return target;
+}
+
+async function saveScreenshot(page: Page, artifactDir: string, label: string) {
+  const target = path.join(artifactDir, `${safeArtifactLabel(label)}.png`);
   await page.screenshot({ path: target, fullPage: true });
-  return path.relative(claimDir, target);
+  return target;
 }
 
 function safeArtifactLabel(value: string) {
-  return `browser-${value}`.replace(/[^a-z0-9._-]+/gi, "-").toLowerCase();
+  return `browser-${safeArtifactSegment(value)}`;
+}
+
+function safeArtifactSegment(value: string) {
+  return value.replace(/[^a-z0-9._-]+/gi, "-").replace(/-+/g, "-").toLowerCase();
 }
 
 function formatEuro(value?: number) {

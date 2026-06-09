@@ -75,6 +75,7 @@ export interface ValidationResult {
 export interface DBhopperConfig {
     workspaceRoot?: string;
     browserExecutablePath?: string;
+    artifactRoot?: string;
     headless?: boolean;
     timeoutMs?: number;
     approvalMode?: "all" | "mutating" | "none";

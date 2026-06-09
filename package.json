@@ -9,6 +9,7 @@
   },
   "files": [
     "assets/.gitkeep",
+    "assets/private-profile.example.json",
     "assets/private/.gitkeep",
     "claims/.gitkeep",
     "LICENSE",

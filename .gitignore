@@ -12,3 +12,5 @@ claims/*
 !claims/.gitkeep
 assets/private/*
 !assets/private/.gitkeep
+tmp/*
+!tmp/.gitkeep

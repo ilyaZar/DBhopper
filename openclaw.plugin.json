@@ -48,6 +48,10 @@
       "label": "Browser Executable",
       "help": "Chromium or Chrome executable used by Playwright."
     },
+    "artifactRoot": {
+      "label": "Artifact Root",
+      "help": "Directory for browser-run screenshots and text captures."
+    },
     "headless": {
       "label": "Headless Browser",
       "help": "Run browser filing without showing a window."
@@ -64,6 +68,10 @@
       "browserExecutablePath": {
         "type": "string",
         "description": "Optional Chromium or Chrome executable path for browser filing."
+      },
+      "artifactRoot": {
+        "type": "string",
+        "description": "Optional directory for browser-run artifacts. Defaults to workspaceRoot/tmp."
       },
       "headless": {
         "type": "boolean",
