@@ -16,8 +16,9 @@ Required claim facts:
 - account owner and IBAN
 
 Sensitive reusable facts such as name, email, address, and bank data should live
-in a local JSON profile under `assets/private/`. The agent should pass only the
-profile file name to `dbhopper_prepare_claim`.
+in a local TOML profile under `assets/private/profiles/`. The editable
+`claim.toml` should store only the selected profile name and claim-specific
+journey, ticket, and evidence fields.
 
 Required evidence:
 

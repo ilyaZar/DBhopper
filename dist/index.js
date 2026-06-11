@@ -29,6 +29,9 @@ const configSchema = Type.Object({
         default: "all",
         description: "Approval behavior. Defaults to all claim tools; use mutating for read-only claim tools without approval.",
     })),
+    activeProfileName: Type.Optional(Type.String({
+        description: "Default TOML profile under assets/private/profiles/ for claim operations.",
+    })),
     dbClientId: Type.Optional(Type.String({
         description: "DB API Marketplace Client ID. Can also be supplied as DB_CLIENT_ID.",
     })),
@@ -81,7 +84,7 @@ const plugin = defineToolPlugin({
         claimToolDefinition(tool, {
             name: "dbhopper_claim_schema",
             label: "DBhopper Claim Schema",
-            description: "Return NRW Mobilitätsgarantie claim facts, required evidence, and the DBhopper claim JSON shape.",
+            description: "Return NRW Mobilitätsgarantie claim facts, required evidence, and the DBhopper claim TOML shape.",
             parameters: Type.Object({}, { additionalProperties: false }),
         }),
         claimToolDefinition(tool, {
@@ -93,7 +96,7 @@ const plugin = defineToolPlugin({
         claimToolDefinition(tool, {
             name: "dbhopper_prepare_claim",
             label: "DBhopper Prepare Claim",
-            description: "Create or replace a local claim folder, copy evidence files into it, and write claim.json.",
+            description: "Create or replace a local claim folder, copy evidence files into it, and write claim.toml.",
             parameters: prepareClaimParameters(),
         }),
         claimToolDefinition(tool, {
@@ -179,7 +182,10 @@ function prepareClaimParameters() {
         claimId: Type.Optional(Type.String()),
         overwrite: Type.Optional(Type.Boolean()),
         profileAssetName: Type.Optional(Type.String({
-            description: "Optional JSON profile under assets/private/ merged into claim data inside the plugin.",
+            description: "Deprecated alias for profileName. Selects a TOML profile under assets/private/profiles/.",
+        })),
+        profileName: Type.Optional(Type.String({
+            description: "Optional TOML profile under assets/private/profiles/ merged in memory only.",
         })),
         claim: Type.Object({}, { additionalProperties: true }),
         files: Type.Optional(Type.Array(Type.Object({

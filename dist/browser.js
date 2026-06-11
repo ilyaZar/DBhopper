@@ -89,7 +89,7 @@ export async function runBrowserClaim(params) {
             };
         }
         stage = "submit";
-        const download = await submitAndDownload(page, artifactDir);
+        const download = await submitAndDownload(page, params.claimDir);
         if (download) {
             artifacts.push(download);
         }

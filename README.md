@@ -15,33 +15,20 @@ openclaw plugins enable dbhopper
 ```
 
 Configure `plugins.entries.dbhopper.config.workspaceRoot` to this plugin
-directory. Put reusable private profile data under `assets/private/` and pass
-only the file name as `profileAssetName`.
+directory. Put reusable private profile data under
+`assets/private/profiles/*.toml` and select it with `profileName` or
+`plugins.entries.dbhopper.config.activeProfileName`.
 
-Start from [assets/private-profile.example.json](assets/private-profile.example.json)
-and copy it to `assets/private/default.json`. Keep the copied file private.
+Start from the example profile at
+`assets/private/profiles/private-profile.example.toml` and copy it to
+`assets/private/profiles/default.toml`. Keep real profiles private.
 
-## Tools
-
-- `dbhopper_claim_schema`
-- `dbhopper_list_claims`
-- `dbhopper_prepare_claim`
-- `dbhopper_validate_claim`
-- `dbhopper_browser_probe`
-- `dbhopper_run_claim`
-- `dbhopper_db_delay_research`
-- `dbhopper_query_db_delay`
-
-`dbhopper_run_claim` defaults to dry-run behavior and only submits with explicit
-confirmation.
-
-Browser runs save screenshots and text captures below `tmp/`. A dry run stops at
-the summary page before `Angaben absenden`.
-
-`dbhopper_query_db_delay` uses inclusive bounds around the explicit query time:
-`[query_time - window_width_minutes, query_time + window_width_minutes]`. It
-checks regional candidates by delay at the boarding station and separately
-checks direct ICE/IC/EC replacement candidates for reachability.
+Prepared claims are editable TOML files at `claims/<claim-id>/claim.toml`.
+They store claim-specific journey, ticket, file, and selected profile data, but
+not claimant or bank fields. DBhopper merges the selected private profile in
+memory for validation and browser filing. A successful submit writes
+`claim_submitted_recipe.toml` next to the downloaded confirmation PDF as the
+full joined audit recipe.
 
 Deutsche Bahn delay lookup supports two providers:
 
@@ -68,6 +55,28 @@ The `bahn-web` provider tries native `fetch` first and then `curl` when using
 `bahnWebTransport: "auto"`. This is intentional: live checks showed DB's edge
 can reject Node's HTTPS client with `OPS_BLOCKED` while accepting browser-like
 curl requests.
+
+## Tools
+
+- `dbhopper_claim_schema`
+- `dbhopper_list_claims`
+- `dbhopper_prepare_claim`
+- `dbhopper_validate_claim`
+- `dbhopper_browser_probe`
+- `dbhopper_run_claim`
+- `dbhopper_db_delay_research`
+- `dbhopper_query_db_delay`
+
+`dbhopper_run_claim` defaults to dry-run behavior and only submits with explicit
+confirmation.
+
+Browser runs save screenshots and text captures below `tmp/`. A dry run stops at
+the summary page before `Angaben absenden`.
+
+`dbhopper_query_db_delay` uses inclusive bounds around the explicit query time:
+`[query_time - window_width_minutes, query_time + window_width_minutes]`. It
+checks regional candidates by delay at the boarding station and separately
+checks direct ICE/IC/EC replacement candidates for reachability.
 
 Example parameters:
 

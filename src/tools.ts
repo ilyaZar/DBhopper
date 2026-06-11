@@ -7,6 +7,8 @@ import {
   prepareClaim,
   readClaim,
   redactEmail,
+  validateWorkspaceTomlFiles,
+  writeSubmittedRecipe,
   type PrepareClaimParams,
 } from "./workspace.js";
 
@@ -92,7 +94,7 @@ function schemaTool() {
     name: "dbhopper_claim_schema",
     label: "DBhopper Claim Schema",
     description:
-      "Return NRW Mobilitätsgarantie claim facts, required evidence, and the DBhopper claim JSON shape.",
+      "Return NRW Mobilitätsgarantie claim facts, required evidence, and the DBhopper claim TOML shape.",
     parameters: objectSchema({}),
     async execute(this: { config: DBhopperConfig }) {
       return textResult({
@@ -135,7 +137,7 @@ function prepareClaimTool() {
     name: "dbhopper_prepare_claim",
     label: "DBhopper Prepare Claim",
     description:
-      "Create or replace a local claim folder, copy evidence files into it, and write claim.json.",
+      "Create or replace a local claim folder, copy evidence files into it, and write claim.toml.",
     parameters: objectSchema(
       {
         confirm: confirmSchema,
@@ -144,7 +146,12 @@ function prepareClaimTool() {
         profileAssetName: {
           type: "string",
           description:
-            "Optional JSON profile under assets/private/ merged into claim data inside the plugin.",
+            "Deprecated alias for profileName. Selects a TOML profile under assets/private/profiles/.",
+        },
+        profileName: {
+          type: "string",
+          description:
+            "Optional TOML profile under assets/private/profiles/ merged in memory only.",
         },
         claim: { type: "object", additionalProperties: true },
         files: {
@@ -188,6 +195,7 @@ function prepareClaimTool() {
           claimId: prepared.claimId,
           claimDir: prepared.claimDir,
           claimPath: prepared.claimPath,
+          profileName: prepared.profileName,
           copiedFiles: prepared.copiedFiles,
           validation: validateClaim(prepared.claim),
         });
@@ -218,9 +226,18 @@ function validateClaimTool() {
       params: { claimId?: string; claim?: DBhopperClaim; now?: string },
     ) {
       try {
-        const claim = params?.claimId
+        if (!params?.claimId && !params?.claim) {
+          const stored = await validateWorkspaceTomlFiles(this.config);
+          return textResult({
+            ok: stored.ok,
+            operation: "validate_claim",
+            storedToml: stored,
+          });
+        }
+
+        const claim = params.claimId
           ? (await readClaim(params.claimId, this.config)).claim
-          : params?.claim || {};
+          : params.claim || {};
         return textResult({
           ok: true,
           operation: "validate_claim",
@@ -335,10 +352,13 @@ function runClaimTool() {
           artifactRoot: this.config.artifactRoot,
           timeoutMs: this.config.timeoutMs,
         });
+        const recipePath =
+          result.submitted && result.ok ? await writeSubmittedRecipe(prepared) : undefined;
         return textResult({
           ok: result.ok,
           operation: "run_claim",
           claimId: prepared.claimId,
+          recipePath,
           validation,
           result,
           needsUserAction: result.needsUserAction,

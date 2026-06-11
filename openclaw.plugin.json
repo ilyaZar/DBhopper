@@ -71,6 +71,10 @@
         "default": "all",
         "description": "Approval behavior. Defaults to all claim tools; use mutating for read-only claim tools without approval."
       },
+      "activeProfileName": {
+        "type": "string",
+        "description": "Default TOML profile under assets/private/profiles/ for claim operations."
+      },
       "dbClientId": {
         "type": "string",
         "description": "DB API Marketplace Client ID. Can also be supplied as DB_CLIENT_ID."

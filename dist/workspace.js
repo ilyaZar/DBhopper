@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { assertClaimTomlShape, mergeClaims, parseClaimToml, parsePrivateProfileToml, profileFieldsInClaim, schemaValidationMessages, stringifyClaimToml, stringifySubmittedRecipeToml, } from "./claim-toml.js";
 const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CLAIM_ID_MAX = 80;
 export function resolveWorkspace(config = {}) {
@@ -9,12 +10,14 @@ export function resolveWorkspace(config = {}) {
         root,
         claimsDir: path.join(root, "claims"),
         assetsDir: path.join(root, "assets"),
+        profilesDir: path.join(root, "assets", "private", "profiles"),
     };
 }
 export async function ensureWorkspace(config = {}) {
     const workspace = resolveWorkspace(config);
     await fs.mkdir(workspace.claimsDir, { recursive: true });
     await fs.mkdir(workspace.assetsDir, { recursive: true });
+    await fs.mkdir(workspace.profilesDir, { recursive: true });
     return workspace;
 }
 export function normalizeClaimId(value) {
@@ -38,17 +41,26 @@ export function claimPaths(claimId, config = {}) {
         workspace,
         claimId: safeId,
         claimDir,
-        claimPath: path.join(claimDir, "claim.json"),
+        claimPath: path.join(claimDir, "claim.toml"),
+        recipePath: path.join(claimDir, "claim_submitted_recipe.toml"),
     };
 }
 export async function readClaim(claimId, config = {}) {
     const paths = claimPaths(claimId, config);
     const raw = await fs.readFile(paths.claimPath, "utf8");
-    const claim = JSON.parse(raw);
+    const storedClaim = parseClaimToml(raw, paths.claimPath);
+    const profileName = selectProfileName(storedClaim, config);
+    const privateProfile = profileName
+        ? await readPrivateProfile(profileName, paths.workspace)
+        : {};
+    const claim = materializeClaim(privateProfile, storedClaim, paths.claimId, profileName);
     return {
         claimId: paths.claimId,
         claimDir: paths.claimDir,
         claimPath: paths.claimPath,
+        recipePath: paths.recipePath,
+        profileName,
+        storedClaim,
         claim,
         copiedFiles: claim.files || [],
     };
@@ -61,13 +73,22 @@ export async function listClaims(config = {}) {
         if (!entry.isDirectory()) {
             continue;
         }
-        const claimPath = path.join(workspace.claimsDir, entry.name, "claim.json");
+        const claimPath = path.join(workspace.claimsDir, entry.name, "claim.toml");
+        if (!(await fileExists(claimPath))) {
+            continue;
+        }
         try {
             const raw = await fs.readFile(claimPath, "utf8");
-            const claim = JSON.parse(raw);
+            const storedClaim = parseClaimToml(raw, claimPath);
+            const profileName = selectProfileName(storedClaim, config);
+            const privateProfile = profileName
+                ? await readPrivateProfile(profileName, workspace)
+                : {};
+            const claim = materializeClaim(privateProfile, storedClaim, entry.name, profileName);
             claims.push({
                 claimId: entry.name,
                 status: claim.status || "draft",
+                profileName,
                 journey: claim.journey,
                 claimant: redactClaimant(claim.claimant),
                 fileCount: claim.files?.length || 0,
@@ -88,13 +109,22 @@ export async function prepareClaim(params, config = {}) {
         throw new Error("confirm must be true before writing a claim workspace");
     }
     const workspace = await ensureWorkspace(config);
-    const privateProfile = params.profileAssetName
-        ? await readPrivateProfile(params.profileAssetName, workspace)
+    const incoming = params.claim || {};
+    const privateFields = profileFieldsInClaim(incoming);
+    if (privateFields.length > 0) {
+        throw new Error([
+            `claim data must not include private fields: ${privateFields.join(", ")}`,
+            "store claimant and bank data in assets/private/profiles/*.toml",
+        ].join("; "));
+    }
+    const profileName = normalizeOptionalProfileName(params.profileName ?? params.profileAssetName ?? incoming.profileName ?? config.activeProfileName);
+    const privateProfile = profileName
+        ? await readPrivateProfile(profileName, workspace)
         : {};
-    const incoming = mergeClaim(privateProfile, params.claim || {});
     const claimId = normalizeClaimId(params.claimId || incoming.claimId);
     const claimDir = path.join(workspace.claimsDir, claimId);
-    const claimPath = path.join(claimDir, "claim.json");
+    const claimPath = path.join(claimDir, "claim.toml");
+    const recipePath = path.join(claimDir, "claim_submitted_recipe.toml");
     await fs.mkdir(claimDir, { recursive: true });
     if (!params.overwrite) {
         try {
@@ -112,31 +142,93 @@ export async function prepareClaim(params, config = {}) {
         copiedFiles.push(await copyClaimFile(file, { claimDir, workspace }));
     }
     const existingFiles = Array.isArray(incoming.files) ? incoming.files : [];
-    const claim = {
+    const storedClaim = {
         ...incoming,
         version: 1,
         claimId,
+        ...(profileName ? { profileName } : {}),
         status: incoming.status || "draft",
         files: [...existingFiles, ...copiedFiles],
     };
-    await fs.writeFile(`${claimPath}.tmp`, `${JSON.stringify(claim, null, 2)}\n`, "utf8");
+    assertClaimTomlShape(storedClaim, claimPath);
+    const claim = materializeClaim(privateProfile, storedClaim, claimId, profileName);
+    await fs.writeFile(`${claimPath}.tmp`, stringifyClaimToml(storedClaim), "utf8");
     await fs.rename(`${claimPath}.tmp`, claimPath);
     return {
         claimId,
         claimDir,
         claimPath,
+        recipePath,
+        profileName,
+        storedClaim,
         claim,
         copiedFiles,
     };
 }
 export async function recordClaimArtifact(claimId, file, config = {}) {
     const prepared = await readClaim(claimId, config);
-    const claim = {
-        ...prepared.claim,
-        files: [...(prepared.claim.files || []), file],
+    const workspace = resolveWorkspace(config);
+    const storedClaim = {
+        ...(prepared.storedClaim || {}),
+        files: [...(prepared.storedClaim?.files || []), file],
     };
-    await fs.writeFile(prepared.claimPath, `${JSON.stringify(claim, null, 2)}\n`, "utf8");
-    return claim;
+    assertClaimTomlShape(storedClaim, prepared.claimPath);
+    await fs.writeFile(prepared.claimPath, stringifyClaimToml(storedClaim), "utf8");
+    return materializeClaim(prepared.profileName ? await readPrivateProfile(prepared.profileName, workspace) : {}, storedClaim, prepared.claimId, prepared.profileName);
+}
+export async function writeSubmittedRecipe(prepared) {
+    if (!prepared.recipePath) {
+        throw new Error("prepared claim is missing recipePath");
+    }
+    await fs.writeFile(`${prepared.recipePath}.tmp`, stringifySubmittedRecipeToml(prepared.claim), "utf8");
+    await fs.rename(`${prepared.recipePath}.tmp`, prepared.recipePath);
+    return prepared.recipePath;
+}
+export async function validateWorkspaceTomlFiles(config = {}) {
+    const workspace = await ensureWorkspace(config);
+    const messages = [];
+    for (const profilePath of await listTomlFiles(workspace.profilesDir)) {
+        try {
+            const parsed = parsePrivateProfileToml(await fs.readFile(profilePath, "utf8"), profilePath);
+            messages.push(...schemaValidationMessages(parsed, "profile", profilePath));
+        }
+        catch (error) {
+            messages.push({
+                code: "invalid_profile_toml",
+                message: error instanceof Error ? error.message : String(error),
+                severity: "error",
+            });
+        }
+    }
+    const claimDirs = await fs.readdir(workspace.claimsDir, { withFileTypes: true });
+    for (const entry of claimDirs) {
+        if (!entry.isDirectory()) {
+            continue;
+        }
+        const claimPath = path.join(workspace.claimsDir, entry.name, "claim.toml");
+        if (!(await fileExists(claimPath))) {
+            continue;
+        }
+        try {
+            const parsed = parseClaimToml(await fs.readFile(claimPath, "utf8"), claimPath);
+            messages.push(...schemaValidationMessages(parsed, "claim", claimPath));
+            const profileName = selectProfileName(parsed, config);
+            if (profileName) {
+                await readPrivateProfile(profileName, workspace);
+            }
+        }
+        catch (error) {
+            messages.push({
+                code: "invalid_claim_toml",
+                message: error instanceof Error ? error.message : String(error),
+                severity: "error",
+            });
+        }
+    }
+    return {
+        ok: messages.every((message) => message.severity !== "error"),
+        messages,
+    };
 }
 async function copyClaimFile(file, paths) {
     if (!file.role) {
@@ -175,31 +267,28 @@ function safeFileName(value) {
     }
     return normalized;
 }
-async function readPrivateProfile(profileAssetName, workspace) {
-    const source = path.resolve(workspace.assetsDir, "private", profileAssetName);
-    await assertInside(path.join(workspace.assetsDir, "private"), source);
+async function readPrivateProfile(profileName, workspace) {
+    const normalized = normalizeProfileName(profileName);
+    const source = path.resolve(workspace.profilesDir, normalized);
+    await assertInside(workspace.profilesDir, source);
     const raw = await fs.readFile(source, "utf8");
-    const profile = JSON.parse(raw);
-    if (!profile || typeof profile !== "object" || Array.isArray(profile)) {
-        throw new Error("private profile asset must contain a JSON object");
-    }
-    return profile;
+    return parsePrivateProfileToml(raw, source);
 }
-function mergeClaim(base, override) {
-    return mergeObjects(base, override);
+async function listTomlFiles(dir) {
+    const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
+    return entries
+        .filter((entry) => entry.isFile() && entry.name.endsWith(".toml"))
+        .map((entry) => path.join(dir, entry.name))
+        .sort();
 }
-function mergeObjects(base, override) {
-    if (!isPlainObject(base) || !isPlainObject(override)) {
-        return override === undefined ? base : override;
+async function fileExists(filePath) {
+    try {
+        await fs.access(filePath);
+        return true;
     }
-    const merged = { ...base };
-    for (const [key, value] of Object.entries(override)) {
-        merged[key] = mergeObjects(merged[key], value);
+    catch {
+        return false;
     }
-    return merged;
-}
-function isPlainObject(value) {
-    return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 async function assertInside(root, target) {
     const rel = path.relative(path.resolve(root), path.resolve(target));
@@ -224,4 +313,26 @@ export function redactEmail(value) {
         return "[redacted-email]";
     }
     return `${local.slice(0, 2)}***@${domain}`;
+}
+function materializeClaim(privateProfile, storedClaim, claimId, profileName) {
+    return mergeClaims(privateProfile, {
+        ...storedClaim,
+        claimId: storedClaim.claimId || claimId,
+        ...(profileName ? { profileName } : {}),
+    });
+}
+function selectProfileName(claim, config) {
+    return normalizeOptionalProfileName(claim.profileName ?? config.activeProfileName);
+}
+function normalizeOptionalProfileName(value) {
+    return value ? normalizeProfileName(value) : undefined;
+}
+function normalizeProfileName(value) {
+    const raw = value.trim();
+    const withExtension = raw.endsWith(".toml") ? raw : `${raw}.toml`;
+    const baseName = path.basename(withExtension);
+    if (baseName !== withExtension || !/^[a-zA-Z0-9._-]+\.toml$/.test(baseName)) {
+        throw new Error("profileName must be a safe TOML file name under assets/private/profiles");
+    }
+    return baseName;
 }

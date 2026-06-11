@@ -24,6 +24,7 @@ export interface ClaimFile {
 export interface DBhopperClaim {
   version?: 1;
   claimId?: string;
+  profileName?: string;
   status?: string;
   claimant?: {
     salutation?: "MR" | "MS" | "DIVERS" | "FAMILY";
@@ -73,6 +74,9 @@ export interface PreparedClaim {
   claimId: string;
   claimDir: string;
   claimPath: string;
+  recipePath?: string;
+  profileName?: string;
+  storedClaim?: DBhopperClaim;
   claim: DBhopperClaim;
   copiedFiles: ClaimFile[];
 }
@@ -97,6 +101,7 @@ export interface DBhopperConfig {
   headless?: boolean;
   timeoutMs?: number;
   approvalMode?: "all" | "mutating" | "none";
+  activeProfileName?: string;
   dbClientId?: string;
   dbApiKey?: string;
   timetableBaseUrl?: string;

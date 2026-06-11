@@ -73,10 +73,11 @@ export function claimSchemaReference() {
       privateProfile:
         [
           "Store reusable sensitive claimant and bank data in",
-          "assets/private/*.json and pass only profileAssetName to",
-          "dbhopper_prepare_claim.",
+          "assets/private/profiles/*.toml and select it with profileName",
+          "or plugins.entries.dbhopper.config.activeProfileName.",
         ].join(" "),
       privateProfileShape: {
+        version: 1,
         claimant: {
           salutation: "FAMILY",
           firstName: "Maria",
@@ -110,22 +111,10 @@ export function claimSchemaReference() {
       ],
       formData: REQUIRED_BROWSER_FIELDS,
     },
-    claimShape: {
+    editableClaimTomlShape: {
       version: 1,
       claimId: "koeln-duesseldorf-2026-06-06-re6",
-      claimant: {
-        salutation: "MS",
-        firstName: "Maria",
-        lastName: "Mustermann",
-        email: "maria@example.org",
-        phone: "+4922112345678",
-        address: {
-          streetNumber: "Musterstrasse 1",
-          zip: "50667",
-          city: "Koeln",
-          country: "Deutschland",
-        },
-      },
+      profileName: "default",
       journey: {
         date: "2026-06-06",
         scheduledDepartureTime: "09:07",
@@ -148,15 +137,13 @@ export function claimSchemaReference() {
         companions: 0,
         description: "RE6 was delayed by at least 20 minutes at the starting station.",
       },
-      bank: {
-        accountOwner: "Maria Mustermann",
-        iban: "DE89370400440532013000",
-      },
       files: [
         { role: "base_ticket", path: "deutschlandticket.pdf" },
         { role: "substitute_receipt", path: "ice-ticket.pdf" },
       ],
     },
+    submittedRecipeShape:
+      "claim_submitted_recipe.toml joins editable claim.toml with the selected private profile after successful submit.",
   };
 }
 

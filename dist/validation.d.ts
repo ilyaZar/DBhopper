@@ -7,6 +7,7 @@ export declare function claimSchemaReference(): {
     requiredFacts: {
         privateProfile: string;
         privateProfileShape: {
+            version: number;
             claimant: {
                 salutation: string;
                 firstName: string;
@@ -29,22 +30,10 @@ export declare function claimSchemaReference(): {
         evidence: string[];
         formData: string[];
     };
-    claimShape: {
+    editableClaimTomlShape: {
         version: number;
         claimId: string;
-        claimant: {
-            salutation: string;
-            firstName: string;
-            lastName: string;
-            email: string;
-            phone: string;
-            address: {
-                streetNumber: string;
-                zip: string;
-                city: string;
-                country: string;
-            };
-        };
+        profileName: string;
         journey: {
             date: string;
             scheduledDepartureTime: string;
@@ -67,13 +56,10 @@ export declare function claimSchemaReference(): {
             companions: number;
             description: string;
         };
-        bank: {
-            accountOwner: string;
-            iban: string;
-        };
         files: {
             role: string;
             path: string;
         }[];
     };
+    submittedRecipeShape: string;
 };

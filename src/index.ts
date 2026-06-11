@@ -19,8 +19,7 @@ const configSchema = Type.Object(
     ),
     browserExecutablePath: Type.Optional(
       Type.String({
-        description:
-          "Optional Chromium or Chrome executable path for browser filing.",
+        description: "Optional Chromium or Chrome executable path for browser filing.",
       }),
     ),
     artifactRoot: Type.Optional(
@@ -51,6 +50,12 @@ const configSchema = Type.Object(
         default: "all",
         description:
           "Approval behavior. Defaults to all claim tools; use mutating for read-only claim tools without approval.",
+      }),
+    ),
+    activeProfileName: Type.Optional(
+      Type.String({
+        description:
+          "Default TOML profile under assets/private/profiles/ for claim operations.",
       }),
     ),
     dbClientId: Type.Optional(
@@ -134,7 +139,7 @@ const plugin = defineToolPlugin({
       name: "dbhopper_claim_schema",
       label: "DBhopper Claim Schema",
       description:
-        "Return NRW Mobilitätsgarantie claim facts, required evidence, and the DBhopper claim JSON shape.",
+        "Return NRW Mobilitätsgarantie claim facts, required evidence, and the DBhopper claim TOML shape.",
       parameters: Type.Object({}, { additionalProperties: false }),
     }),
     claimToolDefinition(tool, {
@@ -147,7 +152,7 @@ const plugin = defineToolPlugin({
       name: "dbhopper_prepare_claim",
       label: "DBhopper Prepare Claim",
       description:
-        "Create or replace a local claim folder, copy evidence files into it, and write claim.json.",
+        "Create or replace a local claim folder, copy evidence files into it, and write claim.toml.",
       parameters: prepareClaimParameters(),
     }),
     claimToolDefinition(tool, {
@@ -161,8 +166,7 @@ const plugin = defineToolPlugin({
           claim: Type.Optional(Type.Object({}, { additionalProperties: true })),
           now: Type.Optional(
             Type.String({
-              description:
-                "Optional ISO timestamp for tests. Defaults to current time.",
+              description: "Optional ISO timestamp for tests. Defaults to current time.",
             }),
           ),
         },
@@ -232,9 +236,7 @@ function claimToolDefinition(
     ...definition,
     optional: true,
     factory: ({ config }: { config: DBhopperConfig }) =>
-      createDBhopperTools(config).find(
-        (entry) => entry.name === definition.name,
-      ) ?? null,
+      createDBhopperTools(config).find((entry) => entry.name === definition.name) ?? null,
   });
 }
 
@@ -277,7 +279,13 @@ function prepareClaimParameters() {
       profileAssetName: Type.Optional(
         Type.String({
           description:
-            "Optional JSON profile under assets/private/ merged into claim data inside the plugin.",
+            "Deprecated alias for profileName. Selects a TOML profile under assets/private/profiles/.",
+        }),
+      ),
+      profileName: Type.Optional(
+        Type.String({
+          description:
+            "Optional TOML profile under assets/private/profiles/ merged in memory only.",
         }),
       ),
       claim: Type.Object({}, { additionalProperties: true }),
