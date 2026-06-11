@@ -126,12 +126,6 @@ const privateProfileSchema = object(
   ["claimant", "bank"],
 );
 
-const submittedRecipeSchema = object({
-  ...baseClaimFields,
-  claimant: claimantSchema,
-  bank: bankSchema,
-});
-
 export function parseClaimToml(text: string, source = "claim.toml") {
   return parseTomlDocument(text, claimFileSchema, source) as DBhopperClaim;
 }
@@ -140,20 +134,8 @@ export function parsePrivateProfileToml(text: string, source = "profile.toml") {
   return parseTomlDocument(text, privateProfileSchema, source) as DBhopperClaim;
 }
 
-export function parseSubmittedRecipeToml(text: string, source = "claim_submitted_recipe.toml") {
-  return parseTomlDocument(text, submittedRecipeSchema, source) as DBhopperClaim;
-}
-
 export function stringifyClaimToml(claim: DBhopperClaim) {
   return stringifyToml(stripPrivateClaimFields(claim));
-}
-
-export function stringifyPrivateProfileToml(profile: DBhopperClaim) {
-  return stringifyToml(pickDefined({
-    version: profile.version,
-    claimant: profile.claimant,
-    bank: profile.bank,
-  }));
 }
 
 export function stringifySubmittedRecipeToml(claim: DBhopperClaim) {
@@ -164,14 +146,7 @@ export function assertClaimTomlShape(claim: DBhopperClaim, source = "claim.toml"
   assertSchema(claim, claimFileSchema, source);
 }
 
-export function assertPrivateProfileTomlShape(
-  profile: DBhopperClaim,
-  source = "profile.toml",
-) {
-  assertSchema(profile, privateProfileSchema, source);
-}
-
-export function stripPrivateClaimFields(claim: DBhopperClaim): DBhopperClaim {
+function stripPrivateClaimFields(claim: DBhopperClaim): DBhopperClaim {
   const { claimant: _claimant, bank: _bank, ...rest } = claim;
   return rest;
 }
@@ -186,15 +161,10 @@ export function profileFieldsInClaim(claim: DBhopperClaim) {
 
 export function schemaValidationMessages(
   value: unknown,
-  kind: "claim" | "profile" | "recipe",
+  kind: "claim" | "profile",
   source: string,
 ): ValidationMessage[] {
-  const schema =
-    kind === "profile"
-      ? privateProfileSchema
-      : kind === "recipe"
-        ? submittedRecipeSchema
-        : claimFileSchema;
+  const schema = kind === "profile" ? privateProfileSchema : claimFileSchema;
   try {
     assertSchema(value, schema, source);
     return [];
@@ -345,10 +315,6 @@ function cleanForToml(value: unknown): any {
     cleaned[key] = cleanForToml(child);
   }
   return cleaned;
-}
-
-function pickDefined(value: DBhopperClaim): DBhopperClaim {
-  return cleanForToml(value);
 }
 
 function mergeObjects(base: unknown, override: unknown): unknown {

@@ -4,9 +4,7 @@ import assert from "node:assert/strict";
 import {
   buildDBhopperApprovalDescription,
   createDBhopperTools,
-  OPTIONAL_TOOL_NAMES,
   resolveApprovalToolNames,
-  SIDE_EFFECT_TOOL_NAMES,
 } from "../dist/tools.js";
 
 describe("dbhopper tools", () => {
@@ -24,14 +22,13 @@ describe("dbhopper tools", () => {
         "dbhopper_run_claim",
       ],
     );
-    assert.equal(OPTIONAL_TOOL_NAMES.has("dbhopper_run_claim"), true);
-    assert.equal(SIDE_EFFECT_TOOL_NAMES.has("dbhopper_validate_claim"), false);
-    assert.equal(SIDE_EFFECT_TOOL_NAMES.has("dbhopper_browser_probe"), false);
-    assert.equal(SIDE_EFFECT_TOOL_NAMES.has("dbhopper_prepare_claim"), true);
-    assert.equal(SIDE_EFFECT_TOOL_NAMES.has("dbhopper_run_claim"), true);
     assert.deepEqual(
       [...resolveApprovalToolNames({ approvalMode: "mutating" })],
-      [...SIDE_EFFECT_TOOL_NAMES],
+      ["dbhopper_prepare_claim", "dbhopper_run_claim"],
+    );
+    assert.equal(
+      resolveApprovalToolNames({ approvalMode: "mutating" }).has("dbhopper_validate_claim"),
+      false,
     );
     assert.deepEqual([...resolveApprovalToolNames({ approvalMode: "none" })], []);
   });

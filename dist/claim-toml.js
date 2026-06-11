@@ -77,29 +77,14 @@ const privateProfileSchema = object({
     claimant: claimantSchema,
     bank: bankSchema,
 }, ["claimant", "bank"]);
-const submittedRecipeSchema = object({
-    ...baseClaimFields,
-    claimant: claimantSchema,
-    bank: bankSchema,
-});
 export function parseClaimToml(text, source = "claim.toml") {
     return parseTomlDocument(text, claimFileSchema, source);
 }
 export function parsePrivateProfileToml(text, source = "profile.toml") {
     return parseTomlDocument(text, privateProfileSchema, source);
 }
-export function parseSubmittedRecipeToml(text, source = "claim_submitted_recipe.toml") {
-    return parseTomlDocument(text, submittedRecipeSchema, source);
-}
 export function stringifyClaimToml(claim) {
     return stringifyToml(stripPrivateClaimFields(claim));
-}
-export function stringifyPrivateProfileToml(profile) {
-    return stringifyToml(pickDefined({
-        version: profile.version,
-        claimant: profile.claimant,
-        bank: profile.bank,
-    }));
 }
 export function stringifySubmittedRecipeToml(claim) {
     return stringifyToml(claim);
@@ -107,10 +92,7 @@ export function stringifySubmittedRecipeToml(claim) {
 export function assertClaimTomlShape(claim, source = "claim.toml") {
     assertSchema(claim, claimFileSchema, source);
 }
-export function assertPrivateProfileTomlShape(profile, source = "profile.toml") {
-    assertSchema(profile, privateProfileSchema, source);
-}
-export function stripPrivateClaimFields(claim) {
+function stripPrivateClaimFields(claim) {
     const { claimant: _claimant, bank: _bank, ...rest } = claim;
     return rest;
 }
@@ -121,11 +103,7 @@ export function profileFieldsInClaim(claim) {
     return ["claimant", "bank"].filter((field) => field in claim);
 }
 export function schemaValidationMessages(value, kind, source) {
-    const schema = kind === "profile"
-        ? privateProfileSchema
-        : kind === "recipe"
-            ? submittedRecipeSchema
-            : claimFileSchema;
+    const schema = kind === "profile" ? privateProfileSchema : claimFileSchema;
     try {
         assertSchema(value, schema, source);
         return [];
@@ -259,9 +237,6 @@ function cleanForToml(value) {
         cleaned[key] = cleanForToml(child);
     }
     return cleaned;
-}
-function pickDefined(value) {
-    return cleanForToml(value);
 }
 function mergeObjects(base, override) {
     if (!isPlainObject(base) || !isPlainObject(override)) {

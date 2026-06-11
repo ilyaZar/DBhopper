@@ -1,11 +1,11 @@
 import { probeBrowser, runBrowserClaim } from "./browser.js";
 import { claimSchemaReference, validateClaim } from "./validation.js";
 import { claimPaths, listClaims, prepareClaim, readClaim, redactEmail, validateWorkspaceTomlFiles, writeSubmittedRecipe, } from "./workspace.js";
-export const SIDE_EFFECT_TOOL_NAMES = new Set([
+const SIDE_EFFECT_TOOL_NAMES = new Set([
     "dbhopper_prepare_claim",
     "dbhopper_run_claim",
 ]);
-export const OPTIONAL_TOOL_NAMES = new Set([
+const CLAIM_TOOL_NAMES = new Set([
     "dbhopper_claim_schema",
     "dbhopper_list_claims",
     "dbhopper_prepare_claim",
@@ -13,7 +13,6 @@ export const OPTIONAL_TOOL_NAMES = new Set([
     "dbhopper_browser_probe",
     "dbhopper_run_claim",
 ]);
-export const APPROVAL_TOOL_NAMES = new Set(OPTIONAL_TOOL_NAMES);
 export function resolveApprovalToolNames(config = {}) {
     const mode = config.approvalMode || "all";
     if (mode === "none") {
@@ -22,7 +21,7 @@ export function resolveApprovalToolNames(config = {}) {
     if (mode === "mutating") {
         return new Set(SIDE_EFFECT_TOOL_NAMES);
     }
-    return new Set(APPROVAL_TOOL_NAMES);
+    return new Set(CLAIM_TOOL_NAMES);
 }
 export function buildDBhopperApprovalDescription({ toolName, params = {}, }) {
     const lines = [

@@ -1,13 +1,9 @@
 import type { DBhopperClaim, ValidationMessage } from "./types.js";
 export declare function parseClaimToml(text: string, source?: string): DBhopperClaim;
 export declare function parsePrivateProfileToml(text: string, source?: string): DBhopperClaim;
-export declare function parseSubmittedRecipeToml(text: string, source?: string): DBhopperClaim;
 export declare function stringifyClaimToml(claim: DBhopperClaim): string;
-export declare function stringifyPrivateProfileToml(profile: DBhopperClaim): string;
 export declare function stringifySubmittedRecipeToml(claim: DBhopperClaim): string;
 export declare function assertClaimTomlShape(claim: DBhopperClaim, source?: string): void;
-export declare function assertPrivateProfileTomlShape(profile: DBhopperClaim, source?: string): void;
-export declare function stripPrivateClaimFields(claim: DBhopperClaim): DBhopperClaim;
 export declare function mergeClaims(base: DBhopperClaim, override: DBhopperClaim): DBhopperClaim;
 export declare function profileFieldsInClaim(claim: DBhopperClaim): string[];
-export declare function schemaValidationMessages(value: unknown, kind: "claim" | "profile" | "recipe", source: string): ValidationMessage[];
+export declare function schemaValidationMessages(value: unknown, kind: "claim" | "profile", source: string): ValidationMessage[];
