@@ -12,9 +12,12 @@ claims/*
 !claims/.gitkeep
 assets/private/*
 !assets/private/.gitkeep
+!assets/private/settings.example.toml
 !assets/private/profiles/
 assets/private/profiles/*
 !assets/private/profiles/.gitkeep
-!assets/private/profiles/private-profile.example.toml
+!assets/private/credentials/
+assets/private/credentials/*
+!assets/private/credentials/.gitkeep
 tmp/*
 !tmp/.gitkeep

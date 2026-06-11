@@ -1,0 +1,173 @@
+import { type BrowserAccessParams } from "./access-browser.js";
+import type { DBhopperConfig } from "./types.js";
+export interface DbMarketplaceAccessCheckParams extends BrowserAccessParams {
+    credentials_profile?: string;
+    stay_logged_in?: boolean;
+    allow_bahn_account_fallback?: boolean;
+}
+export declare function runDbMarketplaceAccessCheck(params: DbMarketplaceAccessCheckParams, config?: DBhopperConfig, signal?: AbortSignal): Promise<{
+    ok: boolean;
+    operation: string;
+    needsUserAction: boolean;
+    message: string;
+    credentials: {
+        configured: boolean;
+        credentialsName: undefined;
+        hasDbApiCredentials: boolean;
+        hasDbApiAccountCredentials: boolean;
+        hasBahnAccountCredentials: boolean;
+        hasBrowserUserDataDir: boolean;
+        credentialsId?: undefined;
+    } | {
+        configured: boolean;
+        credentialsName: string;
+        credentialsId: string | undefined;
+        hasDbApiCredentials: boolean;
+        hasDbApiAccountCredentials: boolean;
+        hasBahnAccountCredentials: boolean;
+        hasBrowserUserDataDir: boolean;
+    };
+    appCreated: boolean;
+    subscriptionChanged: boolean;
+    accessPath?: undefined;
+    startUrl?: undefined;
+    productUrl?: undefined;
+    credentialModel?: undefined;
+    credentialSubmission?: undefined;
+    login?: undefined;
+    loginPageState?: undefined;
+    productPageState?: undefined;
+    reachable?: undefined;
+    browser?: undefined;
+    artifactDir?: undefined;
+    artifacts?: undefined;
+    termsAccepted?: undefined;
+} | {
+    ok: boolean;
+    operation: string;
+    accessPath: string;
+    startUrl: string;
+    productUrl: string;
+    credentials: {
+        configured: boolean;
+        credentialsName: undefined;
+        hasDbApiCredentials: boolean;
+        hasDbApiAccountCredentials: boolean;
+        hasBahnAccountCredentials: boolean;
+        hasBrowserUserDataDir: boolean;
+        credentialsId?: undefined;
+    } | {
+        configured: boolean;
+        credentialsName: string;
+        credentialsId: string | undefined;
+        hasDbApiCredentials: boolean;
+        hasDbApiAccountCredentials: boolean;
+        hasBahnAccountCredentials: boolean;
+        hasBrowserUserDataDir: boolean;
+    };
+    credentialModel: {
+        apiKeyCredentialsPresent: boolean;
+        schemaSufficientForBrowserLogin: boolean;
+        browserLoginCredentialSource: string;
+        fallbackAllowed: boolean;
+        fallbackAvailable: boolean;
+        fallbackUsed: boolean;
+        schemaRecommendation: string | undefined;
+        credentialsForSubmission: {
+            username?: string;
+            password?: string;
+        };
+    };
+    credentialSubmission: {
+        selectedCredentialsSubmitted: boolean;
+        proof: string;
+    };
+    login: import("./db-login.js").DBAccountLoginResult | {
+        requested: false;
+        message: string;
+    };
+    loginPageState: {
+        title: string;
+        url: {
+            origin: string;
+            pathname: string;
+        };
+        flags: {
+            hasLoginText: boolean;
+            hasLogoutText: boolean;
+            hasAccountText: boolean;
+            hasMarketplaceText: boolean;
+            hasPasswordField: boolean;
+            hasUserActionText: boolean;
+            hasErrorText: boolean;
+        };
+    };
+    productPageState: {
+        title: string;
+        url: {
+            origin: string;
+            pathname: string;
+        };
+        flags: {
+            hasLoginText: boolean;
+            hasLogoutText: boolean;
+            hasAccountText: boolean;
+            hasMarketplaceText: boolean;
+            hasPasswordField: boolean;
+            hasUserActionText: boolean;
+            hasErrorText: boolean;
+        };
+    };
+    reachable: {
+        loginPage: boolean;
+        timetablesProductPage: boolean;
+    };
+    browser: {
+        executablePath: string;
+        userDataDir: string;
+    };
+    artifactDir: string | undefined;
+    artifacts: string[];
+    needsUserAction: boolean;
+    appCreated: boolean;
+    subscriptionChanged: boolean;
+    termsAccepted: boolean;
+    message?: undefined;
+} | {
+    ok: boolean;
+    operation: string;
+    accessPath: string;
+    credentials: {
+        configured: boolean;
+        credentialsName: undefined;
+        hasDbApiCredentials: boolean;
+        hasDbApiAccountCredentials: boolean;
+        hasBahnAccountCredentials: boolean;
+        hasBrowserUserDataDir: boolean;
+        credentialsId?: undefined;
+    } | {
+        configured: boolean;
+        credentialsName: string;
+        credentialsId: string | undefined;
+        hasDbApiCredentials: boolean;
+        hasDbApiAccountCredentials: boolean;
+        hasBahnAccountCredentials: boolean;
+        hasBrowserUserDataDir: boolean;
+    };
+    message: string;
+    artifactDir: string | undefined;
+    artifacts: string[];
+    needsUserAction: boolean;
+    appCreated: boolean;
+    subscriptionChanged: boolean;
+    termsAccepted: boolean;
+    startUrl?: undefined;
+    productUrl?: undefined;
+    credentialModel?: undefined;
+    credentialSubmission?: undefined;
+    login?: undefined;
+    loginPageState?: undefined;
+    productPageState?: undefined;
+    reachable?: undefined;
+    browser?: undefined;
+}>;

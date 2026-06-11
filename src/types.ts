@@ -22,6 +22,7 @@ export interface ClaimFile {
 }
 
 export interface DBhopperClaim {
+  ID_PRF?: string;
   version?: 1;
   claimId?: string;
   profileName?: string;
@@ -102,12 +103,13 @@ export interface DBhopperConfig {
   timeoutMs?: number;
   approvalMode?: "all" | "mutating" | "none";
   activeProfileName?: string;
+  activeCredentialsName?: string;
   dbClientId?: string;
   dbApiKey?: string;
   timetableBaseUrl?: string;
   delayProvider?: "auto" | "db-timetables" | "bahn-web";
   bahnWebBaseUrl?: string;
-  bahnWebTransport?: "auto" | "fetch" | "curl";
+  bahnWebTransport?: "auto" | "fetch" | "curl" | "browser";
   requestTimeoutMs?: number;
   delayLookbackMinutes?: number;
   timeZone?: string;

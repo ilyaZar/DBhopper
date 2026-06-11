@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { resolveBrowserExecutablePath } from "./browser.js";
 import { DEFAULT_TIME_ZONE, localDateTimeToUtc, normalizeStationName, stationMatches, } from "./db-delay.js";
 export const BAHN_WEB_SOURCE_API = "bahn-web";
 export const DEFAULT_BAHN_WEB_BASE_URL = "https://int.bahn.de/web/api";
@@ -25,7 +26,8 @@ export const BAHN_WEB_RESEARCH_SUMMARY = {
     fallbackBaseUrl: BAHN_WEB_FALLBACK_BASE_URL,
     limitations: [
         "The endpoint is not the DB API Marketplace product and can change without notice.",
-        "DB's edge may block Node fetch/HTTPS clients with OPS_BLOCKED; DBhopper uses curl as a deterministic transport fallback.",
+        "DB's edge may block direct HTTP clients with OPS_BLOCKED; DBhopper can fall back to curl and Playwright page-context JSON fetch.",
+        "If direct HTTP transports are blocked, browser transport uses Playwright page-context fetch and still parses JSON deterministically.",
         "The station-board path is used as route evidence, so stop-level realtime data beyond the boarding station is limited.",
     ],
 };
@@ -93,7 +95,9 @@ async function fetchBahnWebJson(path, params, options) {
 async function fetchJsonByTransport(url, transport, options) {
     const result = transport === "curl"
         ? await fetchTextWithCurl(url, options)
-        : await fetchTextWithFetch(url, options);
+        : transport === "browser"
+            ? await fetchTextWithBrowser(url, options)
+            : await fetchTextWithFetch(url, options);
     if (result.status < 200 || result.status >= 300) {
         throw new Error(`HTTP ${result.status}: ${result.body.slice(0, 200).replace(/\s+/g, " ")}`);
     }
@@ -167,6 +171,35 @@ async function fetchTextWithCurl(url, options) {
     }
     return { status, body };
 }
+async function fetchTextWithBrowser(url, options) {
+    const timeoutMs = options.requestTimeoutMs ?? DEFAULT_BAHN_WEB_REQUEST_TIMEOUT_MS;
+    const { chromium } = await import("playwright-core");
+    const browser = await chromium.launch({
+        executablePath: await resolveBrowserExecutablePath(options),
+        headless: options.headless !== false,
+        args: ["--disable-dev-shm-usage"],
+    });
+    const page = await browser.newPage({ locale: "de-DE" });
+    try {
+        const origin = new URL(options.baseUrl).origin;
+        await page.goto(origin, {
+            waitUntil: "domcontentloaded",
+            timeout: timeoutMs,
+        });
+        return await page.evaluate(async ({ targetUrl }) => {
+            const response = await fetch(targetUrl, {
+                headers: { accept: "application/json" },
+            });
+            return {
+                status: response.status,
+                body: await response.text(),
+            };
+        }, { targetUrl: url });
+    }
+    finally {
+        await browser.close().catch(() => undefined);
+    }
+}
 function requestHeaders(baseUrl) {
     return {
         ...BAHN_WEB_HEADERS,
@@ -181,7 +214,10 @@ function resolveTransports(transport) {
     if (selected === "curl") {
         return ["curl"];
     }
-    return ["fetch", "curl"];
+    if (selected === "browser") {
+        return ["browser"];
+    }
+    return ["fetch", "curl", "browser"];
 }
 function resolveBahnWebBaseUrls(options) {
     const configured = options.bahnWebBaseUrl?.trim();

@@ -1,7 +1,11 @@
 import { Type } from "typebox";
 import { defineToolPlugin } from "openclaw/plugin-sdk/tool-plugin";
 
+import { createAccessToolDefinitions } from "./access-tools.js";
+import { createCredentialsToolDefinitions } from "./credentials-tools.js";
 import { createDbDelayToolDefinitions } from "./db-delay-tools.js";
+import { createPrivateSettingsToolDefinitions } from "./private-settings-tools.js";
+import { createTicketBuyingToolDefinitions } from "./ticket-buying.js";
 import {
   buildDBhopperApprovalDescription,
   createDBhopperTools,
@@ -58,6 +62,12 @@ const configSchema = Type.Object(
           "Default TOML profile under assets/private/profiles/ for claim operations.",
       }),
     ),
+    activeCredentialsName: Type.Optional(
+      Type.String({
+        description:
+          "Default TOML credentials file under assets/private/credentials/.",
+      }),
+    ),
     dbClientId: Type.Optional(
       Type.String({
         description:
@@ -97,10 +107,11 @@ const configSchema = Type.Object(
         Type.Literal("auto"),
         Type.Literal("fetch"),
         Type.Literal("curl"),
+        Type.Literal("browser"),
       ], {
         default: "auto",
         description:
-          "bahn-web HTTP transport. auto tries native fetch, then curl.",
+          "bahn-web transport. auto tries native fetch, curl, then browser fetch.",
       }),
     ),
     requestTimeoutMs: Type.Optional(
@@ -211,7 +222,11 @@ const plugin = defineToolPlugin({
         { additionalProperties: false },
       ),
     }),
+    ...createPrivateSettingsToolDefinitions(tool),
+    ...createCredentialsToolDefinitions(tool),
+    ...createAccessToolDefinitions(tool),
     ...createDbDelayToolDefinitions(tool),
+    ...createTicketBuyingToolDefinitions(tool),
   ],
 }) as any;
 

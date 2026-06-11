@@ -13,6 +13,11 @@ import {
   stringifyClaimToml,
   stringifySubmittedRecipeToml,
 } from "./claim-toml.js";
+import {
+  configuredProfilesDir,
+  privateSettingsStatus,
+  resolveSelectedProfileFile,
+} from "./private-settings.js";
 
 export interface FileInput {
   role: ClaimFileRole;
@@ -55,7 +60,7 @@ export async function ensureWorkspace(config: DBhopperConfig = {}): Promise<Work
   const workspace = resolveWorkspace(config);
   await fs.mkdir(workspace.claimsDir, { recursive: true });
   await fs.mkdir(workspace.assetsDir, { recursive: true });
-  await fs.mkdir(workspace.profilesDir, { recursive: true });
+  await fs.mkdir(await configuredProfilesDir(config), { recursive: true });
   return workspace;
 }
 
@@ -90,17 +95,25 @@ export async function readClaim(claimId: string, config: DBhopperConfig = {}): P
   const paths = claimPaths(claimId, config);
   const raw = await fs.readFile(paths.claimPath, "utf8");
   const storedClaim = parseClaimToml(raw, paths.claimPath);
-  const profileName = selectProfileName(storedClaim, config);
-  const privateProfile = profileName
-    ? await readPrivateProfile(profileName, paths.workspace)
+  const profileSelection = await resolveProfileSelection(
+    requestedProfileName(storedClaim, config),
+    config,
+  );
+  const privateProfile = profileSelection
+    ? await readPrivateProfile(profileSelection)
     : {};
-  const claim = materializeClaim(privateProfile, storedClaim, paths.claimId, profileName);
+  const claim = materializeClaim(
+    privateProfile,
+    storedClaim,
+    paths.claimId,
+    profileSelection?.profileName,
+  );
   return {
     claimId: paths.claimId,
     claimDir: paths.claimDir,
     claimPath: paths.claimPath,
     recipePath: paths.recipePath,
-    profileName,
+    profileName: profileSelection?.profileName,
     storedClaim,
     claim,
     copiedFiles: claim.files || [],
@@ -123,15 +136,23 @@ export async function listClaims(config: DBhopperConfig = {}) {
     try {
       const raw = await fs.readFile(claimPath, "utf8");
       const storedClaim = parseClaimToml(raw, claimPath);
-      const profileName = selectProfileName(storedClaim, config);
-      const privateProfile = profileName
-        ? await readPrivateProfile(profileName, workspace)
+      const profileSelection = await resolveProfileSelection(
+        requestedProfileName(storedClaim, config),
+        config,
+      );
+      const privateProfile = profileSelection
+        ? await readPrivateProfile(profileSelection)
         : {};
-      const claim = materializeClaim(privateProfile, storedClaim, entry.name, profileName);
+      const claim = materializeClaim(
+        privateProfile,
+        storedClaim,
+        entry.name,
+        profileSelection?.profileName,
+      );
       claims.push({
         claimId: entry.name,
         status: claim.status || "draft",
-        profileName,
+        profileName: profileSelection?.profileName,
         journey: claim.journey,
         claimant: redactClaimant(claim.claimant),
         fileCount: claim.files?.length || 0,
@@ -168,11 +189,13 @@ export async function prepareClaim(
     );
   }
 
-  const profileName = normalizeOptionalProfileName(
-    params.profileName ?? incoming.profileName ?? config.activeProfileName,
+  const explicitProfileName = params.profileName ?? incoming.profileName ?? config.activeProfileName;
+  const profileSelection = await resolveProfileSelection(
+    normalizeOptionalProfileName(explicitProfileName),
+    config,
   );
-  const privateProfile = profileName
-    ? await readPrivateProfile(profileName, workspace)
+  const privateProfile = profileSelection
+    ? await readPrivateProfile(profileSelection)
     : {};
   const claimId = normalizeClaimId(params.claimId || incoming.claimId);
   const claimDir = path.join(workspace.claimsDir, claimId);
@@ -201,12 +224,19 @@ export async function prepareClaim(
     ...incoming,
     version: 1,
     claimId,
-    ...(profileName ? { profileName } : {}),
+    ...(explicitProfileName && profileSelection?.profileName
+      ? { profileName: profileSelection.profileName }
+      : {}),
     status: incoming.status || "draft",
     files: [...existingFiles, ...copiedFiles],
   };
   assertClaimTomlShape(storedClaim, claimPath);
-  const claim = materializeClaim(privateProfile, storedClaim, claimId, profileName);
+  const claim = materializeClaim(
+    privateProfile,
+    storedClaim,
+    claimId,
+    profileSelection?.profileName,
+  );
 
   await fs.writeFile(`${claimPath}.tmp`, stringifyClaimToml(storedClaim), "utf8");
   await fs.rename(`${claimPath}.tmp`, claimPath);
@@ -216,7 +246,7 @@ export async function prepareClaim(
     claimDir,
     claimPath,
     recipePath,
-    profileName,
+    profileName: profileSelection?.profileName,
     storedClaim,
     claim,
     copiedFiles,
@@ -229,18 +259,21 @@ export async function recordClaimArtifact(
   config: DBhopperConfig = {},
 ) {
   const prepared = await readClaim(claimId, config);
-  const workspace = resolveWorkspace(config);
   const storedClaim: DBhopperClaim = {
     ...(prepared.storedClaim || {}),
     files: [...(prepared.storedClaim?.files || []), file],
   };
   assertClaimTomlShape(storedClaim, prepared.claimPath);
   await fs.writeFile(prepared.claimPath, stringifyClaimToml(storedClaim), "utf8");
+  const profileSelection = await resolveProfileSelection(
+    requestedProfileName(storedClaim, config),
+    config,
+  );
   return materializeClaim(
-    prepared.profileName ? await readPrivateProfile(prepared.profileName, workspace) : {},
+    profileSelection ? await readPrivateProfile(profileSelection) : {},
     storedClaim,
     prepared.claimId,
-    prepared.profileName,
+    profileSelection?.profileName,
   );
 }
 
@@ -259,9 +292,14 @@ export async function writeSubmittedRecipe(prepared: PreparedClaim) {
 
 export async function validateWorkspaceTomlFiles(config: DBhopperConfig = {}) {
   const workspace = await ensureWorkspace(config);
+  const profileDir = await configuredProfilesDir(config);
   const messages = [];
+  const settingsStatus = await privateSettingsStatus(config);
+  if (settingsStatus.settings.exists) {
+    messages.push(...settingsStatus.messages);
+  }
 
-  for (const profilePath of await listTomlFiles(workspace.profilesDir)) {
+  for (const profilePath of await listTomlFiles(profileDir)) {
     try {
       const parsed = parsePrivateProfileToml(
         await fs.readFile(profilePath, "utf8"),
@@ -291,9 +329,12 @@ export async function validateWorkspaceTomlFiles(config: DBhopperConfig = {}) {
     try {
       const parsed = parseClaimToml(await fs.readFile(claimPath, "utf8"), claimPath);
       messages.push(...schemaValidationMessages(parsed, "claim", claimPath));
-      const profileName = selectProfileName(parsed, config);
-      if (profileName) {
-        await readPrivateProfile(profileName, workspace);
+      const profileSelection = await resolveProfileSelection(
+        requestedProfileName(parsed, config),
+        config,
+      );
+      if (profileSelection) {
+        await readPrivateProfile(profileSelection);
       }
     } catch (error) {
       messages.push({
@@ -356,12 +397,45 @@ function safeFileName(value: string) {
   return normalized;
 }
 
-async function readPrivateProfile(profileName: string, workspace: WorkspacePaths) {
-  const normalized = normalizeProfileName(profileName);
-  const source = path.resolve(workspace.profilesDir, normalized);
-  await assertInside(workspace.profilesDir, source);
-  const raw = await fs.readFile(source, "utf8");
-  return parsePrivateProfileToml(raw, source);
+interface ProfileSelection {
+  profileName: string;
+  profileId?: string;
+  profilePath: string;
+  profileDir: string;
+}
+
+async function resolveProfileSelection(
+  profileName: string | undefined,
+  config: DBhopperConfig,
+): Promise<ProfileSelection | undefined> {
+  const profileDir = await configuredProfilesDir(config);
+  if (profileName) {
+    const normalized = normalizeProfileName(profileName);
+    const profilePath = path.resolve(profileDir, normalized);
+    await assertInside(profileDir, profilePath);
+    return {
+      profileName: normalized,
+      profilePath,
+      profileDir,
+    };
+  }
+
+  const selected = await resolveSelectedProfileFile(config);
+  if (!selected) {
+    return undefined;
+  }
+  return {
+    profileName: selected.file.fileName,
+    profileId: selected.file.id,
+    profilePath: selected.file.filePath,
+    profileDir: selected.settings.profilesDir,
+  };
+}
+
+async function readPrivateProfile(selection: ProfileSelection) {
+  await assertInside(selection.profileDir, selection.profilePath);
+  const raw = await fs.readFile(selection.profilePath, "utf8");
+  return stripProfileRoutingFields(parsePrivateProfileToml(raw, selection.profilePath));
 }
 
 async function listTomlFiles(dir: string) {
@@ -421,7 +495,7 @@ function materializeClaim(
   });
 }
 
-function selectProfileName(claim: DBhopperClaim, config: DBhopperConfig) {
+function requestedProfileName(claim: DBhopperClaim, config: DBhopperConfig) {
   return normalizeOptionalProfileName(claim.profileName ?? config.activeProfileName);
 }
 
@@ -437,4 +511,9 @@ function normalizeProfileName(value: string) {
     throw new Error("profileName must be a safe TOML file name under assets/private/profiles");
   }
   return baseName;
+}
+
+function stripProfileRoutingFields(profile: DBhopperClaim): DBhopperClaim {
+  const { ID_PRF: _ID_PRF, ...rest } = profile;
+  return rest;
 }

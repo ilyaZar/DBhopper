@@ -20,8 +20,17 @@ describe("dbhopper package metadata", () => {
       "dbhopper_validate_claim",
       "dbhopper_browser_probe",
       "dbhopper_run_claim",
+      "dbhopper_private_settings_status",
+      "dbhopper_private_settings_select",
+      "dbhopper_credentials_validate",
+      "dbhopper_db_standard_login_check",
+      "dbhopper_db_marketplace_access_check",
+      "dbhopper_db_api_credential_probe",
       "dbhopper_db_delay_research",
       "dbhopper_query_db_delay",
+      "dbhopper_ticket_buying_research",
+      "dbhopper_ticket_buying_dry_run",
+      "dbhopper_ticket_checkout_dry_run",
     ]);
     for (const toolName of manifest.contracts.tools) {
       assert.equal(manifest.toolMetadata[toolName].optional, true);
@@ -32,8 +41,18 @@ describe("dbhopper package metadata", () => {
     const pkg = JSON.parse(await fs.readFile("package.json", "utf8"));
     assert.ok(pkg.files.includes("claims/.gitkeep"));
     assert.ok(pkg.files.includes("assets/private/.gitkeep"));
+    assert.ok(pkg.files.includes("assets/private/settings.example.toml"));
+    assert.ok(pkg.files.includes("assets/private/credentials/.gitkeep"));
     assert.ok(pkg.files.includes("assets/private/profiles/.gitkeep"));
-    assert.ok(pkg.files.includes("assets/private/profiles/private-profile.example.toml"));
+    assert.ok(pkg.files.includes("docs/"));
+    assert.equal(
+      pkg.files.includes("assets/private/credentials/credentials.example.toml"),
+      false,
+    );
+    assert.equal(
+      pkg.files.includes("assets/private/profiles/private-profile.example.toml"),
+      false,
+    );
     assert.equal(pkg.files.includes("claims/"), false);
     assert.equal(pkg.files.includes("tmp/"), false);
   });

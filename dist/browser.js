@@ -131,17 +131,23 @@ export async function runBrowserClaim(params) {
         await browser?.close();
     }
 }
-async function launchBrowser(config) {
+export async function launchBrowser(config) {
     const { chromium } = await import("playwright-core");
-    const executablePath = config.browserExecutablePath || process.env.DBHOPPER_BROWSER_EXECUTABLE || (await findChromium());
-    if (!executablePath) {
-        throw new Error("browserExecutablePath is required when Playwright has no bundled browser");
-    }
+    const executablePath = await resolveBrowserExecutablePath(config);
     return chromium.launch({
         executablePath,
         headless: config.headless !== false,
         args: ["--disable-dev-shm-usage"],
     });
+}
+export async function resolveBrowserExecutablePath(config) {
+    const executablePath = config.browserExecutablePath ||
+        process.env.DBHOPPER_BROWSER_EXECUTABLE ||
+        (await findChromium());
+    if (!executablePath) {
+        throw new Error("browserExecutablePath is required when Playwright has no bundled browser");
+    }
+    return executablePath;
 }
 async function findChromium() {
     const candidates = [

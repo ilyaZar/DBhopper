@@ -15,13 +15,28 @@ openclaw plugins enable dbhopper
 ```
 
 Configure `plugins.entries.dbhopper.config.workspaceRoot` to this plugin
-directory. Put reusable private profile data under
-`assets/private/profiles/*.toml` and select it with `profileName` or
-`plugins.entries.dbhopper.config.activeProfileName`.
+directory. Route private profiles and credentials through
+`assets/private/settings.toml`. Start from
+`assets/private/settings.example.toml`:
 
-Start from the example profile at
-`assets/private/profiles/private-profile.example.toml` and copy it to
-`assets/private/profiles/default.toml`. Keep real profiles private.
+```toml
+ID_CRED = "01"
+ID_PRF = "01"
+PATH_CRED = "assets/private/credentials"
+PATH_PRF = "assets/private/profiles"
+```
+
+The `PATH_*` values may point to the plugin-private folders or to external
+directories. The OpenClaw agent should only change `ID_CRED` and `ID_PRF` via
+the DBhopper settings tools.
+
+Start from the safe templates under `docs/examples/`. Copy
+`docs/examples/private-profile.example.toml` to
+`assets/private/profiles/private-profile-01.toml` and copy
+`docs/examples/credentials.example.toml` to
+`assets/private/credentials/credentials-01.toml`. Keep real profiles and
+credentials private. DBhopper returns only credential presence flags, not
+credential values.
 
 Prepared claims are editable TOML files at `claims/<claim-id>/claim.toml`.
 They store claim-specific journey, ticket, file, and selected profile data, but
@@ -32,8 +47,9 @@ full joined audit recipe.
 
 Deutsche Bahn delay lookup supports two providers:
 
-- `auto`, the default, uses DB Timetables when credentials exist and otherwise
-  falls back to `bahn-web`.
+- `auto`, the default, uses DB Timetables when credentials exist and falls back
+  to `bahn-web` when credentials are missing or Timetables returns an
+  authentication failure.
 - `db-timetables` uses the official DB API Marketplace Timetables product.
 - `bahn-web` uses the passenger website JSON endpoint without Marketplace
   credentials. This endpoint is unofficial and may change or block clients.
@@ -51,10 +67,21 @@ export DB_CLIENT_ID=...
 export DB_API_KEY=...
 ```
 
-The `bahn-web` provider tries native `fetch` first and then `curl` when using
-`bahnWebTransport: "auto"`. This is intentional: live checks showed DB's edge
-can reject Node's HTTPS client with `OPS_BLOCKED` while accepting browser-like
-curl requests.
+The `bahn-web` provider tries native `fetch`, `curl`, and then Playwright
+page-context JSON fetch when using `bahnWebTransport: "auto"`. This is
+intentional: live checks showed DB's edge can reject direct HTTP clients with
+`OPS_BLOCKED` while accepting same-origin browser-context requests.
+
+Access onboarding tools can verify the selected DB website login, DB API
+Marketplace browser reachability, and DB Timetables API key validity without
+returning secrets. A saved browser session is not treated as proof that the
+currently selected credentials work.
+
+Ticket-buying support is WIP and testing-only. `dbhopper_ticket_buying_dry_run`
+stops after search/results. `dbhopper_ticket_checkout_dry_run` can explore
+offer/customer-data steps as far as safely possible and must stop before
+payment data or any legally binding final order button. See
+`docs/ticket-buying-wip.md`.
 
 ## Tools
 
@@ -64,8 +91,17 @@ curl requests.
 - `dbhopper_validate_claim`
 - `dbhopper_browser_probe`
 - `dbhopper_run_claim`
+- `dbhopper_private_settings_status`
+- `dbhopper_private_settings_select`
+- `dbhopper_credentials_validate`
+- `dbhopper_db_standard_login_check`
+- `dbhopper_db_marketplace_access_check`
+- `dbhopper_db_api_credential_probe`
 - `dbhopper_db_delay_research`
 - `dbhopper_query_db_delay`
+- `dbhopper_ticket_buying_research`
+- `dbhopper_ticket_buying_dry_run`
+- `dbhopper_ticket_checkout_dry_run`
 
 `dbhopper_run_claim` defaults to dry-run behavior and only submits with explicit
 confirmation.
@@ -99,6 +135,10 @@ contains deterministic, display-ready route candidates, while
 `cleaned_summary` contains candidate counts and reachability booleans. Agents
 should not clean raw DB or website payloads with the LLM; raw provider rows are
 only returned when `include_raw` is true.
+
+Local `claims/*` and `assets/private/*` files are ignored runtime data. Legacy
+`claim.json` files are not used by the current code path and are not packaged;
+newly prepared claims are written as `claim.toml`.
 
 ## Troubleshooting
 

@@ -75,6 +75,10 @@
         "type": "string",
         "description": "Default TOML profile under assets/private/profiles/ for claim operations."
       },
+      "activeCredentialsName": {
+        "type": "string",
+        "description": "Default TOML credentials file under assets/private/credentials/."
+      },
       "dbClientId": {
         "type": "string",
         "description": "DB API Marketplace Client ID. Can also be supplied as DB_CLIENT_ID."
@@ -122,10 +126,14 @@
           {
             "type": "string",
             "const": "curl"
+          },
+          {
+            "type": "string",
+            "const": "browser"
           }
         ],
         "default": "auto",
-        "description": "bahn-web HTTP transport. auto tries native fetch, then curl."
+        "description": "bahn-web transport. auto tries native fetch, curl, then browser fetch."
       },
       "requestTimeoutMs": {
         "type": "number",
@@ -155,8 +163,17 @@
       "dbhopper_validate_claim",
       "dbhopper_browser_probe",
       "dbhopper_run_claim",
+      "dbhopper_private_settings_status",
+      "dbhopper_private_settings_select",
+      "dbhopper_credentials_validate",
+      "dbhopper_db_standard_login_check",
+      "dbhopper_db_marketplace_access_check",
+      "dbhopper_db_api_credential_probe",
       "dbhopper_db_delay_research",
-      "dbhopper_query_db_delay"
+      "dbhopper_query_db_delay",
+      "dbhopper_ticket_buying_research",
+      "dbhopper_ticket_buying_dry_run",
+      "dbhopper_ticket_checkout_dry_run"
     ]
   },
   "toolMetadata": {
@@ -178,10 +195,37 @@
     "dbhopper_run_claim": {
       "optional": true
     },
+    "dbhopper_private_settings_status": {
+      "optional": true
+    },
+    "dbhopper_private_settings_select": {
+      "optional": true
+    },
+    "dbhopper_credentials_validate": {
+      "optional": true
+    },
+    "dbhopper_db_standard_login_check": {
+      "optional": true
+    },
+    "dbhopper_db_marketplace_access_check": {
+      "optional": true
+    },
+    "dbhopper_db_api_credential_probe": {
+      "optional": true
+    },
     "dbhopper_db_delay_research": {
       "optional": true
     },
     "dbhopper_query_db_delay": {
+      "optional": true
+    },
+    "dbhopper_ticket_buying_research": {
+      "optional": true
+    },
+    "dbhopper_ticket_buying_dry_run": {
+      "optional": true
+    },
+    "dbhopper_ticket_checkout_dry_run": {
       "optional": true
     }
   }

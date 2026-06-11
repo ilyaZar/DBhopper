@@ -1,6 +1,6 @@
 ---
 name: dbhopper
-description: Prepare and file NRW Mobilitätsgarantie claims with the DBhopper plugin.
+description: Prepare and file NRW claims with DBhopper.
 license: MIT-0
 ---
 
@@ -16,10 +16,15 @@ North Rhine-Westphalia.
 2. Configure `plugins.entries.dbhopper.config.workspaceRoot`.
 3. Keep real tickets, receipts, screenshots, IBANs, and claim PDFs in the local
    DBhopper `claims/` or `assets/private/` folders, not in chat.
-4. Put reusable sensitive personal data in
-   `assets/private/profiles/*.toml` and select it with `profileName` or
-   `activeProfileName`; do not read that file into the conversation.
-5. Browser-run artifacts are saved under the plugin `tmp/` directory. Inspect
+4. Route private profiles and credentials through
+   `assets/private/settings.toml`. Use `dbhopper_private_settings_status` to
+   list IDs and `dbhopper_private_settings_select` to change only `ID_CRED` and
+   `ID_PRF`.
+5. Put reusable sensitive personal data in private profile TOML files selected
+   by `ID_PRF`; do not read those files into the conversation.
+6. Put DB API and DB website credentials in private credential TOML files
+   selected by `ID_CRED`; do not read those files into the conversation.
+7. Browser-run artifacts are saved under the plugin `tmp/` directory. Inspect
    screenshots there before asking for real submission.
 
 ## Workflow
@@ -41,6 +46,14 @@ North Rhine-Westphalia.
    back through the active user channel. If a configured email tool is
    available and the user asked for email delivery, send the same PDF by email
    from that tool.
+8. Use `dbhopper_db_standard_login_check`,
+   `dbhopper_db_marketplace_access_check`, and
+   `dbhopper_db_api_credential_probe` for one-time credential onboarding
+   diagnostics without printing secrets.
+9. For replacement-ticket experiments, call
+   `dbhopper_ticket_buying_dry_run` for search/results only or
+   `dbhopper_ticket_checkout_dry_run` to explore checkout boundaries. These
+   tools must not buy a ticket.
 
 ## Guardrails
 
@@ -55,7 +68,11 @@ North Rhine-Westphalia.
   form's private `/api/public/complaint/create` endpoint.
 - Do not inspect `claim.toml` or private profile files unless the user asks.
   Treat claim data and browser artifacts as sensitive by default.
+- Do not inspect credential TOML files unless the user explicitly asks. Use
+  `dbhopper_credentials_validate` for shape checks without exposing secrets.
+- Do not change `PATH_CRED` or `PATH_PRF`; those paths are user-owned settings.
 - If the live site asks for unexpected manual confirmation, captcha, changed
   fields, or unavailable route choices, stop and report the saved artifact path.
+- Do not click final booking or payment controls in the ticket-buying flow.
 - DBhopper does not own WhatsApp, Signal, Telegram, or email credentials. Use
   the configured OpenClaw channel/message tools for delivery.

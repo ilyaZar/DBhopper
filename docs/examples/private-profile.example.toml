@@ -1,10 +1,11 @@
 version = 1
+ID_PRF = "01"
 
 [claimant]
 salutation = "FAMILY"
 firstName = "Maria"
 lastName = "Mustermann"
-email = "maria@example.org"
+email = "maria.mustermann@example.org"
 phone = "+4922112345678"
 
 [claimant.address]
@@ -15,4 +16,4 @@ country = "Deutschland"
 
 [bank]
 accountOwner = "Maria Mustermann"
-iban = "DE12 1234 5678 9101 1121 31"
+iban = "DE89370400440532013000"

@@ -73,6 +73,7 @@ const baseClaimFields = {
 };
 const claimFileSchema = object(baseClaimFields);
 const privateProfileSchema = object({
+    ID_PRF: string(),
     version: constant(1),
     claimant: claimantSchema,
     bank: bankSchema,
@@ -81,7 +82,11 @@ export function parseClaimToml(text, source = "claim.toml") {
     return parseTomlDocument(text, claimFileSchema, source);
 }
 export function parsePrivateProfileToml(text, source = "profile.toml") {
-    return parseTomlDocument(text, privateProfileSchema, source);
+    const parsed = parseTomlDocument(text, privateProfileSchema, source);
+    if (parsed.ID_PRF && !/^\d{2,}$/.test(parsed.ID_PRF)) {
+        throw new Error(`${source}.ID_PRF must be a quoted numeric ID like "01"`);
+    }
+    return parsed;
 }
 export function stringifyClaimToml(claim) {
     return stringifyToml(stripPrivateClaimFields(claim));

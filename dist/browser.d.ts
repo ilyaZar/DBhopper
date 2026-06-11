@@ -1,3 +1,4 @@
+import type { Browser } from "playwright-core";
 import type { DBhopperClaim, DBhopperConfig } from "./types.js";
 export interface BrowserRunParams {
     claim: DBhopperClaim;
@@ -34,3 +35,5 @@ export declare function probeBrowser(config?: DBhopperConfig): Promise<{
     }[];
 }>;
 export declare function runBrowserClaim(params: BrowserRunParams): Promise<BrowserRunResult>;
+export declare function launchBrowser(config: DBhopperConfig | BrowserRunParams): Promise<Browser>;
+export declare function resolveBrowserExecutablePath(config: DBhopperConfig | BrowserRunParams): Promise<string>;

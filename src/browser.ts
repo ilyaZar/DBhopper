@@ -172,18 +172,27 @@ export async function runBrowserClaim(params: BrowserRunParams): Promise<Browser
   }
 }
 
-async function launchBrowser(config: DBhopperConfig | BrowserRunParams): Promise<Browser> {
+export async function launchBrowser(config: DBhopperConfig | BrowserRunParams): Promise<Browser> {
   const { chromium } = await import("playwright-core");
-  const executablePath =
-    config.browserExecutablePath || process.env.DBHOPPER_BROWSER_EXECUTABLE || (await findChromium());
-  if (!executablePath) {
-    throw new Error("browserExecutablePath is required when Playwright has no bundled browser");
-  }
+  const executablePath = await resolveBrowserExecutablePath(config);
   return chromium.launch({
     executablePath,
     headless: config.headless !== false,
     args: ["--disable-dev-shm-usage"],
   });
+}
+
+export async function resolveBrowserExecutablePath(
+  config: DBhopperConfig | BrowserRunParams,
+) {
+  const executablePath =
+    config.browserExecutablePath ||
+    process.env.DBHOPPER_BROWSER_EXECUTABLE ||
+    (await findChromium());
+  if (!executablePath) {
+    throw new Error("browserExecutablePath is required when Playwright has no bundled browser");
+  }
+  return executablePath;
 }
 
 async function findChromium() {
