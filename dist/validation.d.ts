@@ -56,7 +56,7 @@ export declare function claimSchemaReference(): {
             replacementStartedAt: string;
             usedDelayedVehicle: boolean;
             usedIdenticalLocalAlternative: boolean;
-            excludedReasons: any[];
+            excludedReasons: never[];
         };
         ticket: {
             baseTicketName: string;

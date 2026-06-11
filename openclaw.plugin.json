@@ -1,7 +1,7 @@
 {
   "id": "dbhopper",
   "name": "DBhopper",
-  "description": "NRW Mobilitätsgarantie claim workspace and guarded browser filing tools.",
+  "description": "NRW Mobilitätsgarantie claim tools and Deutsche Bahn delay-query tools.",
   "version": "0.1.0",
   "activation": {
     "onStartup": true
@@ -9,36 +9,6 @@
   "skills": [
     "./skills"
   ],
-  "contracts": {
-    "tools": [
-      "dbhopper_claim_schema",
-      "dbhopper_list_claims",
-      "dbhopper_prepare_claim",
-      "dbhopper_validate_claim",
-      "dbhopper_browser_probe",
-      "dbhopper_run_claim"
-    ]
-  },
-  "toolMetadata": {
-    "dbhopper_claim_schema": {
-      "optional": true
-    },
-    "dbhopper_list_claims": {
-      "optional": true
-    },
-    "dbhopper_prepare_claim": {
-      "optional": true
-    },
-    "dbhopper_validate_claim": {
-      "optional": true
-    },
-    "dbhopper_browser_probe": {
-      "optional": true
-    },
-    "dbhopper_run_claim": {
-      "optional": true
-    }
-  },
   "uiHints": {
     "workspaceRoot": {
       "label": "Workspace Root",
@@ -59,7 +29,6 @@
   },
   "configSchema": {
     "type": "object",
-    "additionalProperties": false,
     "properties": {
       "workspaceRoot": {
         "type": "string",
@@ -79,17 +48,137 @@
         "description": "Whether browser filing runs headless by default."
       },
       "timeoutMs": {
-        "type": "integer",
+        "type": "number",
         "minimum": 10000,
         "maximum": 600000,
         "description": "Maximum runtime for one browser filing operation."
       },
       "approvalMode": {
-        "type": "string",
-        "enum": ["all", "mutating", "none"],
+        "anyOf": [
+          {
+            "type": "string",
+            "const": "all"
+          },
+          {
+            "type": "string",
+            "const": "mutating"
+          },
+          {
+            "type": "string",
+            "const": "none"
+          }
+        ],
         "default": "all",
-        "description": "Approval behavior. Defaults to all tools; use mutating for read-only schema/list/validate/probe without approval."
+        "description": "Approval behavior. Defaults to all claim tools; use mutating for read-only claim tools without approval."
+      },
+      "dbClientId": {
+        "type": "string",
+        "description": "DB API Marketplace Client ID. Can also be supplied as DB_CLIENT_ID."
+      },
+      "dbApiKey": {
+        "type": "string",
+        "description": "DB API Marketplace Client Secret/API key. Can also be supplied as DB_API_KEY."
+      },
+      "timetableBaseUrl": {
+        "type": "string",
+        "description": "Optional DB Timetables API base URL override."
+      },
+      "delayProvider": {
+        "anyOf": [
+          {
+            "type": "string",
+            "const": "auto"
+          },
+          {
+            "type": "string",
+            "const": "db-timetables"
+          },
+          {
+            "type": "string",
+            "const": "bahn-web"
+          }
+        ],
+        "default": "auto",
+        "description": "Delay provider. auto uses DB Timetables when credentials exist, otherwise bahn-web."
+      },
+      "bahnWebBaseUrl": {
+        "type": "string",
+        "description": "Optional bahn-web base URL override, restricted to https://int.bahn.de/web/api or https://www.bahn.de/web/api."
+      },
+      "bahnWebTransport": {
+        "anyOf": [
+          {
+            "type": "string",
+            "const": "auto"
+          },
+          {
+            "type": "string",
+            "const": "fetch"
+          },
+          {
+            "type": "string",
+            "const": "curl"
+          }
+        ],
+        "default": "auto",
+        "description": "bahn-web HTTP transport. auto tries native fetch, then curl."
+      },
+      "requestTimeoutMs": {
+        "type": "number",
+        "minimum": 1000,
+        "maximum": 120000,
+        "description": "Maximum runtime for one DB delay HTTP request."
+      },
+      "delayLookbackMinutes": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 720,
+        "description": "Extra planned-board lookback used to catch delayed trains scheduled before the lower bound."
+      },
+      "timeZone": {
+        "type": "string",
+        "default": "Europe/Berlin",
+        "description": "Default IANA timezone for local delay-query times."
       }
+    },
+    "additionalProperties": false
+  },
+  "contracts": {
+    "tools": [
+      "dbhopper_claim_schema",
+      "dbhopper_list_claims",
+      "dbhopper_prepare_claim",
+      "dbhopper_validate_claim",
+      "dbhopper_browser_probe",
+      "dbhopper_run_claim",
+      "dbhopper_db_delay_research",
+      "dbhopper_query_db_delay"
+    ]
+  },
+  "toolMetadata": {
+    "dbhopper_claim_schema": {
+      "optional": true
+    },
+    "dbhopper_list_claims": {
+      "optional": true
+    },
+    "dbhopper_prepare_claim": {
+      "optional": true
+    },
+    "dbhopper_validate_claim": {
+      "optional": true
+    },
+    "dbhopper_browser_probe": {
+      "optional": true
+    },
+    "dbhopper_run_claim": {
+      "optional": true
+    },
+    "dbhopper_db_delay_research": {
+      "optional": true
+    },
+    "dbhopper_query_db_delay": {
+      "optional": true
     }
   }
 }

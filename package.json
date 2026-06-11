@@ -1,8 +1,16 @@
 {
   "name": "dbhopper",
   "version": "0.1.0",
-  "description": "OpenClaw tools for NRW Mobilitätsgarantie claim workspaces and guarded browser filing",
+  "description": "OpenClaw tools for NRW Mobilitätsgarantie claims and DB delay queries",
   "license": "MIT",
+  "homepage": "https://github.com/ilyaZar/dbhopper#readme",
+  "bugs": {
+    "url": "https://github.com/ilyaZar/dbhopper/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ilyaZar/dbhopper.git"
+  },
   "type": "module",
   "engines": {
     "node": ">=22"
@@ -22,19 +30,25 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "plugin:build": "npm run build && openclaw plugins build --entry ./dist/index.js",
+    "plugin:validate": "npm run build && openclaw plugins validate --root . --entry ./dist/index.js",
+    "clawhub:validate": "clawhub package validate .",
+    "clawhub:publish:dry-run": "clawhub package publish . --family code-plugin --dry-run",
     "package:check": "node --test test/package.test.js",
     "pretest": "npm run build",
     "test": "node --test"
   },
   "dependencies": {
-    "playwright-core": "1.59.1"
+    "fast-xml-parser": "^5.8.0",
+    "playwright-core": "1.59.1",
+    "typebox": "^1.1.39"
   },
   "devDependencies": {
     "@types/node": "^25.0.0",
     "typescript": "^5.9.0"
   },
   "peerDependencies": {
-    "openclaw": ">=2026.5.3-beta.3"
+    "openclaw": ">=2026.5.17"
   },
   "peerDependenciesMeta": {
     "openclaw": {
@@ -46,12 +60,12 @@
       "./dist/index.js"
     ],
     "compat": {
-      "pluginApi": ">=2026.5.3-beta.3",
-      "minGatewayVersion": "2026.5.3-beta.3"
+      "pluginApi": ">=2026.5.17",
+      "minGatewayVersion": "2026.5.17"
     },
     "build": {
-      "openclawVersion": "2026.5.3-beta.3",
-      "pluginSdkVersion": "2026.5.3-beta.3"
+      "openclawVersion": "2026.6.2",
+      "pluginSdkVersion": "2026.6.2"
     },
     "release": {
       "publishToClawHub": true,

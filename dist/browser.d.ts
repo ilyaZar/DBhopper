@@ -26,9 +26,9 @@ export declare function probeBrowser(config?: DBhopperConfig): Promise<{
     title: string;
     controls: {
         tag: string;
-        id: string;
-        name: string;
-        type: string;
+        id: string | undefined;
+        name: string | undefined;
+        type: string | undefined;
         text: string;
         visible: boolean;
     }[];

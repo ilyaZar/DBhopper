@@ -79,4 +79,13 @@ export interface DBhopperConfig {
     headless?: boolean;
     timeoutMs?: number;
     approvalMode?: "all" | "mutating" | "none";
+    dbClientId?: string;
+    dbApiKey?: string;
+    timetableBaseUrl?: string;
+    delayProvider?: "auto" | "db-timetables" | "bahn-web";
+    bahnWebBaseUrl?: string;
+    bahnWebTransport?: "auto" | "fetch" | "curl";
+    requestTimeoutMs?: number;
+    delayLookbackMinutes?: number;
+    timeZone?: string;
 }

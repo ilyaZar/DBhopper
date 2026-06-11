@@ -18,6 +18,8 @@ describe("dbhopper package metadata", () => {
       "dbhopper_validate_claim",
       "dbhopper_browser_probe",
       "dbhopper_run_claim",
+      "dbhopper_db_delay_research",
+      "dbhopper_query_db_delay",
     ]);
     for (const toolName of manifest.contracts.tools) {
       assert.equal(manifest.toolMetadata[toolName].optional, true);

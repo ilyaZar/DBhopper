@@ -29,7 +29,37 @@ export declare function claimPaths(claimId: string, config?: DBhopperConfig): {
     claimPath: string;
 };
 export declare function readClaim(claimId: string, config?: DBhopperConfig): Promise<PreparedClaim>;
-export declare function listClaims(config?: DBhopperConfig): Promise<any[]>;
+export declare function listClaims(config?: DBhopperConfig): Promise<({
+    claimId: string;
+    status: string;
+    journey: {
+        date?: string;
+        scheduledDepartureTime?: string;
+        startStation?: string;
+        endStation?: string;
+        plannedLine?: string;
+        plannedTrainLabel?: string;
+        delayMinutes?: number;
+        disruptionType?: import("./types.js").DisruptionType;
+        replacementStartedAt?: string;
+        usedDelayedVehicle?: boolean;
+        usedIdenticalLocalAlternative?: boolean;
+        excludedReasons?: string[];
+    } | undefined;
+    claimant: {
+        salutation: "MR" | "MS" | "DIVERS" | "FAMILY" | undefined;
+        firstName: string | undefined;
+        lastName: string | undefined;
+        email: string | undefined;
+    } | undefined;
+    fileCount: number;
+} | {
+    claimId: string;
+    status: string;
+    fileCount: number;
+    journey?: undefined;
+    claimant?: undefined;
+})[]>;
 export declare function prepareClaim(params: PrepareClaimParams, config?: DBhopperConfig): Promise<PreparedClaim>;
 export declare function recordClaimArtifact(claimId: string, file: ClaimFile, config?: DBhopperConfig): Promise<DBhopperClaim>;
 export declare function resolveClaimFilePath(claimDir: string, value: string): Promise<string>;

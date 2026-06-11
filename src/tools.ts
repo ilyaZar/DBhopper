@@ -94,7 +94,7 @@ function schemaTool() {
     description:
       "Return NRW Mobilitätsgarantie claim facts, required evidence, and the DBhopper claim JSON shape.",
     parameters: objectSchema({}),
-    async execute() {
+    async execute(this: { config: DBhopperConfig }) {
       return textResult({
         ok: true,
         operation: "claim_schema",
@@ -120,7 +120,7 @@ function listClaimsTool() {
     label: "DBhopper List Claims",
     description: "List local DBhopper claims with personal fields redacted.",
     parameters: objectSchema({}),
-    async execute() {
+    async execute(this: { config: DBhopperConfig }) {
       return textResult({
         ok: true,
         operation: "list_claims",
@@ -175,7 +175,11 @@ function prepareClaimTool() {
       },
       ["confirm", "claim"],
     ),
-    async execute(_toolCallId: string, params: PrepareClaimParams) {
+    async execute(
+      this: { config: DBhopperConfig },
+      _toolCallId: string,
+      params: PrepareClaimParams,
+    ) {
       try {
         const prepared = await prepareClaim(params || {}, this.config);
         return textResult({
@@ -208,7 +212,11 @@ function validateClaimTool() {
         description: "Optional ISO timestamp for tests. Defaults to current time.",
       },
     }),
-    async execute(_toolCallId: string, params: { claimId?: string; claim?: DBhopperClaim; now?: string }) {
+    async execute(
+      this: { config: DBhopperConfig },
+      _toolCallId: string,
+      params: { claimId?: string; claim?: DBhopperClaim; now?: string },
+    ) {
       try {
         const claim = params?.claimId
           ? (await readClaim(params.claimId, this.config)).claim
@@ -234,7 +242,7 @@ function browserProbeTool() {
     description:
       "Open the NRW Mobilitätsgarantie form and report whether the browser automation surface is reachable.",
     parameters: objectSchema({}),
-    async execute() {
+    async execute(this: { config: DBhopperConfig }) {
       try {
         return textResult({
           ok: true,
@@ -275,6 +283,7 @@ function runClaimTool() {
       ["confirm", "claimId"],
     ),
     async execute(
+      this: { config: DBhopperConfig },
       _toolCallId: string,
       params: {
         confirm?: boolean;
