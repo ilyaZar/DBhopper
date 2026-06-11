@@ -11,7 +11,6 @@ export interface PrepareClaimParams {
     claimId?: string;
     claim?: DBhopperClaim;
     profileName?: string;
-    profileAssetName?: string;
     files?: FileInput[];
     overwrite?: boolean;
 }

@@ -117,7 +117,7 @@ export async function prepareClaim(params, config = {}) {
             "store claimant and bank data in assets/private/profiles/*.toml",
         ].join("; "));
     }
-    const profileName = normalizeOptionalProfileName(params.profileName ?? params.profileAssetName ?? incoming.profileName ?? config.activeProfileName);
+    const profileName = normalizeOptionalProfileName(params.profileName ?? incoming.profileName ?? config.activeProfileName);
     const privateProfile = profileName
         ? await readPrivateProfile(profileName, workspace)
         : {};

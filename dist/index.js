@@ -181,9 +181,6 @@ function prepareClaimParameters() {
         }),
         claimId: Type.Optional(Type.String()),
         overwrite: Type.Optional(Type.Boolean()),
-        profileAssetName: Type.Optional(Type.String({
-            description: "Deprecated alias for profileName. Selects a TOML profile under assets/private/profiles/.",
-        })),
         profileName: Type.Optional(Type.String({
             description: "Optional TOML profile under assets/private/profiles/ merged in memory only.",
         })),

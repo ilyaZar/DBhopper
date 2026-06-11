@@ -27,7 +27,6 @@ export interface PrepareClaimParams {
   claimId?: string;
   claim?: DBhopperClaim;
   profileName?: string;
-  profileAssetName?: string;
   files?: FileInput[];
   overwrite?: boolean;
 }
@@ -170,7 +169,7 @@ export async function prepareClaim(
   }
 
   const profileName = normalizeOptionalProfileName(
-    params.profileName ?? params.profileAssetName ?? incoming.profileName ?? config.activeProfileName,
+    params.profileName ?? incoming.profileName ?? config.activeProfileName,
   );
   const privateProfile = profileName
     ? await readPrivateProfile(profileName, workspace)

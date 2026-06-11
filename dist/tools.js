@@ -110,10 +110,6 @@ function prepareClaimTool() {
             confirm: confirmSchema,
             claimId: { type: "string" },
             overwrite: { type: "boolean" },
-            profileAssetName: {
-                type: "string",
-                description: "Deprecated alias for profileName. Selects a TOML profile under assets/private/profiles/.",
-            },
             profileName: {
                 type: "string",
                 description: "Optional TOML profile under assets/private/profiles/ merged in memory only.",
