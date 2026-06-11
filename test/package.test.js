@@ -34,7 +34,6 @@ describe("dbhopper package metadata", () => {
     assert.ok(pkg.files.includes("assets/private/.gitkeep"));
     assert.ok(pkg.files.includes("assets/private/profiles/.gitkeep"));
     assert.ok(pkg.files.includes("assets/private/profiles/private-profile.example.toml"));
-    assert.ok(pkg.files.includes("specs/"));
     assert.equal(pkg.files.includes("claims/"), false);
     assert.equal(pkg.files.includes("tmp/"), false);
   });

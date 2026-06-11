@@ -115,5 +115,3 @@ npm run plugin:validate
 npm test
 npm run package:check
 ```
-
-The next design notes live in [specs/next.md](specs/next.md).
