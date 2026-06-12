@@ -25,7 +25,6 @@ export interface PrivateIdFile {
   id: string;
   fileName: string;
   filePath: string;
-  implicitId?: boolean;
 }
 
 const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -274,21 +273,6 @@ async function listIdFiles(dir: string, idField: "ID_CRED" | "ID_PRF") {
     try {
       const parsed = parseIdDocument(await fs.readFile(filePath, "utf8"), filePath);
       if (!(idField in parsed)) {
-        const implicitId = implicitExampleId(entry.name, idField);
-        if (implicitId) {
-          items.push({
-            id: implicitId,
-            fileName: entry.name,
-            filePath,
-            implicitId: true,
-          });
-          messages.push({
-            code: "implicit_private_id",
-            message: `${filePath}.${idField} is missing, using implicit ID ${implicitId}`,
-            severity: "info",
-          });
-          continue;
-        }
         messages.push({
           code: "unrouted_private_toml",
           message: `${filePath}.${idField} is missing, so this file is not selectable by ID`,
@@ -367,16 +351,6 @@ function duplicateIds(items: PrivateIdFile[]) {
     seen.add(item.id);
   }
   return [...duplicates.values()];
-}
-
-function implicitExampleId(fileName: string, idField: "ID_CRED" | "ID_PRF") {
-  if (idField === "ID_CRED" && fileName === "credentials.example.toml") {
-    return DEFAULT_ID;
-  }
-  if (idField === "ID_PRF" && fileName === "private-profile.example.toml") {
-    return DEFAULT_ID;
-  }
-  return undefined;
 }
 
 function parseIdDocument(text: string, source: string) {

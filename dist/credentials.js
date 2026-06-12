@@ -1,33 +1,13 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { parse } from "smol-toml";
-import { configuredCredentialsDir, readPrivateSettings, resolveSelectedCredentialFile, } from "./private-settings.js";
+import { readPrivateSettings, resolveSelectedCredentialFile, } from "./private-settings.js";
 import { resolveWorkspace } from "./workspace.js";
 const CREDENTIALS_DIR = path.join("assets", "private", "credentials");
 export function credentialsDir(config = {}) {
     return path.join(resolveWorkspace(config).root, CREDENTIALS_DIR);
 }
-export function normalizeCredentialsName(value) {
-    const raw = value.trim();
-    const withExtension = raw.endsWith(".toml") ? raw : `${raw}.toml`;
-    const baseName = path.basename(withExtension);
-    if (baseName !== withExtension || !/^[a-zA-Z0-9._-]+\.toml$/.test(baseName)) {
-        throw new Error("credentialsProfile must be a safe TOML file name");
-    }
-    return baseName;
-}
-export async function readCredentialsProfile(credentialsProfile, config = {}) {
-    const credentialsName = normalizeCredentialsName(credentialsProfile);
-    const credentialsPath = path.join(await configuredCredentialsDir(config), credentialsName);
-    const raw = await fs.readFile(credentialsPath, "utf8");
-    const credentials = parseCredentialsToml(raw, credentialsPath);
-    return { credentialsName, credentialsPath, credentialsId: credentials.ID_CRED, credentials };
-}
-export async function readSelectedCredentialsProfile(config = {}, credentialsProfile) {
-    const selected = credentialsProfile ?? config.activeCredentialsName;
-    if (selected) {
-        return readCredentialsProfile(selected, config);
-    }
+export async function readSelectedCredentialsProfile(config = {}) {
     const resolved = await resolveSelectedCredentialFile(config);
     if (!resolved) {
         return undefined;
@@ -71,13 +51,14 @@ export async function validateCredentialsFiles(config = {}) {
     };
 }
 export function applyCredentialsToConfig(config, loaded) {
-    if (!loaded?.credentials.dbApi) {
-        return config;
+    const { dbClientId: _dbClientId, dbApiKey: _dbApiKey, ...baseConfig } = config;
+    if (!loaded?.credentials.bahnAPI) {
+        return baseConfig;
     }
     return {
-        ...config,
-        dbClientId: loaded.credentials.dbApi.clientId ?? config.dbClientId,
-        dbApiKey: loaded.credentials.dbApi.apiKey ?? config.dbApiKey,
+        ...baseConfig,
+        dbClientId: loaded.credentials.bahnAPI.clientId,
+        dbApiKey: loaded.credentials.bahnAPI.apiKey,
     };
 }
 export function credentialsSummary(loaded) {
@@ -85,9 +66,9 @@ export function credentialsSummary(loaded) {
         return {
             configured: false,
             credentialsName: undefined,
-            hasDbApiCredentials: false,
-            hasDbApiAccountCredentials: false,
+            hasBahnAPICredentials: false,
             hasBahnAccountCredentials: false,
+            hasBahnAccountAPICredentials: false,
             hasBrowserUserDataDir: false,
         };
     }
@@ -95,11 +76,11 @@ export function credentialsSummary(loaded) {
         configured: true,
         credentialsName: loaded.credentialsName,
         credentialsId: loaded.credentialsId,
-        hasDbApiCredentials: Boolean(loaded.credentials.dbApi?.clientId && loaded.credentials.dbApi?.apiKey),
-        hasDbApiAccountCredentials: Boolean(loaded.credentials.dbApi?.accountUsername &&
-            loaded.credentials.dbApi?.accountPassword),
+        hasBahnAPICredentials: Boolean(loaded.credentials.bahnAPI?.clientId && loaded.credentials.bahnAPI?.apiKey),
         hasBahnAccountCredentials: Boolean(loaded.credentials.bahnAccount?.username &&
             loaded.credentials.bahnAccount?.password),
+        hasBahnAccountAPICredentials: Boolean(loaded.credentials.bahnAccountAPI?.username &&
+            loaded.credentials.bahnAccountAPI?.password),
         hasBrowserUserDataDir: Boolean(loaded.credentials.browser?.userDataDir),
     };
 }
@@ -118,13 +99,11 @@ function normalizeCredentials(credentials) {
     return {
         ...credentials,
         ...(credentials.ID_CRED ? { ID_CRED: credentials.ID_CRED.trim() } : {}),
-        ...(credentials.dbApi
+        ...(credentials.bahnAPI
             ? {
-                dbApi: {
-                    clientId: credentials.dbApi.clientId?.trim(),
-                    apiKey: credentials.dbApi.apiKey?.trim(),
-                    accountUsername: credentials.dbApi.accountUsername?.trim(),
-                    accountPassword: credentials.dbApi.accountPassword,
+                bahnAPI: {
+                    clientId: credentials.bahnAPI.clientId?.trim(),
+                    apiKey: credentials.bahnAPI.apiKey?.trim(),
                 },
             }
             : {}),
@@ -133,6 +112,14 @@ function normalizeCredentials(credentials) {
                 bahnAccount: {
                     username: credentials.bahnAccount.username?.trim(),
                     password: credentials.bahnAccount.password,
+                },
+            }
+            : {}),
+        ...(credentials.bahnAccountAPI
+            ? {
+                bahnAccountAPI: {
+                    username: credentials.bahnAccountAPI.username?.trim(),
+                    password: credentials.bahnAccountAPI.password,
                 },
             }
             : {}),
@@ -147,32 +134,34 @@ function normalizeCredentials(credentials) {
 }
 function assertCredentialsShape(value, source) {
     assertTable(value, source);
-    const allowed = new Set(["ID_CRED", "version", "dbApi", "bahnAccount", "browser"]);
+    const allowed = new Set([
+        "ID_CRED",
+        "version",
+        "bahnAPI",
+        "bahnAccount",
+        "bahnAccountAPI",
+        "browser",
+    ]);
     assertKnownKeys(value, allowed, source);
-    if ("ID_CRED" in value) {
-        const id = value.ID_CRED;
-        assertString(id, `${source}.ID_CRED`);
-        if (!/^\d{2,}$/.test(id)) {
-            throw new Error(`${source}.ID_CRED must be a quoted numeric ID like "01"`);
-        }
+    if (!("ID_CRED" in value)) {
+        throw new Error(`${source}.ID_CRED is required`);
+    }
+    const id = value.ID_CRED;
+    assertString(id, `${source}.ID_CRED`);
+    if (!/^\d{2,}$/.test(id)) {
+        throw new Error(`${source}.ID_CRED must be a quoted numeric ID like "01"`);
     }
     if ("version" in value && value.version !== 1) {
         throw new Error(`${source}.version must be 1`);
     }
-    if ("dbApi" in value) {
-        assertSection(value.dbApi, `${source}.dbApi`, [
+    if ("bahnAPI" in value) {
+        assertSection(value.bahnAPI, `${source}.bahnAPI`, [
             "clientId",
             "apiKey",
-            "accountUsername",
-            "accountPassword",
         ]);
-        if ("clientId" in value.dbApi || "apiKey" in value.dbApi) {
-            assertString(value.dbApi.clientId, `${source}.dbApi.clientId`);
-            assertString(value.dbApi.apiKey, `${source}.dbApi.apiKey`);
-        }
-        if ("accountUsername" in value.dbApi || "accountPassword" in value.dbApi) {
-            assertString(value.dbApi.accountUsername, `${source}.dbApi.accountUsername`);
-            assertString(value.dbApi.accountPassword, `${source}.dbApi.accountPassword`);
+        if ("clientId" in value.bahnAPI || "apiKey" in value.bahnAPI) {
+            assertString(value.bahnAPI.clientId, `${source}.bahnAPI.clientId`);
+            assertString(value.bahnAPI.apiKey, `${source}.bahnAPI.apiKey`);
         }
     }
     if ("bahnAccount" in value) {
@@ -182,6 +171,14 @@ function assertCredentialsShape(value, source) {
         ]);
         assertString(value.bahnAccount.username, `${source}.bahnAccount.username`);
         assertString(value.bahnAccount.password, `${source}.bahnAccount.password`);
+    }
+    if ("bahnAccountAPI" in value) {
+        assertSection(value.bahnAccountAPI, `${source}.bahnAccountAPI`, [
+            "username",
+            "password",
+        ]);
+        assertString(value.bahnAccountAPI.username, `${source}.bahnAccountAPI.username`);
+        assertString(value.bahnAccountAPI.password, `${source}.bahnAccountAPI.password`);
     }
     if ("browser" in value) {
         assertSection(value.browser, `${source}.browser`, ["userDataDir"]);

@@ -33,18 +33,6 @@ const configSchema = Type.Object({
         default: "all",
         description: "Approval behavior. Defaults to all claim tools; use mutating for read-only claim tools without approval.",
     })),
-    activeProfileName: Type.Optional(Type.String({
-        description: "Default TOML profile under assets/private/profiles/ for claim operations.",
-    })),
-    activeCredentialsName: Type.Optional(Type.String({
-        description: "Default TOML credentials file under assets/private/credentials/.",
-    })),
-    dbClientId: Type.Optional(Type.String({
-        description: "DB API Marketplace Client ID. Can also be supplied as DB_CLIENT_ID.",
-    })),
-    dbApiKey: Type.Optional(Type.String({
-        description: "DB API Marketplace Client Secret/API key. Can also be supplied as DB_API_KEY.",
-    })),
     timetableBaseUrl: Type.Optional(Type.String({
         description: "Optional DB Timetables API base URL override.",
     })),
@@ -193,9 +181,6 @@ function prepareClaimParameters() {
         }),
         claimId: Type.Optional(Type.String()),
         overwrite: Type.Optional(Type.Boolean()),
-        profileName: Type.Optional(Type.String({
-            description: "Optional TOML profile under assets/private/profiles/ merged in memory only.",
-        })),
         claim: Type.Object({}, { additionalProperties: true }),
         files: Type.Optional(Type.Array(Type.Object({
             role: Type.Union([

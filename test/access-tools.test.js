@@ -11,12 +11,14 @@ describe("dbhopper access diagnostics", () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-access-"));
     const credentialsDir = path.join(root, "assets", "private", "credentials");
     await fs.mkdir(credentialsDir, { recursive: true });
+    await writeSettings(root);
     await fs.writeFile(
-      path.join(credentialsDir, "default.toml"),
+      path.join(credentialsDir, "credentials-01.toml"),
       [
         "version = 1",
+        'ID_CRED = "01"',
         "",
-        "[dbApi]",
+        "[bahnAPI]",
         'clientId = "client-secret-value"',
         'apiKey = "api-secret-value"',
         "",
@@ -25,7 +27,7 @@ describe("dbhopper access diagnostics", () => {
     );
 
     const result = await runDbApiCredentialProbe(
-      { credentials_profile: "default" },
+      {},
       { workspaceRoot: root },
       { fetchImpl: fakeUnauthorizedFetch },
     );
@@ -54,5 +56,20 @@ async function fakeUnauthorizedFetch() {
       statusText: "Unauthorized",
       headers: { "content-type": "application/xml" },
     },
+  );
+}
+
+async function writeSettings(root) {
+  await fs.mkdir(path.join(root, "assets", "private"), { recursive: true });
+  await fs.writeFile(
+    path.join(root, "assets", "private", "settings.toml"),
+    [
+      'ID_CRED = "01"',
+      'ID_PRF = "01"',
+      'PATH_CRED = "assets/private/credentials"',
+      'PATH_PRF = "assets/private/profiles"',
+      "",
+    ].join("\n"),
+    "utf8",
   );
 }

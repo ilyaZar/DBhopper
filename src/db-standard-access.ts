@@ -16,7 +16,6 @@ import type { DBhopperConfig } from "./types.js";
 import { resolveWorkspace } from "./workspace.js";
 
 export interface DbStandardLoginCheckParams extends BrowserAccessParams {
-  credentials_profile?: string;
   stay_logged_in?: boolean;
 }
 
@@ -26,24 +25,23 @@ export async function runDbStandardLoginCheck(
   signal?: AbortSignal,
 ) {
   const artifacts: string[] = [];
-  const loadedCredentials = await readSelectedCredentialsProfile(
-    config,
-    params.credentials_profile,
-  );
-  if (!loadedCredentials) {
-    return {
-      ok: false,
-      operation: "db_standard_login_check",
-      needsUserAction: true,
-      message: "no selected credentials profile is configured",
-      credentials: credentialsSummary(loadedCredentials),
-      purchaseSubmitted: false,
-      registrationSubmitted: false,
-    };
-  }
-
+  let loadedCredentials: Awaited<ReturnType<typeof readSelectedCredentialsProfile>> =
+    undefined;
   let session: Awaited<ReturnType<typeof openCredentialBrowserSession>> | undefined;
   try {
+    loadedCredentials = await readSelectedCredentialsProfile(config);
+    if (!loadedCredentials) {
+      return {
+        ok: false,
+        operation: "db_standard_login_check",
+        needsUserAction: true,
+        message: "no selected credentials profile is configured",
+        credentials: credentialsSummary(loadedCredentials),
+        purchaseSubmitted: false,
+        registrationSubmitted: false,
+      };
+    }
+
     session = await openCredentialBrowserSession(
       params,
       config,

@@ -21,7 +21,6 @@ export const TICKET_BUYING_TOOL_NAMES = [
 ] as const;
 
 export interface TicketBuyingDryRunParams {
-  credentials_profile?: string;
   departure_station: string;
   arrival_station: string;
   service_date?: string;
@@ -35,7 +34,6 @@ export interface TicketBuyingDryRunParams {
 }
 
 export interface TicketCheckoutDryRunParams {
-  credentials_profile?: string;
   departure_station?: string;
   arrival_station?: string;
   service_date?: string;
@@ -143,12 +141,6 @@ export function createTicketBuyingToolDefinitions(tool: any) {
       optional: true,
       parameters: Type.Object(
         {
-          credentials_profile: Type.Optional(
-            Type.String({
-              description:
-                "Optional TOML credentials file under assets/private/credentials/.",
-            }),
-          ),
           departure_station: Type.String(),
           arrival_station: Type.String(),
           service_date: Type.Optional(Type.String()),
@@ -197,7 +189,6 @@ export function createTicketBuyingToolDefinitions(tool: any) {
       optional: true,
       parameters: Type.Object(
         {
-          credentials_profile: Type.Optional(Type.String()),
           departure_station: Type.Optional(Type.String({
             default: DEFAULT_CHECKOUT_DEPARTURE,
           })),
@@ -242,10 +233,7 @@ export async function runTicketBuyingDryRun(
   let stage = "credentials";
 
   try {
-    loadedCredentials = await readSelectedCredentialsProfile(
-      config,
-      params.credentials_profile,
-    );
+    loadedCredentials = await readCredentialsForTicketDryRun(params, config);
     stage = "plan";
     const plan = ticketBuyingPlan(
       params,
@@ -292,10 +280,7 @@ export async function runTicketCheckoutDryRun(
   let stage = "credentials";
 
   try {
-    loadedCredentials = await readSelectedCredentialsProfile(
-      config,
-      params.credentials_profile,
-    );
+    loadedCredentials = await readCredentialsForTicketDryRun(params, config);
     stage = "plan";
     const plan = ticketCheckoutPlan(
       params,
@@ -332,6 +317,16 @@ export async function runTicketCheckoutDryRun(
       research: TICKET_BUYING_RESEARCH_SUMMARY,
     };
   }
+}
+
+async function readCredentialsForTicketDryRun(
+  params: { open_browser?: boolean },
+  config: DBhopperConfig,
+) {
+  if (params.open_browser !== true) {
+    return undefined;
+  }
+  return readSelectedCredentialsProfile(config);
 }
 
 export function ticketBuyingPlan(params: TicketBuyingDryRunParams, userDataDir?: string) {
@@ -549,7 +544,6 @@ async function runBrowserTicketCheckout(
   try {
     const browserSession = await openTicketBrowserSession(
       {
-        credentials_profile: params.credentials_profile,
         departure_station: plan.target.departureStation,
         arrival_station: plan.target.arrivalStation,
         headless: params.headless,

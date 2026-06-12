@@ -65,7 +65,6 @@ const baseClaimFields = {
     version: constant(1),
     claimId: string(),
     status: string(),
-    profileName: string(),
     journey: journeySchema,
     ticket: ticketSchema,
     files: array(fileSchema),
@@ -77,7 +76,7 @@ const privateProfileSchema = object({
     version: constant(1),
     claimant: claimantSchema,
     bank: bankSchema,
-}, ["claimant", "bank"]);
+}, ["ID_PRF", "claimant", "bank"]);
 export function parseClaimToml(text, source = "claim.toml") {
     return parseTomlDocument(text, claimFileSchema, source);
 }

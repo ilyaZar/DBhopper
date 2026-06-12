@@ -41,7 +41,6 @@ describe("dbhopper package metadata", () => {
     const pkg = JSON.parse(await fs.readFile("package.json", "utf8"));
     assert.ok(pkg.files.includes("claims/.gitkeep"));
     assert.ok(pkg.files.includes("assets/private/.gitkeep"));
-    assert.ok(pkg.files.includes("assets/private/settings.example.toml"));
     assert.ok(pkg.files.includes("assets/private/credentials/.gitkeep"));
     assert.ok(pkg.files.includes("assets/private/profiles/.gitkeep"));
     assert.ok(pkg.files.includes("docs/"));
@@ -53,6 +52,7 @@ describe("dbhopper package metadata", () => {
       pkg.files.includes("assets/private/profiles/private-profile.example.toml"),
       false,
     );
+    assert.equal(pkg.files.includes("assets/private/settings.toml"), false);
     assert.equal(pkg.files.includes("claims/"), false);
     assert.equal(pkg.files.includes("tmp/"), false);
   });

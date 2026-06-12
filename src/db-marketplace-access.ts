@@ -17,9 +17,7 @@ import type { DBhopperConfig } from "./types.js";
 import { resolveWorkspace } from "./workspace.js";
 
 export interface DbMarketplaceAccessCheckParams extends BrowserAccessParams {
-  credentials_profile?: string;
   stay_logged_in?: boolean;
-  allow_bahn_account_fallback?: boolean;
 }
 
 export async function runDbMarketplaceAccessCheck(
@@ -28,24 +26,23 @@ export async function runDbMarketplaceAccessCheck(
   signal?: AbortSignal,
 ) {
   const artifacts: string[] = [];
-  const loadedCredentials = await readSelectedCredentialsProfile(
-    config,
-    params.credentials_profile,
-  );
-  if (!loadedCredentials) {
-    return {
-      ok: false,
-      operation: "db_marketplace_access_check",
-      needsUserAction: true,
-      message: "no selected credentials profile is configured",
-      credentials: credentialsSummary(loadedCredentials),
-      appCreated: false,
-      subscriptionChanged: false,
-    };
-  }
-
+  let loadedCredentials: Awaited<ReturnType<typeof readSelectedCredentialsProfile>> =
+    undefined;
   let session: Awaited<ReturnType<typeof openCredentialBrowserSession>> | undefined;
   try {
+    loadedCredentials = await readSelectedCredentialsProfile(config);
+    if (!loadedCredentials) {
+      return {
+        ok: false,
+        operation: "db_marketplace_access_check",
+        needsUserAction: true,
+        message: "no selected credentials profile is configured",
+        credentials: credentialsSummary(loadedCredentials),
+        appCreated: false,
+        subscriptionChanged: false,
+      };
+    }
+
     session = await openCredentialBrowserSession(
       params,
       config,
@@ -61,7 +58,6 @@ export async function runDbMarketplaceAccessCheck(
 
     const credentialModel = marketplaceCredentialModel(
       loadedCredentials.credentials,
-      params.allow_bahn_account_fallback === true,
     );
     await session.page.goto(DB_MARKETPLACE_LOGIN_URL, {
       waitUntil: "domcontentloaded",
@@ -159,39 +155,26 @@ function marketplaceCredentialModel(
   credentials: NonNullable<
     Awaited<ReturnType<typeof readSelectedCredentialsProfile>>
   >["credentials"],
-  allowBahnAccountFallback: boolean,
 ) {
-  const hasDbApiBrowserCredentials = Boolean(
-    credentials.dbApi?.accountUsername && credentials.dbApi?.accountPassword,
-  );
-  const fallbackAvailable = Boolean(
-    credentials.bahnAccount?.username && credentials.bahnAccount?.password,
+  const hasBahnAccountApiCredentials = Boolean(
+    credentials.bahnAccountAPI?.username && credentials.bahnAccountAPI?.password,
   );
   return {
     apiKeyCredentialsPresent: Boolean(
-      credentials.dbApi?.clientId && credentials.dbApi?.apiKey,
+      credentials.bahnAPI?.clientId && credentials.bahnAPI?.apiKey,
     ),
-    schemaSufficientForBrowserLogin: hasDbApiBrowserCredentials,
-    browserLoginCredentialSource: hasDbApiBrowserCredentials
-      ? "dbApi.accountUsername/accountPassword"
-      : allowBahnAccountFallback && fallbackAvailable
-        ? "bahnAccount fallback"
-        : "none",
-    fallbackAllowed: allowBahnAccountFallback,
-    fallbackAvailable,
-    fallbackUsed: !hasDbApiBrowserCredentials &&
-      allowBahnAccountFallback &&
-      fallbackAvailable,
-    schemaRecommendation: hasDbApiBrowserCredentials
+    schemaSufficientForBrowserLogin: hasBahnAccountApiCredentials,
+    browserLoginCredentialSource: hasBahnAccountApiCredentials
+      ? "bahnAccountAPI.username/password"
+      : "none",
+    schemaRecommendation: hasBahnAccountApiCredentials
       ? undefined
-      : "Add dbApi.accountUsername and dbApi.accountPassword for Marketplace browser-login proof; clientId/apiKey alone cannot be typed into the Marketplace login page.",
-    credentialsForSubmission: hasDbApiBrowserCredentials
+      : "Add bahnAccountAPI.username and bahnAccountAPI.password for Marketplace browser-login proof; bahnAPI clientId/apiKey cannot be typed into the Marketplace login page.",
+    credentialsForSubmission: hasBahnAccountApiCredentials
       ? {
-          username: credentials.dbApi?.accountUsername,
-          password: credentials.dbApi?.accountPassword,
+          username: credentials.bahnAccountAPI?.username,
+          password: credentials.bahnAccountAPI?.password,
         }
-      : allowBahnAccountFallback
-        ? credentials.bahnAccount ?? {}
-        : {},
+      : {},
   };
 }

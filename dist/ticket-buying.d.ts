@@ -1,7 +1,6 @@
 import type { DBhopperConfig } from "./types.js";
 export declare const TICKET_BUYING_TOOL_NAMES: readonly ["dbhopper_ticket_buying_research", "dbhopper_ticket_buying_dry_run", "dbhopper_ticket_checkout_dry_run"];
 export interface TicketBuyingDryRunParams {
-    credentials_profile?: string;
     departure_station: string;
     arrival_station: string;
     service_date?: string;
@@ -14,7 +13,6 @@ export interface TicketBuyingDryRunParams {
     include_controls?: boolean;
 }
 export interface TicketCheckoutDryRunParams {
-    credentials_profile?: string;
     departure_station?: string;
     arrival_station?: string;
     service_date?: string;
@@ -46,18 +44,18 @@ export declare function runTicketBuyingDryRun(params: TicketBuyingDryRunParams, 
     credentials: {
         configured: boolean;
         credentialsName: undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
         credentialsId?: undefined;
     } | {
         configured: boolean;
         credentialsName: string;
         credentialsId: string | undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
     };
     plan: {
@@ -131,18 +129,18 @@ export declare function runTicketBuyingDryRun(params: TicketBuyingDryRunParams, 
     credentials: {
         configured: boolean;
         credentialsName: undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
         credentialsId?: undefined;
     } | {
         configured: boolean;
         credentialsName: string;
         credentialsId: string | undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
     };
     plan: {
@@ -194,18 +192,18 @@ export declare function runTicketBuyingDryRun(params: TicketBuyingDryRunParams, 
     credentials: {
         configured: boolean;
         credentialsName: undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
         credentialsId?: undefined;
     } | {
         configured: boolean;
         credentialsName: string;
         credentialsId: string | undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
     };
     plan: {
@@ -250,18 +248,18 @@ export declare function runTicketBuyingDryRun(params: TicketBuyingDryRunParams, 
     credentials: {
         configured: boolean;
         credentialsName: undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
         credentialsId?: undefined;
     } | {
         configured: boolean;
         credentialsName: string;
         credentialsId: string | undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
     };
     research: {
@@ -287,18 +285,18 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
     credentials: {
         configured: boolean;
         credentialsName: undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
         credentialsId?: undefined;
     } | {
         configured: boolean;
         credentialsName: string;
         credentialsId: string | undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
     };
     plan: {
@@ -394,18 +392,18 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
     credentials: {
         configured: boolean;
         credentialsName: undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
         credentialsId?: undefined;
     } | {
         configured: boolean;
         credentialsName: string;
         credentialsId: string | undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
     };
     plan: {
@@ -462,18 +460,18 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
     credentials: {
         configured: boolean;
         credentialsName: undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
         credentialsId?: undefined;
     } | {
         configured: boolean;
         credentialsName: string;
         credentialsId: string | undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
     };
     plan: {
@@ -522,18 +520,18 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
     credentials: {
         configured: boolean;
         credentialsName: undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
         credentialsId?: undefined;
     } | {
         configured: boolean;
         credentialsName: string;
         credentialsId: string | undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
     };
     research: {

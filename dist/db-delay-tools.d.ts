@@ -11,7 +11,6 @@ export interface DelayProviderChoice {
 export declare const DB_DELAY_TOOL_NAMES: readonly ["dbhopper_db_delay_research", "dbhopper_query_db_delay"];
 export interface DbDelayQueryToolParams {
     provider?: DbDelayProviderName;
-    credentials_profile?: string;
     departure_station: string;
     arrival_station: string;
     query_time: string;
@@ -55,18 +54,18 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
     credentials: {
         configured: boolean;
         credentialsName: undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
         credentialsId?: undefined;
     } | {
         configured: boolean;
         credentialsName: string;
         credentialsId: string | undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
     };
     provider_selection: DelayProviderChoice;
@@ -467,18 +466,18 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
     credentials: {
         configured: boolean;
         credentialsName: undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
         credentialsId?: undefined;
     } | {
         configured: boolean;
         credentialsName: string;
         credentialsId: string | undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
     };
     provider_selection: DelayProviderChoice;
@@ -542,18 +541,18 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
     credentials: {
         configured: boolean;
         credentialsName: undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
         credentialsId?: undefined;
     } | {
         configured: boolean;
         credentialsName: string;
         credentialsId: string | undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
     };
     input: {
@@ -955,18 +954,18 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
     credentials: {
         configured: boolean;
         credentialsName: undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
         credentialsId?: undefined;
     } | {
         configured: boolean;
         credentialsName: string;
         credentialsId: string | undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
     };
     provider_selection: DelayProviderChoice;
@@ -996,18 +995,18 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
     credentials: {
         configured: boolean;
         credentialsName: undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
         credentialsId?: undefined;
     } | {
         configured: boolean;
         credentialsName: string;
         credentialsId: string | undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
     };
     provider_selection: DelayProviderChoice | undefined;

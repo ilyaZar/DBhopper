@@ -5,27 +5,28 @@ import { performDbAccountLogin } from "./db-login.js";
 import { resolveWorkspace } from "./workspace.js";
 export async function runDbMarketplaceAccessCheck(params, config = {}, signal) {
     const artifacts = [];
-    const loadedCredentials = await readSelectedCredentialsProfile(config, params.credentials_profile);
-    if (!loadedCredentials) {
-        return {
-            ok: false,
-            operation: "db_marketplace_access_check",
-            needsUserAction: true,
-            message: "no selected credentials profile is configured",
-            credentials: credentialsSummary(loadedCredentials),
-            appCreated: false,
-            subscriptionChanged: false,
-        };
-    }
+    let loadedCredentials = undefined;
     let session;
     try {
+        loadedCredentials = await readSelectedCredentialsProfile(config);
+        if (!loadedCredentials) {
+            return {
+                ok: false,
+                operation: "db_marketplace_access_check",
+                needsUserAction: true,
+                message: "no selected credentials profile is configured",
+                credentials: credentialsSummary(loadedCredentials),
+                appCreated: false,
+                subscriptionChanged: false,
+            };
+        }
         session = await openCredentialBrowserSession(params, config, loadedCredentials, "db-marketplace-access-check");
         session.page.setDefaultTimeout(25000);
         session.page.setDefaultNavigationTimeout(45000);
         if (signal?.aborted) {
             throw new Error("DB API Marketplace access check was aborted");
         }
-        const credentialModel = marketplaceCredentialModel(loadedCredentials.credentials, params.allow_bahn_account_fallback === true);
+        const credentialModel = marketplaceCredentialModel(loadedCredentials.credentials);
         await session.page.goto(DB_MARKETPLACE_LOGIN_URL, {
             waitUntil: "domcontentloaded",
         });
@@ -109,32 +110,22 @@ export async function runDbMarketplaceAccessCheck(params, config = {}, signal) {
         await session?.context.close().catch(() => undefined);
     }
 }
-function marketplaceCredentialModel(credentials, allowBahnAccountFallback) {
-    const hasDbApiBrowserCredentials = Boolean(credentials.dbApi?.accountUsername && credentials.dbApi?.accountPassword);
-    const fallbackAvailable = Boolean(credentials.bahnAccount?.username && credentials.bahnAccount?.password);
+function marketplaceCredentialModel(credentials) {
+    const hasBahnAccountApiCredentials = Boolean(credentials.bahnAccountAPI?.username && credentials.bahnAccountAPI?.password);
     return {
-        apiKeyCredentialsPresent: Boolean(credentials.dbApi?.clientId && credentials.dbApi?.apiKey),
-        schemaSufficientForBrowserLogin: hasDbApiBrowserCredentials,
-        browserLoginCredentialSource: hasDbApiBrowserCredentials
-            ? "dbApi.accountUsername/accountPassword"
-            : allowBahnAccountFallback && fallbackAvailable
-                ? "bahnAccount fallback"
-                : "none",
-        fallbackAllowed: allowBahnAccountFallback,
-        fallbackAvailable,
-        fallbackUsed: !hasDbApiBrowserCredentials &&
-            allowBahnAccountFallback &&
-            fallbackAvailable,
-        schemaRecommendation: hasDbApiBrowserCredentials
+        apiKeyCredentialsPresent: Boolean(credentials.bahnAPI?.clientId && credentials.bahnAPI?.apiKey),
+        schemaSufficientForBrowserLogin: hasBahnAccountApiCredentials,
+        browserLoginCredentialSource: hasBahnAccountApiCredentials
+            ? "bahnAccountAPI.username/password"
+            : "none",
+        schemaRecommendation: hasBahnAccountApiCredentials
             ? undefined
-            : "Add dbApi.accountUsername and dbApi.accountPassword for Marketplace browser-login proof; clientId/apiKey alone cannot be typed into the Marketplace login page.",
-        credentialsForSubmission: hasDbApiBrowserCredentials
+            : "Add bahnAccountAPI.username and bahnAccountAPI.password for Marketplace browser-login proof; bahnAPI clientId/apiKey cannot be typed into the Marketplace login page.",
+        credentialsForSubmission: hasBahnAccountApiCredentials
             ? {
-                username: credentials.dbApi?.accountUsername,
-                password: credentials.dbApi?.accountPassword,
+                username: credentials.bahnAccountAPI?.username,
+                password: credentials.bahnAccountAPI?.password,
             }
-            : allowBahnAccountFallback
-                ? credentials.bahnAccount ?? {}
-                : {},
+            : {},
     };
 }

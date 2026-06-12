@@ -16,7 +16,6 @@ export interface PrivateIdFile {
     id: string;
     fileName: string;
     filePath: string;
-    implicitId?: boolean;
 }
 export declare function privateSettingsPath(config?: DBhopperConfig): string;
 export declare function defaultPrivateSettings(): DBhopperPrivateSettings;

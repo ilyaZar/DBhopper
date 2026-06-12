@@ -15,9 +15,6 @@ export function createAccessToolDefinitions(tool) {
             description: "One-time diagnostic for selected Bahn account credentials and browser profile.",
             optional: true,
             parameters: Type.Object({
-                credentials_profile: Type.Optional(Type.String({
-                    description: "Optional TOML credentials file under assets/private/credentials/.",
-                })),
                 stay_logged_in: Type.Optional(Type.Boolean({
                     default: true,
                     description: "Check DB's stay-logged-in box when the login page exposes it.",
@@ -37,12 +34,7 @@ export function createAccessToolDefinitions(tool) {
             description: "One-time diagnostic for DB API Marketplace browser reachability and login proof.",
             optional: true,
             parameters: Type.Object({
-                credentials_profile: Type.Optional(Type.String()),
                 stay_logged_in: Type.Optional(Type.Boolean({ default: true })),
-                allow_bahn_account_fallback: Type.Optional(Type.Boolean({
-                    default: false,
-                    description: "Permit [bahnAccount] fallback only after accepting that it is not [dbApi] proof.",
-                })),
                 screenshots: Type.Optional(Type.Boolean({
                     default: false,
                     description: "Save local screenshots under tmp/. Screenshots may contain account identity.",
@@ -58,7 +50,6 @@ export function createAccessToolDefinitions(tool) {
             description: "Probe official DB Timetables API credentials without returning secrets.",
             optional: true,
             parameters: Type.Object({
-                credentials_profile: Type.Optional(Type.String()),
                 station_pattern: Type.Optional(Type.String({
                     default: "Hamm",
                     description: "Station lookup pattern used for the harmless probe.",

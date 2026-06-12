@@ -1,9 +1,7 @@
 import { type BrowserAccessParams } from "./access-browser.js";
 import type { DBhopperConfig } from "./types.js";
 export interface DbMarketplaceAccessCheckParams extends BrowserAccessParams {
-    credentials_profile?: string;
     stay_logged_in?: boolean;
-    allow_bahn_account_fallback?: boolean;
 }
 export declare function runDbMarketplaceAccessCheck(params: DbMarketplaceAccessCheckParams, config?: DBhopperConfig, signal?: AbortSignal): Promise<{
     ok: boolean;
@@ -13,18 +11,18 @@ export declare function runDbMarketplaceAccessCheck(params: DbMarketplaceAccessC
     credentials: {
         configured: boolean;
         credentialsName: undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
         credentialsId?: undefined;
     } | {
         configured: boolean;
         credentialsName: string;
         credentialsId: string | undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
     };
     appCreated: boolean;
@@ -51,31 +49,31 @@ export declare function runDbMarketplaceAccessCheck(params: DbMarketplaceAccessC
     credentials: {
         configured: boolean;
         credentialsName: undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
         credentialsId?: undefined;
     } | {
         configured: boolean;
         credentialsName: string;
         credentialsId: string | undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
     };
     credentialModel: {
         apiKeyCredentialsPresent: boolean;
         schemaSufficientForBrowserLogin: boolean;
         browserLoginCredentialSource: string;
-        fallbackAllowed: boolean;
-        fallbackAvailable: boolean;
-        fallbackUsed: boolean;
         schemaRecommendation: string | undefined;
         credentialsForSubmission: {
-            username?: string;
-            password?: string;
+            username: string | undefined;
+            password: string | undefined;
+        } | {
+            username?: undefined;
+            password?: undefined;
         };
     };
     credentialSubmission: {
@@ -140,18 +138,18 @@ export declare function runDbMarketplaceAccessCheck(params: DbMarketplaceAccessC
     credentials: {
         configured: boolean;
         credentialsName: undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
         credentialsId?: undefined;
     } | {
         configured: boolean;
         credentialsName: string;
         credentialsId: string | undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
     };
     message: string;

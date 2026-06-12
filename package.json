@@ -18,7 +18,6 @@
   "files": [
     "assets/.gitkeep",
     "assets/private/.gitkeep",
-    "assets/private/settings.example.toml",
     "assets/private/credentials/.gitkeep",
     "assets/private/profiles/.gitkeep",
     "claims/.gitkeep",

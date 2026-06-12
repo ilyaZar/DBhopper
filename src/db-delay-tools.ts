@@ -54,7 +54,6 @@ export const DB_DELAY_TOOL_NAMES = [
 
 export interface DbDelayQueryToolParams {
   provider?: DbDelayProviderName;
-  credentials_profile?: string;
   departure_station: string;
   arrival_station: string;
   query_time: string;
@@ -105,12 +104,6 @@ export function createDbDelayToolDefinitions(tool: any) {
           departure_station: Type.String({
             description: "Boarding station name, for example Hamm(Westf)Hbf.",
           }),
-          credentials_profile: Type.Optional(
-            Type.String({
-              description:
-                "Optional TOML credentials file under assets/private/credentials/.",
-            }),
-          ),
           arrival_station: Type.String({
             description: "Destination station name, for example Koeln Hbf.",
           }),
@@ -196,10 +189,7 @@ export async function runDbDelayQuery(
   let providerChoice: DelayProviderChoice | undefined;
   let effectiveConfig: DBhopperConfig | undefined;
   try {
-    loadedCredentials = await readSelectedCredentialsProfile(
-      config,
-      params.credentials_profile,
-    );
+    loadedCredentials = await readSelectedCredentialsProfile(config);
     effectiveConfig = applyCredentialsToConfig(config, loadedCredentials);
     const status = timetablesConfigStatus(effectiveConfig);
     providerChoice = selectDelayProvider(
@@ -216,8 +206,8 @@ export async function runDbDelayQuery(
         message:
           "DB Timetables credentials are required before live delay lookup can run.",
         required_configuration: [
-          "dbClientId or DB_CLIENT_ID",
-          "dbApiKey or DB_API_KEY",
+          "selected credentials TOML [bahnAPI].clientId",
+          "selected credentials TOML [bahnAPI].apiKey",
         ],
         config_status: status,
         credentials: credentialsSummary(loadedCredentials),

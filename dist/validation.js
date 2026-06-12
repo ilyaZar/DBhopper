@@ -59,8 +59,8 @@ export function claimSchemaReference() {
         requiredFacts: {
             privateProfile: [
                 "Store reusable sensitive claimant and bank data in",
-                "assets/private/profiles/*.toml and select it with profileName",
-                "or plugins.entries.dbhopper.config.activeProfileName.",
+                "assets/private/profiles/*.toml and select it with",
+                "assets/private/settings.toml ID_PRF.",
             ].join(" "),
             privateProfileShape: {
                 version: 1,
@@ -100,7 +100,6 @@ export function claimSchemaReference() {
         editableClaimTomlShape: {
             version: 1,
             claimId: "koeln-duesseldorf-2026-06-06-re6",
-            profileName: "default",
             journey: {
                 date: "2026-06-06",
                 scheduledDepartureTime: "09:07",

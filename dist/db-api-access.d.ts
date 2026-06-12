@@ -1,6 +1,5 @@
 import type { DBhopperConfig } from "./types.js";
 export interface DbApiCredentialProbeParams {
-    credentials_profile?: string;
     station_pattern?: string;
 }
 export interface DbApiCredentialProbeOptions {
@@ -15,18 +14,18 @@ export declare function runDbApiCredentialProbe(params: DbApiCredentialProbePara
     credentials: {
         configured: boolean;
         credentialsName: undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
         credentialsId?: undefined;
     } | {
         configured: boolean;
         credentialsName: string;
         credentialsId: string | undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
     };
     credentialSignals: {
@@ -53,18 +52,18 @@ export declare function runDbApiCredentialProbe(params: DbApiCredentialProbePara
     credentials: {
         configured: boolean;
         credentialsName: undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
         credentialsId?: undefined;
     } | {
         configured: boolean;
         credentialsName: string;
         credentialsId: string | undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
     };
     credentialSignals: {
@@ -101,18 +100,18 @@ export declare function runDbApiCredentialProbe(params: DbApiCredentialProbePara
     credentials: {
         configured: boolean;
         credentialsName: undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
         credentialsId?: undefined;
     } | {
         configured: boolean;
         credentialsName: string;
         credentialsId: string | undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
     };
     credentialSignals: {
@@ -133,7 +132,7 @@ export declare function runDbApiCredentialProbe(params: DbApiCredentialProbePara
     request?: undefined;
     response?: undefined;
 }>;
-export declare function dbApiCredentialSignals(config: DBhopperConfig): {
+export declare function bahnAPICredentialSignals(config: DBhopperConfig): {
     hasClientId: boolean;
     hasApiKey: boolean;
     clientIdLength: number;

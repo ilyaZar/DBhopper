@@ -10,7 +10,6 @@ export interface PrepareClaimParams {
     confirm?: boolean;
     claimId?: string;
     claim?: DBhopperClaim;
-    profileName?: string;
     files?: FileInput[];
     overwrite?: boolean;
 }
@@ -34,7 +33,8 @@ export declare function readClaim(claimId: string, config?: DBhopperConfig): Pro
 export declare function listClaims(config?: DBhopperConfig): Promise<({
     claimId: string;
     status: string;
-    profileName: string | undefined;
+    profileId: string | undefined;
+    profileFile: string | undefined;
     journey: {
         date?: string;
         scheduledDepartureTime?: string;
@@ -60,7 +60,8 @@ export declare function listClaims(config?: DBhopperConfig): Promise<({
     claimId: string;
     status: string;
     fileCount: number;
-    profileName?: undefined;
+    profileId?: undefined;
+    profileFile?: undefined;
     journey?: undefined;
     claimant?: undefined;
 })[]>;

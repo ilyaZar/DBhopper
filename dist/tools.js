@@ -109,10 +109,6 @@ function prepareClaimTool() {
             confirm: confirmSchema,
             claimId: { type: "string" },
             overwrite: { type: "boolean" },
-            profileName: {
-                type: "string",
-                description: "Optional TOML profile under assets/private/profiles/ merged in memory only.",
-            },
             claim: { type: "object", additionalProperties: true },
             files: {
                 type: "array",
@@ -149,7 +145,8 @@ function prepareClaimTool() {
                     claimId: prepared.claimId,
                     claimDir: prepared.claimDir,
                     claimPath: prepared.claimPath,
-                    profileName: prepared.profileName,
+                    profileId: prepared.profileId,
+                    profileFile: prepared.profileFile,
                     copiedFiles: prepared.copiedFiles,
                     validation: validateClaim(prepared.claim),
                 });

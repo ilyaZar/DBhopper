@@ -1,7 +1,6 @@
 import { type BrowserAccessParams } from "./access-browser.js";
 import type { DBhopperConfig } from "./types.js";
 export interface DbStandardLoginCheckParams extends BrowserAccessParams {
-    credentials_profile?: string;
     stay_logged_in?: boolean;
 }
 export declare function runDbStandardLoginCheck(params: DbStandardLoginCheckParams, config?: DBhopperConfig, signal?: AbortSignal): Promise<{
@@ -12,18 +11,18 @@ export declare function runDbStandardLoginCheck(params: DbStandardLoginCheckPara
     credentials: {
         configured: boolean;
         credentialsName: undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
         credentialsId?: undefined;
     } | {
         configured: boolean;
         credentialsName: string;
         credentialsId: string | undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
     };
     purchaseSubmitted: boolean;
@@ -44,18 +43,18 @@ export declare function runDbStandardLoginCheck(params: DbStandardLoginCheckPara
     credentials: {
         configured: boolean;
         credentialsName: undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
         credentialsId?: undefined;
     } | {
         configured: boolean;
         credentialsName: string;
         credentialsId: string | undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
     };
     credentialSubmission: {
@@ -98,18 +97,18 @@ export declare function runDbStandardLoginCheck(params: DbStandardLoginCheckPara
     credentials: {
         configured: boolean;
         credentialsName: undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
         credentialsId?: undefined;
     } | {
         configured: boolean;
         credentialsName: string;
         credentialsId: string | undefined;
-        hasDbApiCredentials: boolean;
-        hasDbApiAccountCredentials: boolean;
+        hasBahnAPICredentials: boolean;
         hasBahnAccountCredentials: boolean;
+        hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
     };
     message: string;

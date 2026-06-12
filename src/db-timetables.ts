@@ -143,8 +143,8 @@ export async function fetchJourneyDetails(event: StationEvent) {
 }
 
 export function timetablesConfigStatus(options: TimetablesProviderOptions = {}) {
-  const clientId = options.dbClientId || process.env.DB_CLIENT_ID;
-  const apiKey = options.dbApiKey || process.env.DB_API_KEY;
+  const clientId = options.dbClientId;
+  const apiKey = options.dbApiKey;
   return {
     configured: Boolean(clientId && apiKey),
     hasClientId: Boolean(clientId),
@@ -190,11 +190,11 @@ async function fetchTimetablesText(
 }
 
 function resolveCredentials(options: TimetablesProviderOptions): TimetablesCredentials {
-  const clientId = options.dbClientId || process.env.DB_CLIENT_ID;
-  const apiKey = options.dbApiKey || process.env.DB_API_KEY;
+  const clientId = options.dbClientId;
+  const apiKey = options.dbApiKey;
   if (!clientId || !apiKey) {
     throw new Error(
-      "DB Timetables credentials are required: set dbClientId/dbApiKey or DB_CLIENT_ID/DB_API_KEY",
+      "DB Timetables credentials are required in the selected [bahnAPI] credentials file",
     );
   }
   return { clientId, apiKey };

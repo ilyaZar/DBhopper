@@ -21,12 +21,6 @@ export function createAccessToolDefinitions(tool: any) {
       optional: true,
       parameters: Type.Object(
         {
-          credentials_profile: Type.Optional(
-            Type.String({
-              description:
-                "Optional TOML credentials file under assets/private/credentials/.",
-            }),
-          ),
           stay_logged_in: Type.Optional(
             Type.Boolean({
               default: true,
@@ -60,15 +54,7 @@ export function createAccessToolDefinitions(tool: any) {
       optional: true,
       parameters: Type.Object(
         {
-          credentials_profile: Type.Optional(Type.String()),
           stay_logged_in: Type.Optional(Type.Boolean({ default: true })),
-          allow_bahn_account_fallback: Type.Optional(
-            Type.Boolean({
-              default: false,
-              description:
-                "Permit [bahnAccount] fallback only after accepting that it is not [dbApi] proof.",
-            }),
-          ),
           screenshots: Type.Optional(
             Type.Boolean({
               default: false,
@@ -95,7 +81,6 @@ export function createAccessToolDefinitions(tool: any) {
       optional: true,
       parameters: Type.Object(
         {
-          credentials_profile: Type.Optional(Type.String()),
           station_pattern: Type.Optional(
             Type.String({
               default: "Hamm",

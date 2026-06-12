@@ -33,7 +33,6 @@ export declare function claimSchemaReference(): {
     editableClaimTomlShape: {
         version: number;
         claimId: string;
-        profileName: string;
         journey: {
             date: string;
             scheduledDepartureTime: string;

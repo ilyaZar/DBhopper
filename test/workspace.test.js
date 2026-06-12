@@ -56,11 +56,13 @@ describe("dbhopper workspace", () => {
 
   it("merges private profile TOML without storing private fields in claim TOML", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-profile-"));
+    await writeSettings(root);
     await fs.mkdir(path.join(root, "assets", "private", "profiles"), { recursive: true });
     await fs.writeFile(
-      path.join(root, "assets", "private", "profiles", "default.toml"),
+      path.join(root, "assets", "private", "profiles", "private-profile-01.toml"),
       [
         "version = 1",
+        'ID_PRF = "01"',
         "",
         "[claimant]",
         'salutation = "FAMILY"',
@@ -87,7 +89,6 @@ describe("dbhopper workspace", () => {
       {
         confirm: true,
         claimId: "with-profile",
-        profileName: "default",
         claim: {
           journey: {
             date: "2026-06-06",
@@ -103,7 +104,7 @@ describe("dbhopper workspace", () => {
     assert.equal(prepared.claim.bank.iban, "DE89370400440532013000");
     assert.equal(prepared.claim.journey.startStation, "Koeln Hbf");
     const stored = await fs.readFile(path.join(prepared.claimDir, "claim.toml"), "utf8");
-    assert.match(stored, /profileName = "default.toml"/);
+    assert.doesNotMatch(stored, /private-profile-01/);
     assert.doesNotMatch(stored, /maria@example/);
     assert.doesNotMatch(stored, /DE893704/);
   });
@@ -151,6 +152,7 @@ describe("dbhopper workspace", () => {
       path.join(root, "assets", "private", "profiles", "broken.toml"),
       [
         "version = 1",
+        'ID_PRF = "01"',
         "",
         "[claimant]",
         'salutation = "FAMILY"',
@@ -181,11 +183,13 @@ describe("dbhopper workspace", () => {
 
   it("writes a submitted recipe with profile and claim data joined", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-recipe-"));
+    await writeSettings(root);
     await fs.mkdir(path.join(root, "assets", "private", "profiles"), { recursive: true });
     await fs.writeFile(
-      path.join(root, "assets", "private", "profiles", "default.toml"),
+      path.join(root, "assets", "private", "profiles", "private-profile-01.toml"),
       [
         "version = 1",
+        'ID_PRF = "01"',
         "",
         "[claimant]",
         'salutation = "FAMILY"',
@@ -211,7 +215,6 @@ describe("dbhopper workspace", () => {
       {
         confirm: true,
         claimId: "submitted",
-        profileName: "default",
         claim: {
           journey: {
             date: "2026-06-06",
@@ -230,3 +233,18 @@ describe("dbhopper workspace", () => {
     assert.match(recipe, /startStation = "Koeln Hbf"/);
   });
 });
+
+async function writeSettings(root) {
+  await fs.mkdir(path.join(root, "assets", "private"), { recursive: true });
+  await fs.writeFile(
+    path.join(root, "assets", "private", "settings.toml"),
+    [
+      'ID_CRED = "01"',
+      'ID_PRF = "01"',
+      'PATH_CRED = "assets/private/credentials"',
+      'PATH_PRF = "assets/private/profiles"',
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+}

@@ -203,21 +203,6 @@ async function listIdFiles(dir, idField) {
         try {
             const parsed = parseIdDocument(await fs.readFile(filePath, "utf8"), filePath);
             if (!(idField in parsed)) {
-                const implicitId = implicitExampleId(entry.name, idField);
-                if (implicitId) {
-                    items.push({
-                        id: implicitId,
-                        fileName: entry.name,
-                        filePath,
-                        implicitId: true,
-                    });
-                    messages.push({
-                        code: "implicit_private_id",
-                        message: `${filePath}.${idField} is missing, using implicit ID ${implicitId}`,
-                        severity: "info",
-                    });
-                    continue;
-                }
                 messages.push({
                     code: "unrouted_private_toml",
                     message: `${filePath}.${idField} is missing, so this file is not selectable by ID`,
@@ -284,15 +269,6 @@ function duplicateIds(items) {
         seen.add(item.id);
     }
     return [...duplicates.values()];
-}
-function implicitExampleId(fileName, idField) {
-    if (idField === "ID_CRED" && fileName === "credentials.example.toml") {
-        return DEFAULT_ID;
-    }
-    if (idField === "ID_PRF" && fileName === "private-profile.example.toml") {
-        return DEFAULT_ID;
-    }
-    return undefined;
 }
 function parseIdDocument(text, source) {
     let parsed;

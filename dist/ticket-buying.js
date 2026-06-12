@@ -97,9 +97,6 @@ export function createTicketBuyingToolDefinitions(tool) {
             ].join(" "),
             optional: true,
             parameters: Type.Object({
-                credentials_profile: Type.Optional(Type.String({
-                    description: "Optional TOML credentials file under assets/private/credentials/.",
-                })),
                 departure_station: Type.String(),
                 arrival_station: Type.String(),
                 service_date: Type.Optional(Type.String()),
@@ -131,7 +128,6 @@ export function createTicketBuyingToolDefinitions(tool) {
             ].join(" "),
             optional: true,
             parameters: Type.Object({
-                credentials_profile: Type.Optional(Type.String()),
                 departure_station: Type.Optional(Type.String({
                     default: DEFAULT_CHECKOUT_DEPARTURE,
                 })),
@@ -161,7 +157,7 @@ export async function runTicketBuyingDryRun(params, config = {}, signal) {
     let loadedCredentials = undefined;
     let stage = "credentials";
     try {
-        loadedCredentials = await readSelectedCredentialsProfile(config, params.credentials_profile);
+        loadedCredentials = await readCredentialsForTicketDryRun(params, config);
         stage = "plan";
         const plan = ticketBuyingPlan(params, loadedCredentials?.credentials.browser?.userDataDir);
         if (params.open_browser !== true) {
@@ -197,7 +193,7 @@ export async function runTicketCheckoutDryRun(params, config = {}, signal) {
     let loadedCredentials = undefined;
     let stage = "credentials";
     try {
-        loadedCredentials = await readSelectedCredentialsProfile(config, params.credentials_profile);
+        loadedCredentials = await readCredentialsForTicketDryRun(params, config);
         stage = "plan";
         const plan = ticketCheckoutPlan(params, loadedCredentials?.credentials.browser?.userDataDir);
         if (params.open_browser !== true) {
@@ -230,6 +226,12 @@ export async function runTicketCheckoutDryRun(params, config = {}, signal) {
             research: TICKET_BUYING_RESEARCH_SUMMARY,
         };
     }
+}
+async function readCredentialsForTicketDryRun(params, config) {
+    if (params.open_browser !== true) {
+        return undefined;
+    }
+    return readSelectedCredentialsProfile(config);
 }
 export function ticketBuyingPlan(params, userDataDir) {
     const departure = normalizeBookingStationName(requiredString(params.departure_station, "departure_station"));
@@ -402,7 +404,6 @@ async function runBrowserTicketCheckout(params, config, plan, loadedCredentials,
     let stage = "open_home";
     try {
         const browserSession = await openTicketBrowserSession({
-            credentials_profile: params.credentials_profile,
             departure_station: plan.target.departureStation,
             arrival_station: plan.target.arrivalStation,
             headless: params.headless,

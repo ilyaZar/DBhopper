@@ -1,10 +1,27 @@
 import { applyCredentialsToConfig, credentialsSummary, readSelectedCredentialsProfile, } from "./credentials.js";
 import { DEFAULT_TIMETABLE_BASE_URL, timetablesConfigStatus } from "./db-timetables.js";
 export async function runDbApiCredentialProbe(params, config = {}, options = {}) {
-    const loadedCredentials = await readSelectedCredentialsProfile(config, params.credentials_profile);
+    let loadedCredentials = undefined;
+    try {
+        loadedCredentials = await readSelectedCredentialsProfile(config);
+    }
+    catch (error) {
+        const baseStatus = timetablesConfigStatus(config);
+        return {
+            ok: false,
+            operation: "db_api_credential_probe",
+            source_api: "db-timetables",
+            needsConfiguration: true,
+            message: error instanceof Error ? error.message : String(error),
+            credentials: credentialsSummary(loadedCredentials),
+            credentialSignals: bahnAPICredentialSignals(config),
+            configStatus: baseStatus,
+            browserLoginDoesNotProveApiKeyValidity: true,
+        };
+    }
     const effectiveConfig = applyCredentialsToConfig(config, loadedCredentials);
     const status = timetablesConfigStatus(effectiveConfig);
-    const credentialSignals = dbApiCredentialSignals(effectiveConfig);
+    const credentialSignals = bahnAPICredentialSignals(effectiveConfig);
     if (!status.configured) {
         return {
             ok: false,
@@ -73,7 +90,7 @@ export async function runDbApiCredentialProbe(params, config = {}, options = {})
         clearTimeout(timeout);
     }
 }
-export function dbApiCredentialSignals(config) {
+export function bahnAPICredentialSignals(config) {
     return {
         hasClientId: Boolean(config.dbClientId),
         hasApiKey: Boolean(config.dbApiKey),

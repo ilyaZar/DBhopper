@@ -5,20 +5,21 @@ import { performDbAccountLogin } from "./db-login.js";
 import { resolveWorkspace } from "./workspace.js";
 export async function runDbStandardLoginCheck(params, config = {}, signal) {
     const artifacts = [];
-    const loadedCredentials = await readSelectedCredentialsProfile(config, params.credentials_profile);
-    if (!loadedCredentials) {
-        return {
-            ok: false,
-            operation: "db_standard_login_check",
-            needsUserAction: true,
-            message: "no selected credentials profile is configured",
-            credentials: credentialsSummary(loadedCredentials),
-            purchaseSubmitted: false,
-            registrationSubmitted: false,
-        };
-    }
+    let loadedCredentials = undefined;
     let session;
     try {
+        loadedCredentials = await readSelectedCredentialsProfile(config);
+        if (!loadedCredentials) {
+            return {
+                ok: false,
+                operation: "db_standard_login_check",
+                needsUserAction: true,
+                message: "no selected credentials profile is configured",
+                credentials: credentialsSummary(loadedCredentials),
+                purchaseSubmitted: false,
+                registrationSubmitted: false,
+            };
+        }
         session = await openCredentialBrowserSession(params, config, loadedCredentials, "db-standard-login-check");
         session.page.setDefaultTimeout(25000);
         session.page.setDefaultNavigationTimeout(45000);

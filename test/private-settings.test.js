@@ -36,7 +36,7 @@ describe("dbhopper private settings", () => {
 
     const credentials = await readSelectedCredentialsProfile({ workspaceRoot: root });
     assert.equal(credentials.credentialsId, "02");
-    assert.equal(credentials.credentials.dbApi.clientId, "client-02");
+    assert.equal(credentials.credentials.bahnAPI.clientId, "client-02");
 
     const prepared = await prepareClaim(
       {
@@ -52,13 +52,13 @@ describe("dbhopper private settings", () => {
       { workspaceRoot: root },
     );
 
-    assert.equal(prepared.profileName, "private-profile-03.toml");
+    assert.equal(prepared.profileId, "03");
+    assert.equal(prepared.profileFile, "private-profile-03.toml");
     assert.equal(prepared.claim.claimant.firstName, "Third");
-    assert.equal(prepared.storedClaim.profileName, undefined);
   });
 
-  it("can route the credential example as implicit ID 01", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-settings-example-"));
+  it("requires explicit credential IDs", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-settings-explicit-"));
     const credentialsDir = path.join(root, "assets", "private", "credentials");
     const profilesDir = path.join(root, "assets", "private", "profiles");
     await writeSettings(root, {
@@ -67,7 +67,7 @@ describe("dbhopper private settings", () => {
       credentialsDir,
       profilesDir,
     });
-    await writeCredential(credentialsDir, undefined, "credentials.example.toml", {
+    await writeCredential(credentialsDir, undefined, "credentials-without-id.toml", {
       clientId: " client-with-space ",
       apiKey: " key-with-space ",
       username: " maria@example.org ",
@@ -75,15 +75,22 @@ describe("dbhopper private settings", () => {
     await writeProfile(profilesDir, "01", "private-profile-01.toml", "First");
 
     const status = await privateSettingsStatus({ workspaceRoot: root });
-    assert.equal(status.ok, true);
-    assert.equal(status.credentials.selected.fileName, "credentials.example.toml");
-    assert.equal(status.credentials.selected.implicitId, true);
-
-    const credentials = await readSelectedCredentialsProfile({ workspaceRoot: root });
-    assert.equal(credentials.credentialsId, "01");
-    assert.equal(credentials.credentials.dbApi.clientId, "client-with-space");
-    assert.equal(credentials.credentials.dbApi.apiKey, "key-with-space");
-    assert.equal(credentials.credentials.bahnAccount.username, "maria@example.org");
+    assert.equal(status.ok, false);
+    assert.equal(status.credentials.selected, undefined);
+    assert.ok(
+      status.messages.some((message) =>
+        /ID_CRED 01 does not exist/.test(message.message),
+      ),
+    );
+    assert.ok(
+      status.messages.some((message) =>
+        /ID_CRED is missing/.test(message.message),
+      ),
+    );
+    await assert.rejects(
+      () => readSelectedCredentialsProfile({ workspaceRoot: root }),
+      /ID_CRED 01 does not exist/,
+    );
   });
 
   it("updates only ID fields and preserves user-controlled paths", async () => {
@@ -180,7 +187,7 @@ describe("dbhopper private settings", () => {
 
     const credentials = await readSelectedCredentialsProfile({ workspaceRoot: root });
 
-    assert.equal(credentials.credentials.dbApi.clientId, "external-client");
+    assert.equal(credentials.credentials.bahnAPI.clientId, "external-client");
   });
 
   it("flags missing selected IDs", async () => {
@@ -238,7 +245,7 @@ async function writeCredential(dir, id, fileName, overrides = {}) {
       "version = 1",
       ...(id ? [`ID_CRED = "${id}"`] : []),
       "",
-      "[dbApi]",
+      "[bahnAPI]",
       `clientId = "${overrides.clientId ?? `client-${id}`}"`,
       `apiKey = "${overrides.apiKey ?? `key-${id}`}"`,
       "",

@@ -12,7 +12,6 @@ claims/*
 !claims/.gitkeep
 assets/private/*
 !assets/private/.gitkeep
-!assets/private/settings.example.toml
 !assets/private/profiles/
 assets/private/profiles/*
 !assets/private/profiles/.gitkeep
