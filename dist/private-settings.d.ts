@@ -1,9 +1,13 @@
 import type { DBhopperConfig, ValidationMessage } from "./types.js";
+export type DBhopperDelayProviderSetting = "auto" | "db-timetables" | "bahn-web";
+export type DBhopperDelayFallbackSetting = "none" | "db-timetables" | "bahn-web";
 export interface DBhopperPrivateSettings {
     ID_CRED: string;
     ID_PRF: string;
     PATH_CRED: string;
     PATH_PRF: string;
+    DELAY_PROVIDER: DBhopperDelayProviderSetting;
+    DELAY_FALLBACK: DBhopperDelayFallbackSetting;
 }
 export interface LoadedPrivateSettings {
     exists: boolean;
@@ -25,11 +29,13 @@ export declare function stringifyPrivateSettingsToml(settings: DBhopperPrivateSe
 export declare function listCredentialIdFiles(config?: DBhopperConfig): Promise<{
     items: PrivateIdFile[];
     messages: ValidationMessage[];
+    directoryOk: boolean;
     settings: LoadedPrivateSettings;
 }>;
 export declare function listProfileIdFiles(config?: DBhopperConfig): Promise<{
     items: PrivateIdFile[];
     messages: ValidationMessage[];
+    directoryOk: boolean;
     settings: LoadedPrivateSettings;
 }>;
 export declare function resolveSelectedCredentialFile(config?: DBhopperConfig): Promise<{
@@ -51,6 +57,8 @@ export declare function privateSettingsStatus(config?: DBhopperConfig): Promise<
         ID_PRF: string;
         PATH_CRED: string;
         PATH_PRF: string;
+        DELAY_PROVIDER: DBhopperDelayProviderSetting;
+        DELAY_FALLBACK: DBhopperDelayFallbackSetting;
         credentialsDir: string;
         profilesDir: string;
     };
@@ -80,6 +88,8 @@ export declare function writePrivateSettingsIds(updates: {
         ID_PRF: string;
         PATH_CRED: string;
         PATH_PRF: string;
+        DELAY_PROVIDER: DBhopperDelayProviderSetting;
+        DELAY_FALLBACK: DBhopperDelayFallbackSetting;
         credentialsDir: string;
         profilesDir: string;
     };

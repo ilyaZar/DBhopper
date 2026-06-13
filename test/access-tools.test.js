@@ -68,6 +68,8 @@ async function writeSettings(root) {
       'ID_PRF = "01"',
       'PATH_CRED = "assets/private/credentials"',
       'PATH_PRF = "assets/private/profiles"',
+      'DELAY_PROVIDER = "bahn-web"',
+      'DELAY_FALLBACK = "none"',
       "",
     ].join("\n"),
     "utf8",

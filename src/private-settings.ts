@@ -6,11 +6,16 @@ import { parse } from "smol-toml";
 
 import type { DBhopperConfig, ValidationMessage } from "./types.js";
 
+export type DBhopperDelayProviderSetting = "auto" | "db-timetables" | "bahn-web";
+export type DBhopperDelayFallbackSetting = "none" | "db-timetables" | "bahn-web";
+
 export interface DBhopperPrivateSettings {
   ID_CRED: string;
   ID_PRF: string;
   PATH_CRED: string;
   PATH_PRF: string;
+  DELAY_PROVIDER: DBhopperDelayProviderSetting;
+  DELAY_FALLBACK: DBhopperDelayFallbackSetting;
 }
 
 export interface LoadedPrivateSettings {
@@ -32,7 +37,16 @@ const SETTINGS_RELATIVE_PATH = path.join("assets", "private", "settings.toml");
 const DEFAULT_CREDENTIALS_PATH = path.join("assets", "private", "credentials");
 const DEFAULT_PROFILES_PATH = path.join("assets", "private", "profiles");
 const DEFAULT_ID = "01";
-const SETTINGS_KEYS = new Set(["ID_CRED", "ID_PRF", "PATH_CRED", "PATH_PRF"]);
+const SETTINGS_KEYS = new Set([
+  "ID_CRED",
+  "ID_PRF",
+  "PATH_CRED",
+  "PATH_PRF",
+  "DELAY_PROVIDER",
+  "DELAY_FALLBACK",
+]);
+const DELAY_PROVIDER_VALUES = new Set(["auto", "db-timetables", "bahn-web"]);
+const DELAY_FALLBACK_VALUES = new Set(["none", "db-timetables", "bahn-web"]);
 
 export function privateSettingsPath(config: DBhopperConfig = {}) {
   return path.join(workspaceRoot(config), SETTINGS_RELATIVE_PATH);
@@ -44,6 +58,8 @@ export function defaultPrivateSettings(): DBhopperPrivateSettings {
     ID_PRF: DEFAULT_ID,
     PATH_CRED: DEFAULT_CREDENTIALS_PATH,
     PATH_PRF: DEFAULT_PROFILES_PATH,
+    DELAY_PROVIDER: "bahn-web",
+    DELAY_FALLBACK: "none",
   };
 }
 
@@ -93,6 +109,8 @@ export function stringifyPrivateSettingsToml(settings: DBhopperPrivateSettings) 
     `ID_PRF = ${tomlString(settings.ID_PRF)}`,
     `PATH_CRED = ${tomlString(settings.PATH_CRED)}`,
     `PATH_PRF = ${tomlString(settings.PATH_PRF)}`,
+    `DELAY_PROVIDER = ${tomlString(settings.DELAY_PROVIDER)}`,
+    `DELAY_FALLBACK = ${tomlString(settings.DELAY_FALLBACK)}`,
     "",
   ].join("\n");
 }
@@ -151,18 +169,22 @@ export async function privateSettingsStatus(config: DBhopperConfig = {}) {
     ...credentials.messages,
     ...profiles.messages,
   ];
-  const credentialSelection = resolveIdFromList(
-    credentials.items,
-    "ID_CRED",
-    settings.settings.ID_CRED,
-    messages,
-  );
-  const profileSelection = resolveIdFromList(
-    profiles.items,
-    "ID_PRF",
-    settings.settings.ID_PRF,
-    messages,
-  );
+  const credentialSelection = credentials.directoryOk
+    ? resolveIdFromList(
+        credentials.items,
+        "ID_CRED",
+        settings.settings.ID_CRED,
+        messages,
+      )
+    : undefined;
+  const profileSelection = profiles.directoryOk
+    ? resolveIdFromList(
+        profiles.items,
+        "ID_PRF",
+        settings.settings.ID_PRF,
+        messages,
+      )
+    : undefined;
 
   return {
     ok: messages.every((message) => message.severity !== "error"),
@@ -173,6 +195,8 @@ export async function privateSettingsStatus(config: DBhopperConfig = {}) {
       ID_PRF: settings.settings.ID_PRF,
       PATH_CRED: settings.settings.PATH_CRED,
       PATH_PRF: settings.settings.PATH_PRF,
+      DELAY_PROVIDER: settings.settings.DELAY_PROVIDER,
+      DELAY_FALLBACK: settings.settings.DELAY_FALLBACK,
       credentialsDir: settings.credentialsDir,
       profilesDir: settings.profilesDir,
     },
@@ -256,14 +280,48 @@ function assertPrivateSettingsShape(
   assertString(value.ID_PRF, `${source}.ID_PRF`);
   assertString(value.PATH_CRED, `${source}.PATH_CRED`);
   assertString(value.PATH_PRF, `${source}.PATH_PRF`);
+  assertString(value.DELAY_PROVIDER, `${source}.DELAY_PROVIDER`);
+  assertString(value.DELAY_FALLBACK, `${source}.DELAY_FALLBACK`);
   normalizePrivateId(value.ID_CRED as string, "ID_CRED");
   normalizePrivateId(value.ID_PRF as string, "ID_PRF");
+  assertOneOf(
+    value.DELAY_PROVIDER,
+    DELAY_PROVIDER_VALUES,
+    `${source}.DELAY_PROVIDER`,
+  );
+  assertOneOf(
+    value.DELAY_FALLBACK,
+    DELAY_FALLBACK_VALUES,
+    `${source}.DELAY_FALLBACK`,
+  );
 }
 
 async function listIdFiles(dir: string, idField: "ID_CRED" | "ID_PRF") {
-  const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
   const messages: ValidationMessage[] = [];
   const items: PrivateIdFile[] = [];
+  const pathField = idField === "ID_CRED" ? "PATH_CRED" : "PATH_PRF";
+  const stat = await fs.stat(dir).catch((error: NodeJS.ErrnoException) => {
+    messages.push({
+      code: "invalid_private_directory",
+      message: `${pathField} ${dir} is not readable: ${error.code ?? error.message}`,
+      severity: "error",
+    });
+    return undefined;
+  });
+
+  if (!stat) {
+    return { items, messages, directoryOk: false };
+  }
+  if (!stat.isDirectory()) {
+    messages.push({
+      code: "invalid_private_directory",
+      message: `${pathField} ${dir} must point to a directory`,
+      severity: "error",
+    });
+    return { items, messages, directoryOk: false };
+  }
+
+  const entries = await fs.readdir(dir, { withFileTypes: true });
 
   for (const entry of entries) {
     if (!entry.isFile() || !entry.name.endsWith(".toml")) {
@@ -302,7 +360,7 @@ async function listIdFiles(dir: string, idField: "ID_CRED" | "ID_PRF") {
       severity: "error",
     });
   }
-  return { items, messages };
+  return { items, messages, directoryOk: true };
 }
 
 async function resolveIdFile(
@@ -373,6 +431,12 @@ function assertTable(value: unknown, source: string): asserts value is Record<st
 function assertString(value: unknown, source: string) {
   if (typeof value !== "string" || value.length === 0) {
     throw new Error(`${source} must be a non-empty string`);
+  }
+}
+
+function assertOneOf(value: unknown, allowed: Set<string>, source: string) {
+  if (typeof value !== "string" || !allowed.has(value)) {
+    throw new Error(`${source} must be one of: ${[...allowed].join(", ")}`);
   }
 }
 

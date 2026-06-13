@@ -27,8 +27,33 @@ export async function validateCredentialsFiles(config = {}) {
         await fs.mkdir(credentialsDir(config), { recursive: true });
     }
     const dir = settings.credentialsDir;
-    const entries = await fs.readdir(dir, { withFileTypes: true }).catch(() => []);
     const messages = [];
+    const stat = await fs.stat(dir).catch((error) => {
+        messages.push({
+            code: "invalid_credentials_directory",
+            message: `PATH_CRED ${dir} is not readable: ${error.code ?? error.message}`,
+            severity: "error",
+        });
+        return undefined;
+    });
+    if (!stat) {
+        return {
+            ok: false,
+            messages,
+        };
+    }
+    if (!stat.isDirectory()) {
+        messages.push({
+            code: "invalid_credentials_directory",
+            message: `PATH_CRED ${dir} must point to a directory`,
+            severity: "error",
+        });
+        return {
+            ok: false,
+            messages,
+        };
+    }
+    const entries = await fs.readdir(dir, { withFileTypes: true });
     for (const entry of entries) {
         if (!entry.isFile() || !entry.name.endsWith(".toml")) {
             continue;

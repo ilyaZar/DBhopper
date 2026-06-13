@@ -33,6 +33,8 @@ describe("dbhopper private settings", () => {
     assert.deepEqual(status.profiles.availableIds, ["01", "03"]);
     assert.equal(status.credentials.selected.fileName, "credentials-02.toml");
     assert.equal(status.profiles.selected.fileName, "private-profile-03.toml");
+    assert.equal(status.settings.DELAY_PROVIDER, "bahn-web");
+    assert.equal(status.settings.DELAY_FALLBACK, "none");
 
     const credentials = await readSelectedCredentialsProfile({ workspaceRoot: root });
     assert.equal(credentials.credentialsId, "02");
@@ -122,6 +124,8 @@ describe("dbhopper private settings", () => {
     assert.match(settings, /ID_PRF = "03"/);
     assert.match(settings, new RegExp(escapeRegExp(`PATH_CRED = "${credentialsDir}"`)));
     assert.match(settings, new RegExp(escapeRegExp(`PATH_PRF = "${profilesDir}"`)));
+    assert.match(settings, /DELAY_PROVIDER = "bahn-web"/);
+    assert.match(settings, /DELAY_FALLBACK = "none"/);
   });
 
   it("uses PATH_PRF instead of the internal profile directory", async () => {
@@ -190,6 +194,39 @@ describe("dbhopper private settings", () => {
     assert.equal(credentials.credentials.bahnAPI.clientId, "external-client");
   });
 
+  it("flags PATH_CRED when it points to a file", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-settings-file-path-"));
+    const credentialsFile = path.join(root, "credentials-as-file.toml");
+    const profilesDir = path.join(root, "profiles");
+    await writeSettings(root, {
+      credentialId: "01",
+      profileId: "01",
+      credentialsDir: credentialsFile,
+      profilesDir,
+    });
+    await fs.writeFile(credentialsFile, 'ID_CRED = "01"\n', "utf8");
+    await writeProfile(profilesDir, "01", "private-profile-01.toml", "First");
+
+    const status = await privateSettingsStatus({ workspaceRoot: root });
+
+    assert.equal(status.ok, false);
+    assert.ok(
+      status.messages.some((message) =>
+        /PATH_CRED .* must point to a directory/.test(message.message),
+      ),
+    );
+    assert.equal(
+      status.messages.some((message) =>
+        /ID_CRED 01 does not exist/.test(message.message),
+      ),
+      false,
+    );
+    await assert.rejects(
+      () => readSelectedCredentialsProfile({ workspaceRoot: root }),
+      /PATH_CRED .* must point to a directory/,
+    );
+  });
+
   it("flags missing selected IDs", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-settings-missing-"));
     const credentialsDir = path.join(root, "creds");
@@ -231,6 +268,8 @@ async function writeSettings(
       `ID_PRF = "${profileId}"`,
       `PATH_CRED = "${credentialsDir}"`,
       `PATH_PRF = "${profilesDir}"`,
+      'DELAY_PROVIDER = "bahn-web"',
+      'DELAY_FALLBACK = "none"',
       "",
     ].join("\n"),
     "utf8",
