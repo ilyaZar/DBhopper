@@ -23,10 +23,31 @@ export interface DBAccountLoginResult {
     | "selected_credentials_submitted"
     | "not_proven_existing_session"
     | "not_proven_missing_login_form"
+    | "not_proven_invalid_username"
+    | "not_proven_invalid_password"
+    | "not_proven_invalid_credentials"
     | "not_proven_blocked_by_user_action";
+  credentialRejected?: boolean;
+  credentialRejectionStage?: CredentialRejectionStage;
+  credentialRejectionReason?: CredentialRejectionReason;
+  usernameRejected?: boolean;
+  usernameRejectionReason?: UsernameRejectionReason;
+  passwordRejected?: boolean;
+  passwordRejectionReason?: PasswordRejectionReason;
+  credentialCombinationRejected?: boolean;
   stayLoggedIn: StayLoggedInResult;
   message?: string;
 }
+
+export type UsernameRejectionReason = "invalid_format" | "unknown_username";
+export type PasswordRejectionReason =
+  | "incorrect_password"
+  | "username_password_mismatch";
+export type CredentialRejectionStage = "username" | "password" | "combination";
+export type CredentialRejectionReason =
+  | "invalid_username_format"
+  | "unknown_username"
+  | PasswordRejectionReason;
 
 export interface StayLoggedInResult {
   requested: boolean;
@@ -64,6 +85,10 @@ const LOGIN_CONTROL_SELECTORS = [
   'a:has-text("Login")',
   'button:has-text("Anmelden")',
   'a:has-text("Anmelden")',
+  'button:has-text("Continue")',
+  'a:has-text("Continue")',
+  'button:has-text("Weiter")',
+  'a:has-text("Weiter")',
 ];
 
 const USERNAME_SELECTORS = [
@@ -131,6 +156,68 @@ export function isStayLoggedInLabel(value: string) {
   );
 }
 
+export function classifyDbUsernameRejectionText(
+  value: string,
+): UsernameRejectionReason | undefined {
+  const text = value.replace(/\s+/g, " ").trim().toLowerCase();
+  if (
+    /please enter a valid e-?mail address/.test(text) ||
+    /enter a valid email address/.test(text) ||
+    /bitte geben sie eine g(?:ü|ue)ltige e-?mail-adresse ein/.test(text) ||
+    /g(?:ü|ue)ltige e-?mail-adresse/.test(text)
+  ) {
+    return "invalid_format";
+  }
+  if (
+    /no account (?:was )?found/.test(text) ||
+    /account .*not found/.test(text) ||
+    /unknown (?:user|username|email|e-?mail)/.test(text) ||
+    /not registered/.test(text) ||
+    /kein(?:e[rs]?)? konto .*gefunden/.test(text) ||
+    /konto .*nicht gefunden/.test(text) ||
+    /unbekannte[rs]? (?:benutzer|benutzername|e-?mail)/.test(text) ||
+    /nicht registriert/.test(text)
+  ) {
+    return "unknown_username";
+  }
+  return undefined;
+}
+
+export function classifyDbPasswordRejectionText(
+  value: string,
+): PasswordRejectionReason | undefined {
+  const text = value.replace(/\s+/g, " ").trim().toLowerCase();
+  if (
+    /(?:user(?:name)?|e-?mail(?: address)?) .* password .* (?:incorrect|invalid|wrong)/.test(
+      text,
+    ) ||
+    /(?:incorrect|invalid|wrong) .*(?:user(?:name)?|e-?mail(?: address)?) .* password/.test(
+      text,
+    ) ||
+    /login (?:data|details|credentials) .* (?:incorrect|invalid|wrong)/.test(text) ||
+    /(?:benutzer(?:name)?|e-?mail(?:-adresse)?) .* passwort .* (?:falsch|ung(?:ü|ue)ltig|nicht korrekt)/.test(
+      text,
+    ) ||
+    /(?:anmelde|zugangs)daten .* (?:falsch|ung(?:ü|ue)ltig|nicht korrekt)/.test(
+      text,
+    )
+  ) {
+    return "username_password_mismatch";
+  }
+  if (
+    /password .*incorrect/.test(text) ||
+    /incorrect password/.test(text) ||
+    /password entered is incorrect/.test(text) ||
+    /passwort .*falsch/.test(text) ||
+    /falsches passwort/.test(text) ||
+    /kennwort .*falsch/.test(text) ||
+    /passwort .*nicht korrekt/.test(text)
+  ) {
+    return "incorrect_password";
+  }
+  return undefined;
+}
+
 export async function performDbAccountLogin(
   page: Page,
   credentials: DBAccountCredentials,
@@ -174,20 +261,23 @@ export async function performDbAccountLogin(
   }
 
   if (!(await hasVisible(page, USERNAME_SELECTORS))) {
+    const existingSession = await pageLooksAuthenticated(page);
     return {
       requested: true,
-      ok: !requireCredentialEntry,
+      ok: !requireCredentialEntry || existingSession,
       loginOpened,
-      alreadyLoggedIn: !loginOpened,
+      alreadyLoggedIn: existingSession || !loginOpened,
       usernameSubmitted: false,
       passwordSubmitted: false,
       selectedCredentialsSubmitted: false,
       needsUserAction: requireCredentialEntry,
-      credentialProof: loginOpened
-        ? "not_proven_missing_login_form"
-        : "not_proven_existing_session",
+      credentialProof: existingSession || !loginOpened
+        ? "not_proven_existing_session"
+        : "not_proven_missing_login_form",
       stayLoggedIn: emptyStayLoggedIn,
-      message: loginOpened
+      message: existingSession
+        ? "existing session prevented credential-entry proof"
+        : loginOpened
         ? "login opened but no username field was found"
         : "existing session or page state prevented credential-entry proof",
     };
@@ -233,6 +323,34 @@ export async function performDbAccountLogin(
 
   await page.waitForTimeout(3500);
   await waitForAnySelector(page, PASSWORD_SELECTORS, 8000);
+  if (!(await hasVisible(page, PASSWORD_SELECTORS))) {
+    const usernameRejectionReason = await pageUsernameRejectionReason(page);
+    if (usernameRejectionReason) {
+      return {
+        requested: true,
+        ok: false,
+        loginOpened: true,
+        alreadyLoggedIn: false,
+        usernameSubmitted,
+        passwordSubmitted: false,
+        selectedCredentialsSubmitted: false,
+        needsUserAction: true,
+        credentialProof: "not_proven_invalid_username",
+        credentialRejected: true,
+        credentialRejectionStage: "username",
+        credentialRejectionReason: credentialReasonFromUsername(
+          usernameRejectionReason,
+        ),
+        usernameRejected: true,
+        usernameRejectionReason,
+        stayLoggedIn: emptyStayLoggedIn,
+        message:
+          usernameRejectionReason === "invalid_format"
+            ? "DB rejected the selected account username as an invalid email address"
+            : "DB rejected the selected account username as unknown or unregistered",
+      };
+    }
+  }
   if (!(await hasVisible(page, PASSWORD_SELECTORS)) && await pageNeedsUserAction(page)) {
     return {
       requested: true,
@@ -276,6 +394,33 @@ export async function performDbAccountLogin(
 
   const passwordSubmitted = await clickFirstVisible(page, PASSWORD_SUBMIT_SELECTORS);
   await page.waitForTimeout(6000);
+  const passwordRejectionReason = await pagePasswordRejectionReason(page);
+  if (passwordRejectionReason) {
+    const isCombination = passwordRejectionReason === "username_password_mismatch";
+    return {
+      requested: true,
+      ok: false,
+      loginOpened: true,
+      alreadyLoggedIn: false,
+      usernameSubmitted,
+      passwordSubmitted,
+      selectedCredentialsSubmitted: usernameSubmitted && passwordSubmitted,
+      needsUserAction: true,
+      credentialProof: isCombination
+        ? "not_proven_invalid_credentials"
+        : "not_proven_invalid_password",
+      credentialRejected: true,
+      credentialRejectionStage: isCombination ? "combination" : "password",
+      credentialRejectionReason: passwordRejectionReason,
+      passwordRejected: !isCombination,
+      passwordRejectionReason,
+      credentialCombinationRejected: true,
+      stayLoggedIn,
+      message: isCombination
+        ? "DB rejected the selected username/password combination"
+        : "DB rejected the selected account password",
+    };
+  }
   const finalNeedsUserAction = await pageNeedsUserAction(page);
   const hasError = await pageHasError(page);
   const ok = passwordSubmitted && !finalNeedsUserAction && !hasError;
@@ -443,4 +588,27 @@ async function pageHasError(page: Page) {
   return /invalid|incorrect|unauthorized|fehler|ungültig|falsch|nicht korrekt|error/i.test(
     text,
   );
+}
+
+async function pageUsernameRejectionReason(page: Page) {
+  const text = await page.locator("body").innerText({ timeout: 3000 }).catch(() => "");
+  return classifyDbUsernameRejectionText(text);
+}
+
+async function pagePasswordRejectionReason(page: Page) {
+  const text = await page.locator("body").innerText({ timeout: 3000 }).catch(() => "");
+  return classifyDbPasswordRejectionText(text);
+}
+
+async function pageLooksAuthenticated(page: Page) {
+  const text = await page.locator("body").innerText({ timeout: 3000 }).catch(() => "");
+  return /logout|log out|sign out|abmelden|my bahn|meine bahn|applications|anwendungen|account|konto/i.test(
+    text,
+  );
+}
+
+function credentialReasonFromUsername(
+  reason: UsernameRejectionReason,
+): CredentialRejectionReason {
+  return reason === "invalid_format" ? "invalid_username_format" : reason;
 }

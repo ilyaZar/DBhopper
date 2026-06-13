@@ -61,7 +61,7 @@ export declare function runDbStandardLoginCheck(params: DbStandardLoginCheckPara
         selectedCredentialsSubmitted: boolean;
         usernameSubmitted: boolean;
         passwordSubmitted: boolean;
-        proof: "selected_credentials_submitted" | "not_proven_existing_session" | "not_proven_missing_login_form" | "not_proven_blocked_by_user_action";
+        proof: "selected_credentials_submitted" | "not_proven_existing_session" | "not_proven_missing_login_form" | "not_proven_invalid_username" | "not_proven_invalid_password" | "not_proven_invalid_credentials" | "not_proven_blocked_by_user_action";
     };
     login: import("./db-login.js").DBAccountLoginResult;
     pageState: {

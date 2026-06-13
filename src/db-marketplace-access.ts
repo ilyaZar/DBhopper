@@ -1,5 +1,7 @@
 import path from "node:path";
 
+import type { Page } from "playwright-core";
+
 import {
   DB_MARKETPLACE_LOGIN_URL,
   DB_MARKETPLACE_TIMETABLES_URL,
@@ -19,6 +21,17 @@ import { resolveWorkspace } from "./workspace.js";
 export interface DbMarketplaceAccessCheckParams extends BrowserAccessParams {
   stay_logged_in?: boolean;
 }
+
+const MARKETPLACE_DB_ACCOUNT_CONTINUE_SELECTORS = [
+  'button:has-text("Weiter mit DB Kundenkonto")',
+  'a:has-text("Weiter mit DB Kundenkonto")',
+  'button:has-text("Mit DB Kundenkonto")',
+  'a:has-text("Mit DB Kundenkonto")',
+  'button:has-text("Continue with DB customer account")',
+  'a:has-text("Continue with DB customer account")',
+  'button:has-text("DB customer account")',
+  'a:has-text("DB customer account")',
+];
 
 export async function runDbMarketplaceAccessCheck(
   params: DbMarketplaceAccessCheckParams,
@@ -64,12 +77,21 @@ export async function runDbMarketplaceAccessCheck(
     });
     await session.page.waitForTimeout(2500);
     await captureAccessStage(session.page, session.artifactDir, "marketplace-login", artifacts);
+    const accountGateClicked = await continueToDbAccountLogin(session.page);
+    if (accountGateClicked) {
+      await captureAccessStage(
+        session.page,
+        session.artifactDir,
+        "after-account-gate",
+        artifacts,
+      );
+    }
     const loginPageState = await pageAccessState(session.page);
 
     let login:
       | Awaited<ReturnType<typeof performDbAccountLogin>>
       | { requested: false; message: string };
-    if (new URL(session.page.url()).hostname === "accounts.bahn.de") {
+    if (isDbIdentityHost(new URL(session.page.url()).hostname)) {
       login = await performDbAccountLogin(
         session.page,
         credentialModel.credentialsForSubmission,
@@ -95,9 +117,38 @@ export async function runDbMarketplaceAccessCheck(
     const productPageState = await pageAccessState(session.page);
     const loginSubmitted =
       "selectedCredentialsSubmitted" in login && login.selectedCredentialsSubmitted;
+    const loginOk = "ok" in login && login.ok === true;
+    const loginProof =
+      "credentialProof" in login ? login.credentialProof : "not_proven";
+    const usernameRejected =
+      "usernameRejected" in login ? login.usernameRejected : undefined;
+    const usernameRejectionReason =
+      "usernameRejectionReason" in login
+        ? login.usernameRejectionReason
+        : undefined;
+    const credentialRejected =
+      "credentialRejected" in login ? login.credentialRejected : undefined;
+    const credentialRejectionStage =
+      "credentialRejectionStage" in login
+        ? login.credentialRejectionStage
+        : undefined;
+    const credentialRejectionReason =
+      "credentialRejectionReason" in login
+        ? login.credentialRejectionReason
+        : undefined;
+    const passwordRejected =
+      "passwordRejected" in login ? login.passwordRejected : undefined;
+    const passwordRejectionReason =
+      "passwordRejectionReason" in login
+        ? login.passwordRejectionReason
+        : undefined;
+    const credentialCombinationRejected =
+      "credentialCombinationRejected" in login
+        ? login.credentialCombinationRejected
+        : undefined;
 
     return {
-      ok: productPageState.flags.hasMarketplaceText,
+      ok: productPageState.flags.hasMarketplaceText && loginOk,
       operation: "db_marketplace_access_check",
       accessPath: "db_api_marketplace_browser",
       startUrl: DB_MARKETPLACE_LOGIN_URL,
@@ -106,9 +157,17 @@ export async function runDbMarketplaceAccessCheck(
       credentialModel,
       credentialSubmission: {
         selectedCredentialsSubmitted: loginSubmitted,
-        proof: loginSubmitted
+        proof: loginOk && loginSubmitted
           ? "marketplace_account_credentials_submitted"
-          : "not_proven",
+          : loginProof,
+        credentialRejected,
+        credentialRejectionStage,
+        credentialRejectionReason,
+        usernameRejected,
+        usernameRejectionReason,
+        passwordRejected,
+        passwordRejectionReason,
+        credentialCombinationRejected,
       },
       login,
       loginPageState,
@@ -117,13 +176,14 @@ export async function runDbMarketplaceAccessCheck(
         loginPage: loginPageState.flags.hasMarketplaceText || loginPageState.flags.hasLoginText,
         timetablesProductPage: productPageState.flags.hasMarketplaceText,
       },
+      accountGateClicked,
       browser: {
         executablePath: session.executablePath,
         userDataDir: path.relative(resolveWorkspace(config).root, session.userDataDir),
       },
       artifactDir: session.artifactDir,
       artifacts,
-      needsUserAction: !loginSubmitted && credentialModel.schemaSufficientForBrowserLogin,
+      needsUserAction: !loginOk && credentialModel.schemaSufficientForBrowserLogin,
       appCreated: false,
       subscriptionChanged: false,
       termsAccepted: false,
@@ -177,4 +237,24 @@ function marketplaceCredentialModel(
         }
       : {},
   };
+}
+
+function isDbIdentityHost(hostname: string) {
+  return hostname === "accounts.bahn.de" || hostname === "id.bahn.de";
+}
+
+async function continueToDbAccountLogin(page: Page) {
+  for (const selector of MARKETPLACE_DB_ACCOUNT_CONTINUE_SELECTORS) {
+    const locator = page.locator(selector).first();
+    try {
+      if ((await locator.count()) > 0 && await locator.isVisible({ timeout: 1000 })) {
+        await locator.click({ timeout: 10000 });
+        await page.waitForLoadState("domcontentloaded", { timeout: 10000 })
+          .catch(() => undefined);
+        await page.waitForTimeout(2500);
+        return true;
+      }
+    } catch {}
+  }
+  return false;
 }

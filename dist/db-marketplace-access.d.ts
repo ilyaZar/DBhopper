@@ -36,6 +36,7 @@ export declare function runDbMarketplaceAccessCheck(params: DbMarketplaceAccessC
     loginPageState?: undefined;
     productPageState?: undefined;
     reachable?: undefined;
+    accountGateClicked?: undefined;
     browser?: undefined;
     artifactDir?: undefined;
     artifacts?: undefined;
@@ -79,6 +80,14 @@ export declare function runDbMarketplaceAccessCheck(params: DbMarketplaceAccessC
     credentialSubmission: {
         selectedCredentialsSubmitted: boolean;
         proof: string;
+        credentialRejected: boolean | undefined;
+        credentialRejectionStage: import("./db-login.js").CredentialRejectionStage | undefined;
+        credentialRejectionReason: import("./db-login.js").CredentialRejectionReason | undefined;
+        usernameRejected: boolean | undefined;
+        usernameRejectionReason: import("./db-login.js").UsernameRejectionReason | undefined;
+        passwordRejected: boolean | undefined;
+        passwordRejectionReason: import("./db-login.js").PasswordRejectionReason | undefined;
+        credentialCombinationRejected: boolean | undefined;
     };
     login: import("./db-login.js").DBAccountLoginResult | {
         requested: false;
@@ -120,6 +129,7 @@ export declare function runDbMarketplaceAccessCheck(params: DbMarketplaceAccessC
         loginPage: boolean;
         timetablesProductPage: boolean;
     };
+    accountGateClicked: boolean;
     browser: {
         executablePath: string;
         userDataDir: string;
@@ -167,5 +177,6 @@ export declare function runDbMarketplaceAccessCheck(params: DbMarketplaceAccessC
     loginPageState?: undefined;
     productPageState?: undefined;
     reachable?: undefined;
+    accountGateClicked?: undefined;
     browser?: undefined;
 }>;
