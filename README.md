@@ -1,3 +1,5 @@
+![DBhopper banner](assets/dbhopper_banner.png)
+
 # DBhopper
 
 OpenClaw tools for NRW Mobilitätsgarantie claims, Deutsche Bahn live-delay route
