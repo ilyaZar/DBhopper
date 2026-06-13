@@ -2,7 +2,9 @@ import { Type } from "typebox";
 import { applyCredentialsToConfig, credentialsSummary, readSelectedCredentialsProfile, } from "./credentials.js";
 import { BAHN_WEB_RESEARCH_SUMMARY, BAHN_WEB_SOURCE_API, createBahnWebProvider, } from "./bahn-web.js";
 import { DB_DELAY_RESEARCH_SUMMARY, createTimetablesProvider, timetablesConfigStatus, } from "./db-timetables.js";
-import { DEFAULT_DELAY_THRESHOLD_MINUTES, DEFAULT_LONG_DISTANCE_REPLACEMENT_TYPES, DEFAULT_REGIONAL_TYPES, DEFAULT_TIME_ZONE, DEFAULT_WINDOW_WIDTH_MINUTES, buildQueryWindow, filterLongDistanceReplacements, filterRegionalDelayedCandidates, normalizeCandidateQuery, normalizeStationName, } from "./db-delay.js";
+import { diagnoseDbApiCredentialErrorMessage } from "./db-api-errors.js";
+import { DEFAULT_DELAY_THRESHOLD_MINUTES, DEFAULT_LONG_DISTANCE_REPLACEMENT_TYPES, DEFAULT_REGIONAL_TYPES, DEFAULT_TIME_ZONE, DEFAULT_WINDOW_WIDTH_MINUTES, buildQueryWindow, collectProviderJourneys, filterLongDistanceReplacements, filterRegionalDelayedCandidates, normalizeCandidateQuery, normalizeStationName, } from "./db-delay.js";
+import { readPrivateSettings, } from "./private-settings.js";
 export const DB_DELAY_TOOL_NAMES = [
     "dbhopper_db_delay_research",
     "dbhopper_query_db_delay",
@@ -31,8 +33,7 @@ export function createDbDelayToolDefinitions(tool) {
                     Type.Literal("db-timetables"),
                     Type.Literal("bahn-web"),
                 ], {
-                    default: "auto",
-                    description: "Delay data provider. auto uses Timetables when credentials exist, otherwise bahn-web.",
+                    description: "Delay data provider. Omit to use DELAY_PROVIDER from settings.toml.",
                 })),
                 departure_station: Type.String({
                     description: "Boarding station name, for example Hamm(Westf)Hbf.",
@@ -89,11 +90,27 @@ export async function runDbDelayQuery(params, config = {}, signal) {
     let loadedCredentials = undefined;
     let providerChoice;
     let effectiveConfig;
+    let credentialLoadError;
+    let delaySettings = {
+        provider: "bahn-web",
+        fallback: "none",
+    };
     try {
-        loadedCredentials = await readSelectedCredentialsProfile(config);
-        effectiveConfig = applyCredentialsToConfig(config, loadedCredentials);
+        const privateSettings = await readPrivateSettings(config);
+        delaySettings = {
+            provider: privateSettings.settings.DELAY_PROVIDER,
+            fallback: privateSettings.settings.DELAY_FALLBACK,
+        };
+        const requestedProvider = params.provider ?? delaySettings.provider;
+        try {
+            loadedCredentials = await readSelectedCredentialsProfile(config);
+        }
+        catch (error) {
+            credentialLoadError = errorMessage(error);
+        }
+        effectiveConfig = applyCredentialsToConfig(applyDelaySettingsToConfig(config, delaySettings.provider), loadedCredentials);
         const status = timetablesConfigStatus(effectiveConfig);
-        providerChoice = selectDelayProvider(params.provider, effectiveConfig, status.configured);
+        providerChoice = selectDelayProvider(requestedProvider, effectiveConfig, status.configured);
         if (providerChoice.selected === "db-timetables" && !status.configured) {
             return {
                 ok: false,
@@ -106,24 +123,26 @@ export async function runDbDelayQuery(params, config = {}, signal) {
                 ],
                 config_status: status,
                 credentials: credentialsSummary(loadedCredentials),
+                credential_load_error: credentialLoadError,
                 provider_selection: providerChoice,
+                delay_settings: delaySettings,
                 research: combinedResearchSummary(),
             };
         }
-        return await runDbDelayQueryWithProvider(params, effectiveConfig, loadedCredentials, providerChoice, signal);
+        return await runDbDelayQueryWithProvider(params, effectiveConfig, loadedCredentials, providerChoice, credentialLoadError, signal);
     }
     catch (error) {
         if (effectiveConfig &&
             providerChoice &&
-            shouldFallbackToBahnWeb(params.provider, providerChoice, error)) {
+            shouldFallbackToProvider(delaySettings.fallback, providerChoice, error)) {
             const fallbackChoice = {
                 requested: providerChoice.requested,
-                selected: BAHN_WEB_SOURCE_API,
-                reason: "DB Timetables failed with a credential/authentication error; using bahn-web fallback",
+                selected: delaySettings.fallback,
+                reason: `${providerChoice.selected} failed; using configured ${delaySettings.fallback} fallback`,
                 fallbackFrom: providerChoice.selected,
             };
             try {
-                const result = await runDbDelayQueryWithProvider(params, effectiveConfig, loadedCredentials, fallbackChoice, signal);
+                const result = await runDbDelayQueryWithProvider(params, effectiveConfig, loadedCredentials, fallbackChoice, credentialLoadError, signal);
                 return {
                     ...result,
                     provider_selection: fallbackChoice,
@@ -138,7 +157,9 @@ export async function runDbDelayQuery(params, config = {}, signal) {
                     primary_provider_error: sanitizedProviderError(error),
                     needs_configuration: false,
                     credentials: credentialsSummary(loadedCredentials),
+                    credential_load_error: credentialLoadError,
                     provider_selection: fallbackChoice,
+                    delay_settings: delaySettings,
                     research: combinedResearchSummary(),
                 };
             }
@@ -147,14 +168,43 @@ export async function runDbDelayQuery(params, config = {}, signal) {
             ok: false,
             operation: "db_delay_query",
             error: errorMessage(error),
+            provider_error: sanitizedProviderError(error),
             needs_configuration: /credentials/i.test(errorMessage(error)),
             credentials: credentialsSummary(loadedCredentials),
+            credential_load_error: credentialLoadError,
             provider_selection: providerChoice,
+            delay_settings: delaySettings,
             research: combinedResearchSummary(),
         };
     }
 }
-async function runDbDelayQueryWithProvider(params, effectiveConfig, loadedCredentials, providerChoice, signal) {
+export async function runDbDelayProviderParityProbe(params, config = {}, signal) {
+    const baseParams = {
+        ...params,
+        provider: undefined,
+        include_discarded: false,
+        include_raw: false,
+    };
+    const [official, web] = await Promise.all([
+        runDbDelayQuery({ ...baseParams, provider: "db-timetables" }, config, signal),
+        runDbDelayQuery({ ...baseParams, provider: BAHN_WEB_SOURCE_API }, config, signal),
+    ]);
+    const officialRows = extractTableRows(official);
+    const webRows = extractTableRows(web);
+    const comparison = official.ok && web.ok
+        ? compareCleanedRows(officialRows, webRows)
+        : undefined;
+    return {
+        ok: official.ok === true && web.ok === true && comparison?.same === true,
+        operation: "db_delay_provider_parity_probe",
+        api_ready: official.ok === true,
+        web_ready: web.ok === true,
+        official: paritySideOutput(official, params.include_table_rows === true),
+        web: paritySideOutput(web, params.include_table_rows === true),
+        comparison,
+    };
+}
+async function runDbDelayQueryWithProvider(params, effectiveConfig, loadedCredentials, providerChoice, credentialLoadError, signal) {
     const provider = providerChoice.selected === BAHN_WEB_SOURCE_API
         ? createBahnWebProvider({
             ...effectiveConfig,
@@ -185,12 +235,11 @@ async function runDbDelayQueryWithProvider(params, effectiveConfig, loadedCreden
     }
     const query = normalizeCandidateQuery(toCandidateQuery(params, departure, arrival));
     const window = buildQueryWindow(query);
-    const events = await provider.queryStationBoard(departure, {
+    const { events, journeys } = await collectProviderJourneys(provider, departure, {
         lowerBound: window.lowerBound,
         queryTime: window.queryTime,
         upperBound: window.upperBound,
     });
-    const journeys = dedupeJourneys(await Promise.all(events.map((event) => provider.fetchJourneyDetails(event))));
     const regional = filterRegionalDelayedCandidates(journeys, query);
     const longDistance = filterLongDistanceReplacements(journeys, query);
     return {
@@ -199,7 +248,13 @@ async function runDbDelayQueryWithProvider(params, effectiveConfig, loadedCreden
         source_api: providerChoice.selected,
         source_api_notes: sourceApiNotes(providerChoice.selected),
         credentials: credentialsSummary(loadedCredentials),
+        credential_load_error: credentialLoadError,
         provider_selection: providerChoice,
+        delay_settings: {
+            default_provider: effectiveConfig.delayProvider,
+            fallback: providerChoice.fallbackFrom === undefined ? undefined : providerChoice.selected,
+            web_transport: effectiveConfig.bahnWebTransport,
+        },
         input: {
             provider: params.provider,
             departure_station: params.departure_station,
@@ -316,9 +371,6 @@ function chooseStation(stations, input) {
         stations[0] ??
         null);
 }
-function dedupeJourneys(journeys) {
-    return [...new Map(journeys.map((journey) => [journey.id, journey])).values()];
-}
 export function selectDelayProvider(requested, config, timetablesConfigured) {
     const requestedProvider = requested ?? config.delayProvider ?? "auto";
     if (requestedProvider === "auto") {
@@ -327,7 +379,7 @@ export function selectDelayProvider(requested, config, timetablesConfigured) {
             selected: timetablesConfigured ? "db-timetables" : BAHN_WEB_SOURCE_API,
             reason: timetablesConfigured
                 ? "DB Timetables credentials are configured"
-                : "DB Timetables credentials are missing, using bahn-web fallback",
+                : "DB Timetables credentials are missing, selecting bahn-web",
         };
     }
     return {
@@ -336,19 +388,34 @@ export function selectDelayProvider(requested, config, timetablesConfigured) {
         reason: "provider was explicitly selected",
     };
 }
-export function shouldFallbackToBahnWeb(requested, providerChoice, error) {
-    return ((requested ?? providerChoice.requested) === "auto" &&
-        providerChoice.selected === "db-timetables" &&
-        isTimetablesCredentialError(error));
+export function shouldFallbackToProvider(fallback, providerChoice, error) {
+    if (fallback === "none" || fallback === providerChoice.selected) {
+        return false;
+    }
+    if (providerChoice.selected === "db-timetables") {
+        return isTimetablesCredentialError(error);
+    }
+    return true;
+}
+function applyDelaySettingsToConfig(config, provider) {
+    return {
+        ...config,
+        delayProvider: provider,
+        bahnWebTransport: provider === BAHN_WEB_SOURCE_API
+            ? config.bahnWebTransport ?? "browser"
+            : config.bahnWebTransport,
+    };
 }
 export function isTimetablesCredentialError(error) {
     const message = errorMessage(error);
     return /DB Timetables request failed with HTTP 401|HTTP 401|Unauthorized|Invalid client id or secret/i.test(message);
 }
 function sanitizedProviderError(error) {
+    const message = errorMessage(error);
     return {
-        message: errorMessage(error),
+        message,
         credentialRelated: isTimetablesCredentialError(error),
+        credentialDiagnosis: diagnoseDbApiCredentialErrorMessage(message),
     };
 }
 function sourceApiNotes(provider) {
@@ -363,6 +430,54 @@ function combinedResearchSummary() {
     return {
         official: DB_DELAY_RESEARCH_SUMMARY,
         bahn_web: BAHN_WEB_RESEARCH_SUMMARY,
+    };
+}
+function extractTableRows(result) {
+    return "table_rows" in result && Array.isArray(result.table_rows)
+        ? result.table_rows
+        : [];
+}
+function compareCleanedRows(officialRows, webRows) {
+    const officialKeys = officialRows.map(cleanedRowKey).sort();
+    const webKeys = webRows.map(cleanedRowKey).sort();
+    const officialSet = new Set(officialKeys);
+    const webSet = new Set(webKeys);
+    return {
+        same: JSON.stringify(officialKeys) === JSON.stringify(webKeys),
+        official_row_count: officialRows.length,
+        web_row_count: webRows.length,
+        only_official: officialKeys.filter((key) => !webSet.has(key)),
+        only_web: webKeys.filter((key) => !officialSet.has(key)),
+    };
+}
+function cleanedRowKey(row) {
+    return [
+        row.role,
+        row.label,
+        row.category,
+        row.train_number,
+        row.line_number,
+        row.planned_boarding_time,
+        row.realtime_boarding_time,
+        row.delay_minutes,
+        row.reachable,
+        row.boarding_station,
+        row.destination_station,
+    ]
+        .map((value) => String(value ?? ""))
+        .join("|");
+}
+function paritySideOutput(result, includeRows) {
+    return {
+        ok: result.ok === true,
+        source_api: "source_api" in result ? result.source_api : undefined,
+        error: "error" in result ? result.error : undefined,
+        needs_configuration: "needs_configuration" in result ? result.needs_configuration : undefined,
+        credentials: "credentials" in result ? result.credentials : undefined,
+        provider_selection: "provider_selection" in result ? result.provider_selection : undefined,
+        provider_error: "provider_error" in result ? result.provider_error : undefined,
+        cleaned_summary: "cleaned_summary" in result ? result.cleaned_summary : undefined,
+        table_rows: includeRows ? extractTableRows(result) : undefined,
     };
 }
 function cleanedTableRows(regionalCandidates, replacements) {

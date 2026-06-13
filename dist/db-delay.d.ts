@@ -101,6 +101,10 @@ export interface ApiProvider {
     queryStationBoard(station: StationRef, timeWindow: TimeWindow): Promise<StationEvent[]>;
     fetchJourneyDetails(event: StationEvent): Promise<Journey>;
 }
+export interface ProviderJourneyCollection {
+    events: StationEvent[];
+    journeys: Journey[];
+}
 export declare function normalizeCandidateQuery(query: CandidateQuery): NormalizedCandidateQuery;
 export declare function isWithinInclusiveWindow(event: StationEvent, query: CandidateQuery | NormalizedCandidateQuery): boolean;
 export declare function isReachableAtQueryTime(event: StationEvent, query: CandidateQuery | NormalizedCandidateQuery): boolean;
@@ -108,6 +112,8 @@ export declare function trainServesRouteInOrder(journey: Journey, departure: str
 export declare function delayAtBoardingStation(journey: Journey, departure: string | StationRef): number | null;
 export declare function findRegionalDelayedCandidates(query: CandidateQuery, provider: ApiProvider): Promise<CandidateResult[]>;
 export declare function findLongDistanceReplacements(query: CandidateQuery, _delayedCandidate: CandidateResult | null, provider: ApiProvider): Promise<ReplacementResult[]>;
+export declare function collectProviderJourneys(provider: ApiProvider, station: StationRef, timeWindow: TimeWindow): Promise<ProviderJourneyCollection>;
+export declare function dedupeJourneys(journeys: Journey[]): Journey[];
 export declare function filterRegionalDelayedCandidates(journeys: Journey[], query: CandidateQuery | NormalizedCandidateQuery): {
     candidates: CandidateResult[];
     discarded: DiscardedJourney[];

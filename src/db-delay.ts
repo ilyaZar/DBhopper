@@ -115,6 +115,11 @@ export interface ApiProvider {
   fetchJourneyDetails(event: StationEvent): Promise<Journey>;
 }
 
+export interface ProviderJourneyCollection {
+  events: StationEvent[];
+  journeys: Journey[];
+}
+
 export function normalizeCandidateQuery(query: CandidateQuery): NormalizedCandidateQuery {
   const timeZone = query.timeZone || DEFAULT_TIME_ZONE;
   const queryTime = parseQueryDateTime(query.queryTime, {
@@ -203,12 +208,11 @@ export async function findRegionalDelayedCandidates(
   provider: ApiProvider,
 ) {
   const normalized = normalizeCandidateQuery(query);
-  const events = await provider.queryStationBoard(normalized.departureStation, {
+  const { journeys } = await collectProviderJourneys(provider, normalized.departureStation, {
     lowerBound: normalized.lowerBound,
     queryTime: normalized.queryTime,
     upperBound: normalized.upperBound,
   });
-  const journeys = await Promise.all(events.map((event) => provider.fetchJourneyDetails(event)));
   return filterRegionalDelayedCandidates(journeys, normalized).candidates;
 }
 
@@ -218,13 +222,28 @@ export async function findLongDistanceReplacements(
   provider: ApiProvider,
 ) {
   const normalized = normalizeCandidateQuery(query);
-  const events = await provider.queryStationBoard(normalized.departureStation, {
+  const { journeys } = await collectProviderJourneys(provider, normalized.departureStation, {
     lowerBound: normalized.lowerBound,
     queryTime: normalized.queryTime,
     upperBound: normalized.upperBound,
   });
-  const journeys = await Promise.all(events.map((event) => provider.fetchJourneyDetails(event)));
   return filterLongDistanceReplacements(journeys, normalized).replacements;
+}
+
+export async function collectProviderJourneys(
+  provider: ApiProvider,
+  station: StationRef,
+  timeWindow: TimeWindow,
+): Promise<ProviderJourneyCollection> {
+  const events = await provider.queryStationBoard(station, timeWindow);
+  const journeys = dedupeJourneys(
+    await Promise.all(events.map((event) => provider.fetchJourneyDetails(event))),
+  );
+  return { events, journeys };
+}
+
+export function dedupeJourneys(journeys: Journey[]) {
+  return [...new Map(journeys.map((journey) => [journey.id, journey])).values()];
 }
 
 export function filterRegionalDelayedCandidates(

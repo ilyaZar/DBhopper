@@ -90,8 +90,7 @@
             "const": "bahn-web"
           }
         ],
-        "default": "auto",
-        "description": "Delay provider. auto uses DB Timetables when credentials exist, otherwise bahn-web."
+        "description": "Optional delay provider override. Omit to use settings.toml DELAY_PROVIDER."
       },
       "bahnWebBaseUrl": {
         "type": "string",
@@ -116,8 +115,7 @@
             "const": "browser"
           }
         ],
-        "default": "auto",
-        "description": "bahn-web transport. auto tries native fetch, curl, then browser fetch."
+        "description": "Optional bahn-web transport override. The settings default uses browser."
       },
       "requestTimeoutMs": {
         "type": "number",

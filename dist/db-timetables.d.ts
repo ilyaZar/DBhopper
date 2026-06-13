@@ -5,6 +5,7 @@ export declare const DEFAULT_DELAY_LOOKBACK_MINUTES = 180;
 export declare const DEFAULT_REQUEST_TIMEOUT_MS = 20000;
 export interface TimetablesProviderOptions extends DBhopperConfig {
     signal?: AbortSignal;
+    fetchImpl?: typeof fetch;
 }
 export declare const DB_DELAY_RESEARCH_SUMMARY: {
     recommendedStack: string[];

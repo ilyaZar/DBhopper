@@ -1,7 +1,12 @@
 import type { DBhopperConfig } from "./types.js";
-import { type StationRef } from "./db-delay.js";
+import { type Journey, type StationRef } from "./db-delay.js";
+import { type DBhopperDelayFallbackSetting, type DBhopperDelayProviderSetting } from "./private-settings.js";
 export type DbDelayProviderName = "auto" | "db-timetables" | "bahn-web";
 export type SelectedDelayProviderName = "db-timetables" | "bahn-web";
+export interface DelayProviderRuntimeConfig extends DBhopperConfig {
+    fetchImpl?: typeof fetch;
+    curlPath?: string;
+}
 export interface DelayProviderChoice {
     requested: DbDelayProviderName;
     selected: SelectedDelayProviderName;
@@ -24,8 +29,56 @@ export interface DbDelayQueryToolParams {
     include_discarded?: boolean;
     include_raw?: boolean;
 }
+export interface DbDelayProviderParityProbeParams extends DbDelayQueryToolParams {
+    include_table_rows?: boolean;
+}
+export interface CleanedDelayTableRow {
+    role: "delayed_regional" | "reachable_replacement";
+    label?: string;
+    category: string;
+    train_number?: string;
+    line_number?: string;
+    delay_minutes: number | null;
+    reachable: boolean | null;
+    planned_boarding_time?: string;
+    realtime_boarding_time?: string;
+    boarding_station: string;
+    destination_station: string;
+    platform?: string;
+    source?: string;
+    route_confidence?: Journey["routeConfidence"];
+    route: string[];
+    matched_by: string[];
+}
+export interface CleanedProviderComparison {
+    same: boolean;
+    official_row_count: number;
+    web_row_count: number;
+    only_official: string[];
+    only_web: string[];
+}
+export interface ProviderParitySide {
+    ok: boolean;
+    source_api?: string;
+    error?: string;
+    needs_configuration?: boolean;
+    credentials?: unknown;
+    provider_selection?: DelayProviderChoice;
+    provider_error?: unknown;
+    cleaned_summary?: unknown;
+    table_rows?: CleanedDelayTableRow[];
+}
+export interface DbDelayProviderParityProbeResult {
+    ok: boolean;
+    operation: "db_delay_provider_parity_probe";
+    api_ready: boolean;
+    web_ready: boolean;
+    official: ProviderParitySide;
+    web: ProviderParitySide;
+    comparison?: CleanedProviderComparison;
+}
 export declare function createDbDelayToolDefinitions(tool: any): any[];
-export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?: DBhopperConfig, signal?: AbortSignal): Promise<{
+export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?: DelayProviderRuntimeConfig, signal?: AbortSignal): Promise<{
     ok: boolean;
     operation: string;
     message: string;
@@ -36,7 +89,9 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
     source_api?: undefined;
     source_api_notes?: undefined;
     credentials?: undefined;
+    credential_load_error?: undefined;
     provider_selection?: undefined;
+    delay_settings?: undefined;
     input?: undefined;
     normalized_input?: undefined;
     window?: undefined;
@@ -68,7 +123,13 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
         hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
     };
+    credential_load_error: string | undefined;
     provider_selection: DelayProviderChoice;
+    delay_settings: {
+        default_provider: "auto" | "db-timetables" | "bahn-web" | undefined;
+        fallback: SelectedDelayProviderName | undefined;
+        web_transport: "auto" | "fetch" | "curl" | "browser" | undefined;
+    };
     input: {
         provider: DbDelayProviderName | undefined;
         departure_station: string;
@@ -312,41 +373,7 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
         };
         matched_by: string[];
     }[];
-    table_rows: ({
-        role: string;
-        label: string | undefined;
-        category: string;
-        train_number: string | undefined;
-        line_number: string | undefined;
-        delay_minutes: number | null;
-        reachable: null;
-        planned_boarding_time: string | undefined;
-        realtime_boarding_time: string | undefined;
-        boarding_station: string;
-        destination_station: string;
-        platform: string | undefined;
-        source: string | undefined;
-        route_confidence: "unknown" | "full_stop_list" | "station_board_path" | undefined;
-        route: string[];
-        matched_by: string[];
-    } | {
-        role: string;
-        label: string | undefined;
-        category: string;
-        train_number: string | undefined;
-        line_number: string | undefined;
-        delay_minutes: null;
-        reachable: boolean;
-        planned_boarding_time: string | undefined;
-        realtime_boarding_time: string | undefined;
-        boarding_station: string;
-        destination_station: string;
-        platform: string | undefined;
-        source: string | undefined;
-        route_confidence: "unknown" | "full_stop_list" | "station_board_path" | undefined;
-        route: string[];
-        matched_by: string[];
-    })[];
+    table_rows: CleanedDelayTableRow[];
     cleaned_summary: {
         delayed_regional_count: number;
         replacement_count: number;
@@ -480,7 +507,12 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
         hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
     };
+    credential_load_error: string | undefined;
     provider_selection: DelayProviderChoice;
+    delay_settings: {
+        provider: DBhopperDelayProviderSetting;
+        fallback: DBhopperDelayFallbackSetting;
+    };
     research: {
         official: {
             recommendedStack: string[];
@@ -498,11 +530,17 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
     };
     error?: undefined;
     primary_provider_error?: undefined;
+    provider_error?: undefined;
 } | {
     provider_selection: DelayProviderChoice;
     official_provider_error: {
         message: string;
         credentialRelated: boolean;
+        credentialDiagnosis: {
+            status: string;
+            reason: string;
+            next_steps: string[];
+        };
     };
     ok: boolean;
     operation: string;
@@ -514,6 +552,8 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
     source_api?: undefined;
     source_api_notes?: undefined;
     credentials?: undefined;
+    credential_load_error?: undefined;
+    delay_settings?: undefined;
     input?: undefined;
     normalized_input?: undefined;
     window?: undefined;
@@ -528,11 +568,17 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
     config_status?: undefined;
     error?: undefined;
     primary_provider_error?: undefined;
+    provider_error?: undefined;
 } | {
     provider_selection: DelayProviderChoice;
     official_provider_error: {
         message: string;
         credentialRelated: boolean;
+        credentialDiagnosis: {
+            status: string;
+            reason: string;
+            next_steps: string[];
+        };
     };
     ok: boolean;
     operation: string;
@@ -554,6 +600,12 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
         hasBahnAccountCredentials: boolean;
         hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
+    };
+    credential_load_error: string | undefined;
+    delay_settings: {
+        default_provider: "auto" | "db-timetables" | "bahn-web" | undefined;
+        fallback: SelectedDelayProviderName | undefined;
+        web_transport: "auto" | "fetch" | "curl" | "browser" | undefined;
     };
     input: {
         provider: DbDelayProviderName | undefined;
@@ -798,41 +850,7 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
         };
         matched_by: string[];
     }[];
-    table_rows: ({
-        role: string;
-        label: string | undefined;
-        category: string;
-        train_number: string | undefined;
-        line_number: string | undefined;
-        delay_minutes: number | null;
-        reachable: null;
-        planned_boarding_time: string | undefined;
-        realtime_boarding_time: string | undefined;
-        boarding_station: string;
-        destination_station: string;
-        platform: string | undefined;
-        source: string | undefined;
-        route_confidence: "unknown" | "full_stop_list" | "station_board_path" | undefined;
-        route: string[];
-        matched_by: string[];
-    } | {
-        role: string;
-        label: string | undefined;
-        category: string;
-        train_number: string | undefined;
-        line_number: string | undefined;
-        delay_minutes: null;
-        reachable: boolean;
-        planned_boarding_time: string | undefined;
-        realtime_boarding_time: string | undefined;
-        boarding_station: string;
-        destination_station: string;
-        platform: string | undefined;
-        source: string | undefined;
-        route_confidence: "unknown" | "full_stop_list" | "station_board_path" | undefined;
-        route: string[];
-        matched_by: string[];
-    })[];
+    table_rows: CleanedDelayTableRow[];
     cleaned_summary: {
         delayed_regional_count: number;
         replacement_count: number;
@@ -942,6 +960,7 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
     config_status?: undefined;
     error?: undefined;
     primary_provider_error?: undefined;
+    provider_error?: undefined;
 } | {
     ok: boolean;
     operation: string;
@@ -949,6 +968,11 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
     primary_provider_error: {
         message: string;
         credentialRelated: boolean;
+        credentialDiagnosis: {
+            status: string;
+            reason: string;
+            next_steps: string[];
+        };
     };
     needs_configuration: boolean;
     credentials: {
@@ -968,7 +992,12 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
         hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
     };
+    credential_load_error: string | undefined;
     provider_selection: DelayProviderChoice;
+    delay_settings: {
+        provider: DBhopperDelayProviderSetting;
+        fallback: DBhopperDelayFallbackSetting;
+    };
     research: {
         official: {
             recommendedStack: string[];
@@ -987,10 +1016,20 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
     message?: undefined;
     required_configuration?: undefined;
     config_status?: undefined;
+    provider_error?: undefined;
 } | {
     ok: boolean;
     operation: string;
     error: string;
+    provider_error: {
+        message: string;
+        credentialRelated: boolean;
+        credentialDiagnosis: {
+            status: string;
+            reason: string;
+            next_steps: string[];
+        };
+    };
     needs_configuration: boolean;
     credentials: {
         configured: boolean;
@@ -1009,7 +1048,12 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
         hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
     };
+    credential_load_error: string | undefined;
     provider_selection: DelayProviderChoice | undefined;
+    delay_settings: {
+        provider: DBhopperDelayProviderSetting;
+        fallback: DBhopperDelayFallbackSetting;
+    };
     research: {
         official: {
             recommendedStack: string[];
@@ -1030,6 +1074,7 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
     config_status?: undefined;
     primary_provider_error?: undefined;
 }>;
-export declare function selectDelayProvider(requested: DbDelayProviderName | undefined, config: DBhopperConfig, timetablesConfigured: boolean): DelayProviderChoice;
-export declare function shouldFallbackToBahnWeb(requested: DbDelayProviderName | undefined, providerChoice: DelayProviderChoice, error: unknown): boolean;
+export declare function runDbDelayProviderParityProbe(params: DbDelayProviderParityProbeParams, config?: DelayProviderRuntimeConfig, signal?: AbortSignal): Promise<DbDelayProviderParityProbeResult>;
+export declare function selectDelayProvider(requested: DbDelayProviderName | undefined, config: DelayProviderRuntimeConfig, timetablesConfigured: boolean): DelayProviderChoice;
+export declare function shouldFallbackToProvider(fallback: DBhopperDelayFallbackSetting, providerChoice: DelayProviderChoice, error: unknown): boolean;
 export declare function isTimetablesCredentialError(error: unknown): boolean;

@@ -41,8 +41,7 @@ const configSchema = Type.Object({
         Type.Literal("db-timetables"),
         Type.Literal("bahn-web"),
     ], {
-        default: "auto",
-        description: "Delay provider. auto uses DB Timetables when credentials exist, otherwise bahn-web.",
+        description: "Optional delay provider override. Omit to use settings.toml DELAY_PROVIDER.",
     })),
     bahnWebBaseUrl: Type.Optional(Type.String({
         description: "Optional bahn-web base URL override, restricted to https://int.bahn.de/web/api or https://www.bahn.de/web/api.",
@@ -53,8 +52,7 @@ const configSchema = Type.Object({
         Type.Literal("curl"),
         Type.Literal("browser"),
     ], {
-        default: "auto",
-        description: "bahn-web transport. auto tries native fetch, curl, then browser fetch.",
+        description: "Optional bahn-web transport override. The settings default uses browser.",
     })),
     requestTimeoutMs: Type.Optional(Type.Number({
         minimum: 1000,

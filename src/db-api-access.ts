@@ -4,6 +4,10 @@ import {
   credentialsSummary,
   readSelectedCredentialsProfile,
 } from "./credentials.js";
+import {
+  diagnoseDbApiCredentialResponse,
+  extractDbErrorMessage,
+} from "./db-api-errors.js";
 import { DEFAULT_TIMETABLE_BASE_URL, timetablesConfigStatus } from "./db-timetables.js";
 
 export interface DbApiCredentialProbeParams {
@@ -72,6 +76,7 @@ export async function runDbApiCredentialProbe(
       signal: controller.signal,
     });
     const body = await response.text();
+    const dbErrorMessage = extractDbErrorMessage(body);
     return {
       ok: response.ok,
       operation: "db_api_credential_probe",
@@ -89,8 +94,12 @@ export async function runDbApiCredentialProbe(
         status: response.status,
         statusText: response.statusText,
         contentType: response.headers.get("content-type"),
-        dbErrorMessage: extractDbErrorMessage(body),
+        dbErrorMessage,
       },
+      credentialDiagnosis: diagnoseDbApiCredentialResponse(
+        response.status,
+        dbErrorMessage,
+      ),
       browserLoginDoesNotProveApiKeyValidity: true,
     };
   } catch (error) {
@@ -121,14 +130,4 @@ export function bahnAPICredentialSignals(config: DBhopperConfig) {
 
 function normalizeBaseUrl(baseUrl?: string) {
   return (baseUrl || DEFAULT_TIMETABLE_BASE_URL).replace(/\/+$/, "");
-}
-
-function extractDbErrorMessage(body: string) {
-  const moreInfo = body.match(/<moreInformation>(.*?)<\/moreInformation>/is)?.[1];
-  const httpMessage = body.match(/<httpMessage>(.*?)<\/httpMessage>/is)?.[1];
-  return normalizeText(moreInfo ?? httpMessage ?? body.slice(0, 240));
-}
-
-function normalizeText(value: string) {
-  return value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }

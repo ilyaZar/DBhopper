@@ -14,6 +14,7 @@ import {
   type StationRef,
   type TimeWindow,
 } from "./db-delay.js";
+import { extractDbErrorMessage } from "./db-api-errors.js";
 
 export const DEFAULT_TIMETABLE_BASE_URL =
   "https://apis.deutschebahn.com/db-api-marketplace/apis/timetables/v1";
@@ -22,6 +23,7 @@ export const DEFAULT_REQUEST_TIMEOUT_MS = 20000;
 
 export interface TimetablesProviderOptions extends DBhopperConfig {
   signal?: AbortSignal;
+  fetchImpl?: typeof fetch;
 }
 
 interface TimetableRow {
@@ -168,7 +170,7 @@ async function fetchTimetablesText(
     : controller.signal;
 
   try {
-    const response = await fetch(`${baseUrl}${path}`, {
+    const response = await (options.fetchImpl ?? fetch)(`${baseUrl}${path}`, {
       headers: {
         Accept: "application/xml",
         "DB-Client-Id": credentials.clientId,
@@ -180,10 +182,13 @@ async function fetchTimetablesText(
     if (requestOptions.allowNotFound && response.status === 404) {
       return "";
     }
+    const body = await response.text();
     if (!response.ok) {
-      throw new Error(`DB Timetables request failed with HTTP ${response.status}`);
+      const dbMessage = extractDbErrorMessage(body);
+      const suffix = dbMessage ? `: ${dbMessage}` : "";
+      throw new Error(`DB Timetables request failed with HTTP ${response.status}${suffix}`);
     }
-    return await response.text();
+    return body;
   } finally {
     clearTimeout(timeout);
   }
@@ -446,6 +451,9 @@ function rankStationMatch(station: StationRef, search: string) {
 }
 
 function buildTrainLabel(category: string, number?: string, lineNumber?: string) {
+  if (lineNumber && /^(?:IRE|RE|RB|S|MEX|FEX)\s*\d+/i.test(lineNumber)) {
+    return lineNumber;
+  }
   if (category && number) {
     return `${category} ${number}`;
   }

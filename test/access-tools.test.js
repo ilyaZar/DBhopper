@@ -35,6 +35,13 @@ describe("dbhopper access diagnostics", () => {
     assert.equal(result.ok, false);
     assert.equal(result.response.status, 401);
     assert.equal(result.response.dbErrorMessage, "Invalid client id or secret.");
+    assert.equal(result.credentialDiagnosis.status, "rejected");
+    assert.equal(result.credentialDiagnosis.reason, "invalid_client_id_or_secret");
+    assert.ok(
+      result.credentialDiagnosis.next_steps.some((step) =>
+        step.includes("Timetables product"),
+      ),
+    );
     assert.equal(result.credentialSignals.clientIdLength, "client-secret-value".length);
     assert.equal(result.browserLoginDoesNotProveApiKeyValidity, true);
     assert.doesNotMatch(JSON.stringify(result), /client-secret-value|api-secret-value/);

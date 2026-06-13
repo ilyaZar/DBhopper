@@ -68,23 +68,29 @@ export function delayAtBoardingStation(journey, departure) {
 }
 export async function findRegionalDelayedCandidates(query, provider) {
     const normalized = normalizeCandidateQuery(query);
-    const events = await provider.queryStationBoard(normalized.departureStation, {
+    const { journeys } = await collectProviderJourneys(provider, normalized.departureStation, {
         lowerBound: normalized.lowerBound,
         queryTime: normalized.queryTime,
         upperBound: normalized.upperBound,
     });
-    const journeys = await Promise.all(events.map((event) => provider.fetchJourneyDetails(event)));
     return filterRegionalDelayedCandidates(journeys, normalized).candidates;
 }
 export async function findLongDistanceReplacements(query, _delayedCandidate, provider) {
     const normalized = normalizeCandidateQuery(query);
-    const events = await provider.queryStationBoard(normalized.departureStation, {
+    const { journeys } = await collectProviderJourneys(provider, normalized.departureStation, {
         lowerBound: normalized.lowerBound,
         queryTime: normalized.queryTime,
         upperBound: normalized.upperBound,
     });
-    const journeys = await Promise.all(events.map((event) => provider.fetchJourneyDetails(event)));
     return filterLongDistanceReplacements(journeys, normalized).replacements;
+}
+export async function collectProviderJourneys(provider, station, timeWindow) {
+    const events = await provider.queryStationBoard(station, timeWindow);
+    const journeys = dedupeJourneys(await Promise.all(events.map((event) => provider.fetchJourneyDetails(event))));
+    return { events, journeys };
+}
+export function dedupeJourneys(journeys) {
+    return [...new Map(journeys.map((journey) => [journey.id, journey])).values()];
 }
 export function filterRegionalDelayedCandidates(journeys, query) {
     const normalized = isNormalizedQuery(query) ? query : normalizeCandidateQuery(query);

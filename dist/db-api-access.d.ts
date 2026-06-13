@@ -43,6 +43,7 @@ export declare function runDbApiCredentialProbe(params: DbApiCredentialProbePara
     browserLoginDoesNotProveApiKeyValidity: boolean;
     request?: undefined;
     response?: undefined;
+    credentialDiagnosis?: undefined;
     error?: undefined;
 } | {
     ok: boolean;
@@ -89,6 +90,11 @@ export declare function runDbApiCredentialProbe(params: DbApiCredentialProbePara
         contentType: string | null;
         dbErrorMessage: string;
     };
+    credentialDiagnosis: {
+        status: string;
+        reason: string;
+        next_steps: string[];
+    };
     browserLoginDoesNotProveApiKeyValidity: boolean;
     message?: undefined;
     error?: undefined;
@@ -131,6 +137,7 @@ export declare function runDbApiCredentialProbe(params: DbApiCredentialProbePara
     message?: undefined;
     request?: undefined;
     response?: undefined;
+    credentialDiagnosis?: undefined;
 }>;
 export declare function bahnAPICredentialSignals(config: DBhopperConfig): {
     hasClientId: boolean;

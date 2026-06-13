@@ -1,5 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import { DEFAULT_TIME_ZONE, addMinutes, localDateTimeToUtc, normalizeStationName, stationMatches, } from "./db-delay.js";
+import { extractDbErrorMessage } from "./db-api-errors.js";
 export const DEFAULT_TIMETABLE_BASE_URL = "https://apis.deutschebahn.com/db-api-marketplace/apis/timetables/v1";
 export const DEFAULT_DELAY_LOOKBACK_MINUTES = 180;
 export const DEFAULT_REQUEST_TIMEOUT_MS = 20000;
@@ -92,7 +93,7 @@ async function fetchTimetablesText(path, options, requestOptions = {}) {
         ? AbortSignal.any([options.signal, controller.signal])
         : controller.signal;
     try {
-        const response = await fetch(`${baseUrl}${path}`, {
+        const response = await (options.fetchImpl ?? fetch)(`${baseUrl}${path}`, {
             headers: {
                 Accept: "application/xml",
                 "DB-Client-Id": credentials.clientId,
@@ -103,10 +104,13 @@ async function fetchTimetablesText(path, options, requestOptions = {}) {
         if (requestOptions.allowNotFound && response.status === 404) {
             return "";
         }
+        const body = await response.text();
         if (!response.ok) {
-            throw new Error(`DB Timetables request failed with HTTP ${response.status}`);
+            const dbMessage = extractDbErrorMessage(body);
+            const suffix = dbMessage ? `: ${dbMessage}` : "";
+            throw new Error(`DB Timetables request failed with HTTP ${response.status}${suffix}`);
         }
-        return await response.text();
+        return body;
     }
     finally {
         clearTimeout(timeout);
@@ -337,6 +341,9 @@ function rankStationMatch(station, search) {
     return 2;
 }
 function buildTrainLabel(category, number, lineNumber) {
+    if (lineNumber && /^(?:IRE|RE|RB|S|MEX|FEX)\s*\d+/i.test(lineNumber)) {
+        return lineNumber;
+    }
     if (category && number) {
         return `${category} ${number}`;
     }
