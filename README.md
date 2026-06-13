@@ -1,11 +1,13 @@
 # DBhopper
 
-OpenClaw tools for NRW Mobilitätsgarantie claims and Deutsche Bahn live-delay
-route queries.
+OpenClaw tools for NRW Mobilitätsgarantie claims, Deutsche Bahn live-delay route
+queries, and travel disruption workflows.
 
-DBhopper keeps claim data local, validates deterministic eligibility facts, and
-can drive the NRW browser form. It does not own WhatsApp, Telegram, Signal, or
-email transport; OpenClaw channels handle chat and artifact delivery.
+DBhopper keeps claim data local, validates eligibility for Mobilitätsgarantie,
+and can drive the NRW browser form, including confirmed submission. If your
+OpenClaw agent is available through WhatsApp, Telegram, Signal, or another chat
+channel, DBhopper still keeps private values in local files and exposes only
+deterministic tool results.
 
 ## Local Setup
 
@@ -16,8 +18,7 @@ openclaw plugins enable dbhopper
 
 Configure `plugins.entries.dbhopper.config.workspaceRoot` to this plugin
 directory. Route private profiles and credentials through
-`assets/private/settings.toml`. Start from
-`assets/private/settings.example.toml`:
+`assets/private/settings.toml`: this is a fixed settings file:
 
 ```toml
 ID_CRED = "01"
@@ -27,23 +28,30 @@ PATH_PRF = "assets/private/profiles"
 ```
 
 The `PATH_*` values may point to the plugin-private folders or to external
-directories. The OpenClaw agent should only change `ID_CRED` and `ID_PRF` via
-the DBhopper settings tools.
+directories. You or the OpenClaw agent should only change `ID_CRED` and
+`ID_PRF`, either manually or through the dedicated DBhopper settings tools.
 
-Start from the safe templates under `docs/examples/`. Copy
+Use either the default private paths or user-chosen private paths inside this
+single settings TOML file; private paths may be relative to the plugin directory
+or absolute within the user file system, while the settings file itself always
+remains at `assets/private/settings.toml`.
+
+Start from the safe credential/profile templates under `docs/examples/`. Copy
 `docs/examples/private-profile.example.toml` to
 `assets/private/profiles/private-profile-01.toml` and copy
 `docs/examples/credentials.example.toml` to
 `assets/private/credentials/credentials-01.toml`. Keep real profiles and
-credentials private. DBhopper returns only credential presence flags, not
+credentials private: do not paste credentials into chat; edit them only in local
+private TOML files. DBhopper returns only credential presence flags, not
 credential values.
 
-Prepared claims are editable TOML files at `claims/<claim-id>/claim.toml`.
-They store claim-specific journey, ticket, file, and selected profile data, but
-not claimant or bank fields. DBhopper merges the selected private profile in
-memory for validation and browser filing. A successful submit writes
-`claim_submitted_recipe.toml` next to the downloaded confirmation PDF as the
-full joined audit recipe.
+Prepared claims are editable TOML files at `claims/<claim-id>/claim.toml`. They
+store claim-specific journey, ticket, and file data, but not claimant or bank
+fields. DBhopper merges the selected private profile in memory for validation
+and browser filing. A successful submit writes `claim_submitted_recipe.toml`
+next to the downloaded confirmation PDF as the full joined audit recipe.
+
+## Usage mode: delay alarm and lookup
 
 Deutsche Bahn delay lookup supports two providers:
 
@@ -54,18 +62,42 @@ Deutsche Bahn delay lookup supports two providers:
 - `bahn-web` uses the passenger website JSON endpoint without Marketplace
   credentials. This endpoint is unofficial and may change or block clients.
 
+### DB API Marketplace
+
 For the official DB Timetables provider, create a DB API Marketplace
-application, subscribe it to the Timetables product, and configure either:
+application, subscribe it to the Timetables product, and put the technical
+credentials in `[bahnAPI]` of the selected credential TOML file.
 
-- `plugins.entries.dbhopper.config.dbClientId`
-- `plugins.entries.dbhopper.config.dbApiKey`
+The free Timetables subscription currently offers 60 calls per minute.
 
-or the equivalent environment variables:
+1. Register and log in at:
+   `https://developers.deutschebahn.com/db-api-marketplace/apis/`
+2. Open getting started, "Los gehts", step 02, then click "Neue Anwendung
+   erstellen".
+3. Fill the application form:
+   - title: "DBhopper Timetables Delay Lookup"
+   - "Zertifikat": leave empty
+   - description: Local DBhopper tool for Deutsche Bahn Timetables API delay
+     lookup. Uses station, plan, fchg, and rchg endpoints for deterministic
+     train-delay queries. No OAuth redirect flow.
+   - "OAuth-Umleitungs-URL(s)": leave empty
+   - click "Speichern"
+4. On "Neue Anwendungsberechtigungsnachweise", copy "Client ID" and "Client
+   Secret (API KEY)" into the selected credentials file:
 
-```bash
-export DB_CLIENT_ID=...
-export DB_API_KEY=...
-```
+   ```toml
+   [bahnAPI]
+   clientId = "..."
+   apiKey = "..."
+   ```
+
+5. Use "Produktsuche" or "Katalog auswählen", search for `Timetable`, choose the
+   free subscription, link the application to that subscription, and subscribe
+   to the usage plan.
+6. Verify it from the main page under "Anwendungen": open the new application
+   and confirm the selected product subscription below:
+   - product: `Timetables` with its version number
+   - plan: `Free`
 
 The `bahn-web` provider tries native `fetch`, `curl`, and then Playwright
 page-context JSON fetch when using `bahnWebTransport: "auto"`. This is
@@ -77,13 +109,17 @@ Marketplace browser reachability, and DB Timetables API key validity without
 returning secrets. A saved browser session is not treated as proof that the
 currently selected credentials work.
 
+### DB ticket buying support
+
 Ticket-buying support is WIP and testing-only. `dbhopper_ticket_buying_dry_run`
 stops after search/results. `dbhopper_ticket_checkout_dry_run` can explore
-offer/customer-data steps as far as safely possible and must stop before
-payment data or any legally binding final order button. See
-`docs/ticket-buying-wip.md`.
+offer/customer-data steps as far as safely possible and must stop before payment
+data or any legally binding final order button. See `docs/ticket-buying-wip.md`.
 
-## Tools
+Browser runs save screenshots and text captures below `tmp/`. Those artifacts
+are local runtime data and may contain account identity.
+
+## Tools exposed to the agent
 
 - `dbhopper_claim_schema`
 - `dbhopper_list_claims`
@@ -105,9 +141,6 @@ payment data or any legally binding final order button. See
 
 `dbhopper_run_claim` defaults to dry-run behavior and only submits with explicit
 confirmation.
-
-Browser runs save screenshots and text captures below `tmp/`. A dry run stops at
-the summary page before `Angaben absenden`.
 
 `dbhopper_query_db_delay` uses inclusive bounds around the explicit query time:
 `[query_time - window_width_minutes, query_time + window_width_minutes]`. It
@@ -131,20 +164,19 @@ Example parameters:
 ```
 
 The query response is already normalized for downstream use. `table_rows`
-contains deterministic, display-ready route candidates, while
-`cleaned_summary` contains candidate counts and reachability booleans. Agents
-should not clean raw DB or website payloads with the LLM; raw provider rows are
-only returned when `include_raw` is true.
+contains deterministic, display-ready route candidates, while `cleaned_summary`
+contains candidate counts and reachability booleans. Agents should not clean raw
+DB or website payloads with the LLM; raw provider rows are only returned when
+`include_raw` is true.
 
-Local `claims/*` and `assets/private/*` files are ignored runtime data. Legacy
-`claim.json` files are not used by the current code path and are not packaged;
-newly prepared claims are written as `claim.toml`.
+Local `claims/*` and `assets/private/*` files are ignored runtime data. Newly
+prepared claims are written as `claim.toml`.
 
 ## Troubleshooting
 
-If an OpenClaw-routed agent can describe the skill but cannot call
-`dbhopper_*`, check the sandbox tool policy. The local config needs DBhopper in
-both `tools.alsoAllow` and `tools.sandbox.tools.alsoAllow`.
+If an OpenClaw-routed agent can describe the skill but cannot call `dbhopper_*`,
+check the sandbox tool policy. The local config needs DBhopper in both
+`tools.alsoAllow` and `tools.sandbox.tools.alsoAllow`.
 
 ## Development
 
