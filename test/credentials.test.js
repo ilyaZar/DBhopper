@@ -36,7 +36,7 @@ describe("dbhopper credentials", () => {
         'password = "account-secret-value"',
         "",
         "[browser]",
-        'userDataDir = "tmp/browser/db-ticket-buying"',
+        'userDataDir = "assets/private/browser/db-ticket-buying"',
         "",
       ].join("\n"),
       "utf8",

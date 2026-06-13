@@ -130,9 +130,6 @@ credentials. Store browser user-data paths and Bahn login values in the
 selected credential TOML file. The one-time login checks can verify that the
 selected account and browser profile work before ticket workflows are used.
 
-Browser runs save screenshots and text captures below `tmp/`. These artifacts
-are local runtime data and may contain account identity.
-
 ## Usage
 
 ### 1. Delay retrieval
@@ -198,8 +195,8 @@ The main ticket tools are:
 
 Use these tools after the delay result identifies the target route, service
 date, train label, and departure time. Ticket workflows use deterministic
-browser automation and local artifacts; the agent should not infer or invent
-checkout state from screenshots or raw page text.
+browser automation and ignored local artifacts; the agent should not infer or
+invent checkout state from screenshots or raw page text.
 
 ## Troubleshooting
 

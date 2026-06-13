@@ -18,5 +18,4 @@ assets/private/profiles/*
 !assets/private/credentials/
 assets/private/credentials/*
 !assets/private/credentials/.gitkeep
-tmp/*
-!tmp/.gitkeep
+tmp/

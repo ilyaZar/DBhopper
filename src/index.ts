@@ -34,7 +34,7 @@ const configSchema = Type.Object(
     artifactRoot: Type.Optional(
       Type.String({
         description:
-          "Optional directory for browser-run artifacts. Defaults to workspaceRoot/tmp.",
+          "Optional directory for ignored local browser-run artifacts.",
       }),
     ),
     headless: Type.Optional(

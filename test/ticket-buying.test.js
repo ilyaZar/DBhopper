@@ -23,7 +23,7 @@ describe("dbhopper ticket buying dry run", () => {
         departure_time: "19:00",
         train_label: "ICE 123",
       },
-      "tmp/browser/db-ticket-buying",
+      "assets/private/browser/db-ticket-buying",
     );
 
     assert.equal(plan.target.departureStation, "Hamm(Westf)Hbf");
@@ -57,7 +57,7 @@ describe("dbhopper ticket buying dry run", () => {
   it("builds a checkout plan with a one-week default date and hard stop flags", () => {
     const plan = ticketCheckoutPlan(
       {},
-      "tmp/browser/db-ticket-buying",
+      "assets/private/browser/db-ticket-buying",
       new Date("2026-06-11T12:00:00.000Z"),
     );
 

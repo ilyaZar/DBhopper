@@ -32,7 +32,7 @@ export function createAccessToolDefinitions(tool: any) {
             Type.Boolean({
               default: false,
               description:
-                "Save local screenshots under tmp/. Screenshots may contain account identity.",
+                "Save local browser-run screenshots. Screenshots may contain account identity.",
             }),
           ),
           headless: Type.Optional(Type.Boolean()),
@@ -59,7 +59,7 @@ export function createAccessToolDefinitions(tool: any) {
             Type.Boolean({
               default: false,
               description:
-                "Save local screenshots under tmp/. Screenshots may contain account identity.",
+                "Save local browser-run screenshots. Screenshots may contain account identity.",
             }),
           ),
           headless: Type.Optional(Type.Boolean()),

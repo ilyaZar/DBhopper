@@ -21,7 +21,7 @@ export function createAccessToolDefinitions(tool) {
                 })),
                 screenshots: Type.Optional(Type.Boolean({
                     default: false,
-                    description: "Save local screenshots under tmp/. Screenshots may contain account identity.",
+                    description: "Save local browser-run screenshots. Screenshots may contain account identity.",
                 })),
                 headless: Type.Optional(Type.Boolean()),
                 slow_mo_ms: Type.Optional(Type.Number({ minimum: 0, maximum: 5000 })),
@@ -37,7 +37,7 @@ export function createAccessToolDefinitions(tool) {
                 stay_logged_in: Type.Optional(Type.Boolean({ default: true })),
                 screenshots: Type.Optional(Type.Boolean({
                     default: false,
-                    description: "Save local screenshots under tmp/. Screenshots may contain account identity.",
+                    description: "Save local browser-run screenshots. Screenshots may contain account identity.",
                 })),
                 headless: Type.Optional(Type.Boolean()),
                 slow_mo_ms: Type.Optional(Type.Number({ minimum: 0, maximum: 5000 })),

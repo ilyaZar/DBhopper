@@ -24,8 +24,8 @@ North Rhine-Westphalia.
    by `ID_PRF`; do not read those files into the conversation.
 6. Put DB API and DB website credentials in private credential TOML files
    selected by `ID_CRED`; do not read those files into the conversation.
-7. Browser-run artifacts are saved under the plugin `tmp/` directory. Inspect
-   screenshots there before asking for real submission.
+7. Browser-run artifacts are saved under the configured ignored artifact
+   directory. Inspect screenshots there before asking for real submission.
 
 ## Workflow
 

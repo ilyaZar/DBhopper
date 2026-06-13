@@ -1,6 +1,10 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
 
 describe("dbhopper package metadata", () => {
   it("declares plugin contracts matching package entrypoint", async () => {
@@ -56,5 +60,25 @@ describe("dbhopper package metadata", () => {
     assert.equal(pkg.files.includes("assets/private/settings.toml"), false);
     assert.equal(pkg.files.includes("claims/"), false);
     assert.equal(pkg.files.includes("tmp/"), false);
+  });
+
+  it("keeps tmp out of gitignore exceptions and package output", async () => {
+    const gitignore = await fs.readFile(".gitignore", "utf8");
+    const clawhubignore = await fs.readFile(".clawhubignore", "utf8");
+
+    assert.match(gitignore, /^tmp\/$/m);
+    assert.doesNotMatch(gitignore, /!tmp\//);
+    assert.match(clawhubignore, /^tmp\/$/m);
+
+    const { stdout } = await execFileAsync(
+      "npm",
+      ["pack", "--dry-run", "--json", "--ignore-scripts"],
+      { maxBuffer: 1024 * 1024 * 8 },
+    );
+    const [{ files }] = JSON.parse(stdout);
+    const paths = files.map((file) => file.path);
+
+    assert.equal(paths.some((filePath) => filePath.startsWith("tmp/")), false);
+    assert.equal(paths.includes("tmp/.gitkeep"), false);
   });
 });

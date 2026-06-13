@@ -66,7 +66,7 @@ clientId = "db-api-marketplace-client-id"
 apiKey = "db-api-marketplace-api-key"
 
 [browser]
-userDataDir = "tmp/browser/db-ticket-buying"
+userDataDir = "assets/private/browser/db-ticket-buying"
 ```
 
 Current top-level fields:
