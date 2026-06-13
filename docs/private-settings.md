@@ -6,31 +6,39 @@ DBhopper routes active private data through:
 assets/private/settings.toml
 ```
 
-The tracked template is:
-
-```text
-assets/private/settings.example.toml
-```
+There is no second settings template file. The fixed settings path above is
+user-managed local runtime state and is not packaged.
 
 ## Shape
 
-`settings.toml` has exactly four fields:
+`settings.toml` has exactly six fields:
 
 ```toml
 ID_CRED = "01"
 ID_PRF = "01"
 PATH_CRED = "assets/private/credentials"
 PATH_PRF = "assets/private/profiles"
+DELAY_PROVIDER = "bahn-web"
+DELAY_FALLBACK = "none"
 ```
 
 - `ID_CRED` selects one credential file.
 - `ID_PRF` selects one private profile file.
 - `PATH_CRED` points to the directory containing credential TOML files.
 - `PATH_PRF` points to the directory containing private profile TOML files.
+- `DELAY_PROVIDER` selects the default delay data source for omitted provider
+  tool calls.
+- `DELAY_FALLBACK` controls fallback behavior; `"none"` disables automatic
+  fallback.
 
-Paths may be relative to the plugin workspace root or absolute paths outside
-the plugin. The user owns path values and file contents. OpenClaw agents should
+Paths may be relative to the plugin directory or absolute within the user file
+system. The user owns path values and file contents. OpenClaw agents should
 only change `ID_CRED` and `ID_PRF`.
+
+Use either the default private paths or user-chosen private paths inside this
+single settings TOML file; private paths may be relative to the plugin
+directory or absolute within the user file system, while the settings file
+itself always remains at `assets/private/settings.toml`.
 
 ## File IDs
 
@@ -50,6 +58,27 @@ ID_PRF = "01"
 
 IDs are quoted numeric strings such as `"01"`, `"02"`, and `"03"`.
 
+## Private Profile Fields
+
+Current top-level fields:
+
+- `version`: optional schema version, currently `1`.
+- `ID_PRF`: required quoted numeric private profile ID, for example `"01"`.
+
+Current private profile sections:
+
+- `[claimant].salutation`: one of `MR`, `MS`, `DIVERS`, or `FAMILY`.
+- `[claimant].firstName`: claimant first name.
+- `[claimant].lastName`: claimant last name.
+- `[claimant].email`: claimant email address.
+- `[claimant].phone`: claimant phone number.
+- `[claimant.address].streetNumber`: claimant street and house number.
+- `[claimant.address].zip`: claimant postal code.
+- `[claimant.address].city`: claimant city.
+- `[claimant.address].country`: claimant country.
+- `[bank].accountOwner`: bank account owner.
+- `[bank].iban`: IBAN for reimbursement.
+
 Example private files:
 
 ```text
@@ -59,8 +88,9 @@ assets/private/profiles/private-profile-01.toml
 assets/private/profiles/private-profile-03.toml
 ```
 
-Safe public templates live under `docs/examples/`. Copy those files into the
-private directories before adding real account, claimant, or bank values.
+Safe public credential/profile templates live under `docs/examples/`. Copy
+those files into the private directories before adding real account, claimant,
+or bank values.
 
 ## Tools
 

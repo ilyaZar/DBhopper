@@ -25,6 +25,8 @@ ID_CRED = "01"
 ID_PRF = "01"
 PATH_CRED = "assets/private/credentials"
 PATH_PRF = "assets/private/profiles"
+DELAY_PROVIDER = "bahn-web"
+DELAY_FALLBACK = "none"
 ```
 
 The `PATH_*` values may point to the plugin-private folders or to external
@@ -53,20 +55,36 @@ next to the downloaded confirmation PDF as the full joined audit recipe.
 
 ## Usage mode: delay alarm and lookup
 
-Deutsche Bahn delay lookup supports two providers:
+Deutsche Bahn delay lookup supports these provider values:
 
-- `auto`, the default, uses DB Timetables when credentials exist and falls back
-  to `bahn-web` when credentials are missing or Timetables returns an
-  authentication failure.
+- `bahn-web`, the `settings.toml` default, uses the passenger website JSON
+  endpoint through the browser-context retrieval path.
 - `db-timetables` uses the official DB API Marketplace Timetables product.
-- `bahn-web` uses the passenger website JSON endpoint without Marketplace
-  credentials. This endpoint is unofficial and may change or block clients.
+- `auto` uses DB Timetables when credentials exist, otherwise `bahn-web`.
+
+`bahn-web` works without Marketplace credentials. It is still an unofficial
+website endpoint and may change or block clients.
+If Timetables is selected and then fails, `DELAY_FALLBACK` controls whether
+DBhopper retries another provider; the default is no automatic retry.
 
 ### DB API Marketplace
 
 For the official DB Timetables provider, create a DB API Marketplace
 application, subscribe it to the Timetables product, and put the technical
 credentials in `[bahnAPI]` of the selected credential TOML file.
+
+By default, DBhopper uses the passenger website JSON endpoint through the
+browser-context retrieval path:
+
+```toml
+DELAY_PROVIDER = "bahn-web"
+DELAY_FALLBACK = "none"
+```
+
+This keeps delay lookup usable without DB API Marketplace credentials. Set
+`DELAY_PROVIDER = "db-timetables"` only when you want the official API as the
+default. `DELAY_FALLBACK` can be set later, but the default is no automatic
+fallback.
 
 The free Timetables subscription currently offers 60 calls per minute.
 
@@ -119,25 +137,36 @@ data or any legally binding final order button. See `docs/ticket-buying-wip.md`.
 Browser runs save screenshots and text captures below `tmp/`. Those artifacts
 are local runtime data and may contain account identity.
 
-## Tools exposed to the agent
+## User-facing capabilities
+
+DBhopper exposes granular tools to the agent, but users normally interact with
+these workflows:
+
+- prepare a Mobilitätsgarantie claim: `dbhopper_prepare_claim`
+- validate a claim: `dbhopper_validate_claim`
+- dry-run or submit a prepared claim: `dbhopper_run_claim`
+- query train delays and direct replacement options: `dbhopper_query_db_delay`
+- select local credential and profile IDs:
+  `dbhopper_private_settings_status`,
+  `dbhopper_private_settings_select`
+- verify DB setup:
+  `dbhopper_credentials_validate`,
+  `dbhopper_db_api_credential_probe`
+
+Advanced agent diagnostics and research helpers include:
 
 - `dbhopper_claim_schema`
 - `dbhopper_list_claims`
-- `dbhopper_prepare_claim`
-- `dbhopper_validate_claim`
 - `dbhopper_browser_probe`
-- `dbhopper_run_claim`
-- `dbhopper_private_settings_status`
-- `dbhopper_private_settings_select`
-- `dbhopper_credentials_validate`
 - `dbhopper_db_standard_login_check`
 - `dbhopper_db_marketplace_access_check`
-- `dbhopper_db_api_credential_probe`
 - `dbhopper_db_delay_research`
-- `dbhopper_query_db_delay`
 - `dbhopper_ticket_buying_research`
 - `dbhopper_ticket_buying_dry_run`
 - `dbhopper_ticket_checkout_dry_run`
+
+The ticket-buying helpers are experimental and should not be treated as the
+main user-facing purchase interface.
 
 `dbhopper_run_claim` defaults to dry-run behavior and only submits with explicit
 confirmation.

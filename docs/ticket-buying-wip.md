@@ -1,7 +1,7 @@
 # Ticket Buying WIP
 
-Ticket buying is testing-only. DBhopper may open the official DB website and
-explore booking screens, but it must not submit payment or finalize a purchase.
+Ticket-buying support is experimental. Safety rules and dry-run behavior are
+documented in `docs/testing_ecosystem.md`.
 
 ## Candidate Interfaces
 
@@ -14,11 +14,6 @@ a DB customer account:
 https://int.bahn.de/en/booking-information/online-ticket
 
 This is the current practical route for a local helper.
-`dbhopper_ticket_buying_dry_run` opens the website, fills route and outbound
-date/time controls, and stops after search/results. The separate
-`dbhopper_ticket_checkout_dry_run` explores offer/customer-data steps as far as
-safely possible and stops before payment data or a final order button. Browser
-runs save text and screenshots below `tmp/`.
 
 ### DB Navigator
 
@@ -61,47 +56,10 @@ queries when DB Marketplace credentials are missing. That path is useful for
 search and live-delay data, but it should not be used to complete purchases
 unless there is a documented and permitted purchasing API.
 
-## Safety Rules
+## Testing
 
-- Mark every tool result with `testing: true`.
-- Return `purchaseSubmitted: false` for dry runs.
-- Stop at search/results for `dbhopper_ticket_buying_dry_run`.
-- Stop before payment data or a legally binding final order button for
-  `dbhopper_ticket_checkout_dry_run`.
-- Do not click final payment or final booking controls.
-- Do not store payment card data in DBhopper files.
-- Keep DB account credentials in ignored
-  `assets/private/credentials/*.toml` files only.
-- Prefer a persistent browser profile for website login/session state.
-
-## Current Tool Shape
-
-The dry-run tool uses the active credentials from `settings.toml` by default.
-It accepts:
-
-```json
-{
-  "departure_station": "Hamm(Westf)Hbf",
-  "arrival_station": "Koeln Hbf",
-  "service_date": "2026-05-25",
-  "departure_time": "19:00",
-  "train_label": "ICE 123",
-  "open_browser": false
-}
-```
-
-With `open_browser: false`, it returns a deterministic plan only. With
-`open_browser: true`, it opens the official DB website, applies the route and
-outbound date/time where supplied, and stops after search/results.
-
-When `login_before_search: true`, the dry run logs into the configured
-`[bahnAccount]` before searching. `stay_logged_in` defaults to `true` and checks
-DB's stay-logged-in checkbox if the login page exposes one.
-
-`dbhopper_ticket_checkout_dry_run` accepts the same route/login controls, uses a
-default route of Hamm(Westf)Hbf -> Köln Hbf about one week after the run date,
-and returns `finalSafetyStop` with values such as `payment_boundary`,
-`final_order_boundary`, or `no_safe_next_step`.
+Ticket dry-run safety rules and the current testing tool shape are documented
+in `docs/testing_ecosystem.md`.
 
 ## Future Work
 

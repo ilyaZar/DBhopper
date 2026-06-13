@@ -17,7 +17,7 @@ Current official-provider state:
 - Missing credentials return `needs_configuration: true`.
 - Populated but invalid credentials can return HTTP 401:
   `Invalid client id or secret`.
-- `dbhopper_db_api_credential_probe` verifies the selected `[dbApi]`
+- `dbhopper_db_api_credential_probe` verifies the selected `[bahnAPI]`
   credentials independently of any browser login.
 
 Implemented passenger website alternative:
@@ -39,7 +39,9 @@ Implemented passenger website alternative:
   - `provider: "bahn-web"` for the passenger website API
   - `provider: "auto"` to use Timetables when credentials exist, otherwise
     `bahn-web`
-- In `auto`, a Timetables authentication failure also falls back to `bahn-web`.
+- Runtime fallback after a provider failure is controlled by `DELAY_FALLBACK`;
+  the default `"none"` disables automatic fallback even when `provider` is
+  `"auto"`.
 - For Hamm(Westf)Hbf -> Köln Hbf on 2026-06-10 around 22:03 CEST, it returned
   live-updating entries such as ICE 542, RE1, and ICE 842, with realtime
   departure changes visible across repeated checks.
@@ -55,6 +57,19 @@ Live verification notes:
 
 - bahn-web fallback worked via deterministic browser-context JSON fetch.
 - Ticket checkout dry-run reached a safe stop and did not buy anything.
+- 2026-06-12 direct Timetables API probe still returned
+  `401 Invalid client id or secret` with populated selected `[bahnAPI]`
+  fields. Browser Marketplace login remains separate from API-key validity.
+- API probe and query failures now classify this as
+  `invalid_client_id_or_secret` and return next checks for `[bahnAPI]`
+  `clientId`, `[bahnAPI]` `apiKey`, selected settings ID, and the Timetables
+  subscription on the same Marketplace application.
+- Fixture parity now verifies that Timetables and `bahn-web` provider parsers
+  feed the same normalized `Journey[]` data shape into the shared filters.
+- `runDbDelayProviderParityProbe` can run both providers for the same query and
+  compare cleaned `table_rows` once official API credentials work. It is not a
+  separate user-facing OpenClaw tool.
+- The current live parity probe reports `api_ready: false`, `web_ready: true`.
 
 Follow-up work:
 
@@ -100,8 +115,7 @@ Current storage:
 
 - Active private data is routed through:
   `assets/private/settings.toml`
-- Settings template:
-  `assets/private/settings.example.toml`
+- There is no settings template file; the live router path is fixed.
 - Public credential template:
   `docs/examples/credentials.example.toml`
 - Real credential files:
@@ -116,13 +130,13 @@ Current consumers:
   values and flags missing selected IDs.
 - `dbhopper_private_settings_select` updates only `ID_CRED` and `ID_PRF`; it
   does not accept path fields.
-- `dbhopper_query_db_delay` can load `[dbApi]` for DB Timetables credentials.
-- `dbhopper_db_api_credential_probe` can probe `[dbApi]` without returning
+- `dbhopper_query_db_delay` can load `[bahnAPI]` for DB Timetables credentials.
+- `dbhopper_db_api_credential_probe` can probe `[bahnAPI]` without returning
   secrets.
 - `dbhopper_db_marketplace_access_check` can inspect DB API Marketplace browser
-  reachability. Browser-login proof needs `[dbApi].accountUsername` and
-  `[dbApi].accountPassword`; `clientId`/`apiKey` are API credentials, not human
-  login fields.
+  reachability. Browser-login proof needs `[bahnAccountAPI].username` and
+  `[bahnAccountAPI].password`; `[bahnAPI].clientId` and `[bahnAPI].apiKey` are
+  API credentials, not human login fields.
 - `dbhopper_db_standard_login_check` can submit `[bahnAccount]` through the DB
   website login for one-time onboarding checks.
 - `dbhopper_ticket_buying_dry_run` can use `[browser].userDataDir` as a
@@ -140,6 +154,13 @@ Validation:
   not edit those values.
 
 ## Ticket buying WIP
+
+Urgent goal:
+
+- Consolidate ticket-buying into one stable user-facing capability with a clear
+  name and safe contract. Once that exists, de-emphasize or deprecate the
+  current exploratory `dbhopper_ticket_buying_*` helpers from the public README
+  surface while keeping any useful lower-level pieces available to the agent.
 
 Current state:
 
@@ -179,10 +200,9 @@ Follow-up work:
 
 ## Local claim files
 
-Current code writes and reads `claims/<claim-id>/claim.toml`. Legacy
-`claim.json` paths are not used by the current code and are not packaged. The
-whole `claims/*` subtree remains ignored because it contains local runtime data
-and evidence files.
+Current code writes and reads `claims/<claim-id>/claim.toml`. The whole
+`claims/*` subtree remains ignored because it contains local runtime data and
+evidence files.
 
 Useful validation commands:
 
