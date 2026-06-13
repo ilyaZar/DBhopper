@@ -106,6 +106,10 @@ describe("bahn-web provider parsing", () => {
     assert.equal(events.length, 2);
     assert.equal(regional.category, "RE");
     assert.equal(regional.lineNumber, "RE1");
+    assert.equal(regional.publicLine, "RE1");
+    assert.equal(regional.publicCategory, "RE");
+    assert.equal(regional.technicalCategory, "NX");
+    assert.equal(regional.displayLabel, "RE1");
     assert.equal(events[0].plannedDeparture, "2026-06-10T20:18:00.000Z");
     assert.equal(events[0].realtimeDeparture, "2026-06-10T20:45:00.000Z");
     assert.deepEqual(

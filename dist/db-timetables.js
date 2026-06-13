@@ -1,5 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
-import { DEFAULT_TIME_ZONE, addMinutes, localDateTimeToUtc, normalizeStationName, stationMatches, } from "./db-delay.js";
+import { DEFAULT_TIME_ZONE, addMinutes, derivePublicCategory, localDateTimeToUtc, normalizeStationName, stationMatches, } from "./db-delay.js";
 import { extractDbErrorMessage } from "./db-api-errors.js";
 export const DEFAULT_TIMETABLE_BASE_URL = "https://apis.deutschebahn.com/db-api-marketplace/apis/timetables/v1";
 export const DEFAULT_DELAY_LOOKBACK_MINUTES = 180;
@@ -40,9 +40,13 @@ export function createTimetablesProvider(options = {}) {
     };
 }
 export async function resolveStation(name, options = {}) {
-    const xml = await fetchTimetablesText(`/station/${encodeURIComponent(name)}`, options);
-    const parsed = parseXml(xml);
-    const stationObjects = collectObjectsByKey(parsed, "station");
+    let stationObjects = await fetchStationObjects(name, options);
+    for (const alternativeName of stationSearchAlternatives(name)) {
+        if (stationObjects.length) {
+            break;
+        }
+        stationObjects = await fetchStationObjects(alternativeName, options);
+    }
     return stationObjects
         .map((station) => stationRefFromDbStation(station))
         .filter((station) => Boolean(station))
@@ -127,6 +131,11 @@ function resolveCredentials(options) {
 function normalizeBaseUrl(baseUrl) {
     return (baseUrl || DEFAULT_TIMETABLE_BASE_URL).replace(/\/+$/, "");
 }
+async function fetchStationObjects(name, options) {
+    const xml = await fetchTimetablesText(`/station/${encodeURIComponent(name)}`, options);
+    const parsed = parseXml(xml);
+    return collectObjectsByKey(parsed, "station");
+}
 function parseTimetableRows(xml) {
     if (!xml.trim()) {
         return [];
@@ -185,10 +194,13 @@ function stationEventFromTimetableRow(row, boardStation, timeZone) {
     if (!eventNode) {
         return null;
     }
-    const trainCategory = stringAttr(row.tl, "c") ?? "";
+    const technicalCategory = stringAttr(row.tl, "c") ?? "";
     const trainNumber = stringAttr(row.tl, "n");
-    const lineNumber = stringAttr(row.tl, "l");
-    const label = buildTrainLabel(trainCategory, trainNumber, lineNumber);
+    const operator = stringAttr(row.tl, "o");
+    const publicLine = choosePublicLine(firstString(stringAttr(departureNode, "l"), stringAttr(arrivalNode, "l")), firstString(stringAttr(departureNode, "fb"), stringAttr(arrivalNode, "fb")), stringAttr(row.tl, "l"), technicalCategory);
+    const publicCategory = derivePublicCategory(publicLine, technicalCategory);
+    const category = publicCategory ?? technicalCategory;
+    const label = buildTrainLabel(category, trainNumber, publicLine);
     const plannedArrival = parseDbTimestamp(stringAttr(arrivalNode, "pt"), timeZone);
     const plannedDeparture = parseDbTimestamp(stringAttr(departureNode, "pt"), timeZone);
     const realtimeArrival = parseDbTimestamp(stringAttr(arrivalNode, "ct"), timeZone);
@@ -198,10 +210,15 @@ function stationEventFromTimetableRow(row, boardStation, timeZone) {
     const boardingStop = {
         station: boardStation,
         journeyId: row.id,
-        trainCategory,
+        trainCategory: category,
         trainNumber,
-        lineNumber,
+        lineNumber: publicLine,
         label,
+        displayLabel: label,
+        publicLine,
+        publicCategory,
+        technicalCategory,
+        operator,
         plannedArrival,
         plannedDeparture,
         realtimeArrival,
@@ -215,10 +232,15 @@ function stationEventFromTimetableRow(row, boardStation, timeZone) {
     const stops = buildStopsFromPath(boardingStop, pathNames);
     const journey = {
         id: row.id,
-        category: trainCategory,
+        category,
         number: trainNumber,
-        lineNumber,
+        lineNumber: publicLine,
         label,
+        displayLabel: label,
+        publicLine,
+        publicCategory,
+        technicalCategory,
+        operator,
         stops,
         cancelled,
         source: "db-timetables",
@@ -238,6 +260,11 @@ function buildStopsFromPath(boardingStop, pathNames) {
         trainNumber: boardingStop.trainNumber,
         lineNumber: boardingStop.lineNumber,
         label: boardingStop.label,
+        displayLabel: boardingStop.displayLabel,
+        publicLine: boardingStop.publicLine,
+        publicCategory: boardingStop.publicCategory,
+        technicalCategory: boardingStop.technicalCategory,
+        operator: boardingStop.operator,
         stopIndex: index,
     }));
     const boardingIndex = pathStops.findIndex((stop) => stationMatches(stop.station, boardingStop.station));
@@ -329,6 +356,20 @@ function stationRefFromDbStation(station) {
         raw: station,
     };
 }
+function stationSearchAlternatives(name) {
+    const alternatives = new Set();
+    const replacements = [
+        [/\bkoeln\b/gi, "Köln"],
+        [/\bkoln\b/gi, "Köln"],
+    ];
+    for (const [pattern, replacement] of replacements) {
+        const alternative = name.replace(pattern, replacement);
+        if (alternative !== name) {
+            alternatives.add(alternative);
+        }
+    }
+    return [...alternatives];
+}
 function rankStationMatch(station, search) {
     const expected = normalizeStationName(search);
     const actual = normalizeStationName(station.name);
@@ -351,6 +392,30 @@ function buildTrainLabel(category, number, lineNumber) {
         return lineNumber;
     }
     return category || number || "unknown";
+}
+function choosePublicLine(stopLine, fallbackLine, timetableLine, technicalCategory) {
+    if (isRegionalPublicLine(stopLine)) {
+        return stopLine;
+    }
+    if (isRegionalPublicLine(fallbackLine)) {
+        return fallbackLine;
+    }
+    if (timetableLine?.trim()) {
+        return timetableLine.trim();
+    }
+    if (!isLongDistanceCategory(technicalCategory)) {
+        return firstString(stopLine, fallbackLine);
+    }
+    return undefined;
+}
+function isRegionalPublicLine(value) {
+    return /^(?:IRE|RE|RB|S|MEX|FEX)\s*\d+/i.test(value?.trim() ?? "");
+}
+function isLongDistanceCategory(value) {
+    return /^(?:ICE|ECE|EC|IC|FLX|NJ)$/i.test(value?.trim() ?? "");
+}
+function firstString(...values) {
+    return values.find((value) => value && value.trim())?.trim();
 }
 function isCancelled(...nodes) {
     return nodes.some((node) => {

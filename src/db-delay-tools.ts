@@ -87,9 +87,14 @@ export interface DbDelayProviderParityProbeParams extends DbDelayQueryToolParams
 export interface CleanedDelayTableRow {
   role: "delayed_regional" | "reachable_replacement";
   label?: string;
+  display_label?: string;
   category: string;
+  public_line?: string;
+  public_category?: string;
+  technical_category?: string;
   train_number?: string;
   line_number?: string;
+  operator?: string;
   delay_minutes: number | null;
   reachable: boolean | null;
   planned_boarding_time?: string;
@@ -105,10 +110,13 @@ export interface CleanedDelayTableRow {
 
 export interface CleanedProviderComparison {
   same: boolean;
+  same_identity: boolean;
   official_row_count: number;
   web_row_count: number;
   only_official: string[];
   only_web: string[];
+  only_official_identity: string[];
+  only_web_identity: string[];
 }
 
 export interface ProviderParitySide {
@@ -391,7 +399,7 @@ export async function runDbDelayProviderParityProbe(
       : undefined;
 
   return {
-    ok: official.ok === true && web.ok === true && comparison?.same === true,
+    ok: official.ok === true && web.ok === true && comparison?.same_identity === true,
     operation: "db_delay_provider_parity_probe",
     api_ready: official.ok === true,
     web_ready: web.ok === true,
@@ -696,24 +704,31 @@ function compareCleanedRows(
 ): CleanedProviderComparison {
   const officialKeys = officialRows.map(cleanedRowKey).sort();
   const webKeys = webRows.map(cleanedRowKey).sort();
+  const officialIdentityKeys = officialRows.map(cleanedRowIdentityKey).sort();
+  const webIdentityKeys = webRows.map(cleanedRowIdentityKey).sort();
   const officialSet = new Set(officialKeys);
   const webSet = new Set(webKeys);
+  const officialIdentitySet = new Set(officialIdentityKeys);
+  const webIdentitySet = new Set(webIdentityKeys);
   return {
     same: JSON.stringify(officialKeys) === JSON.stringify(webKeys),
+    same_identity: JSON.stringify(officialIdentityKeys) === JSON.stringify(webIdentityKeys),
     official_row_count: officialRows.length,
     web_row_count: webRows.length,
     only_official: officialKeys.filter((key) => !webSet.has(key)),
     only_web: webKeys.filter((key) => !officialSet.has(key)),
+    only_official_identity: officialIdentityKeys.filter(
+      (key) => !webIdentitySet.has(key),
+    ),
+    only_web_identity: webIdentityKeys.filter(
+      (key) => !officialIdentitySet.has(key),
+    ),
   };
 }
 
 function cleanedRowKey(row: CleanedDelayTableRow) {
   return [
-    row.role,
-    row.label,
-    row.category,
-    row.train_number,
-    row.line_number,
+    ...cleanedRowIdentityParts(row),
     row.planned_boarding_time,
     row.realtime_boarding_time,
     row.delay_minutes,
@@ -723,6 +738,30 @@ function cleanedRowKey(row: CleanedDelayTableRow) {
   ]
     .map((value) => String(value ?? ""))
     .join("|");
+}
+
+function cleanedRowIdentityKey(row: CleanedDelayTableRow) {
+  return [
+    ...cleanedRowIdentityParts(row),
+    row.boarding_station,
+    row.destination_station,
+  ]
+    .map((value) => String(value ?? ""))
+    .join("|");
+}
+
+function cleanedRowIdentityParts(row: CleanedDelayTableRow) {
+  const userFacingLine =
+    row.role === "reachable_replacement"
+      ? row.display_label ?? row.label
+      : row.public_line ?? row.line_number;
+  return [
+    row.role,
+    row.display_label ?? row.label,
+    row.public_category ?? row.category,
+    userFacingLine,
+    row.train_number,
+  ];
 }
 
 function paritySideOutput(
@@ -752,9 +791,14 @@ function cleanedTableRows(
     ...regionalCandidates.map((candidate) => ({
       role: "delayed_regional" as const,
       label: candidate.journey.label,
+      display_label: candidate.journey.displayLabel ?? candidate.journey.label,
       category: candidate.journey.category,
+      public_line: candidate.journey.publicLine,
+      public_category: candidate.journey.publicCategory,
+      technical_category: candidate.journey.technicalCategory,
       train_number: candidate.journey.number,
       line_number: candidate.journey.lineNumber,
+      operator: candidate.journey.operator,
       delay_minutes: candidate.boardingDelayMinutes,
       reachable: null,
       planned_boarding_time: candidate.plannedBoardingTime,
@@ -770,9 +814,14 @@ function cleanedTableRows(
     ...replacements.map((replacement) => ({
       role: "reachable_replacement" as const,
       label: replacement.journey.label,
+      display_label: replacement.journey.displayLabel ?? replacement.journey.label,
       category: replacement.journey.category,
+      public_line: replacement.journey.publicLine,
+      public_category: replacement.journey.publicCategory,
+      technical_category: replacement.journey.technicalCategory,
       train_number: replacement.journey.number,
       line_number: replacement.journey.lineNumber,
+      operator: replacement.journey.operator,
       delay_minutes: null,
       reachable: replacement.reachable,
       planned_boarding_time: replacement.plannedBoardingTime,
@@ -830,7 +879,11 @@ function journeyOutput(journey: Journey, includeRaw: boolean, compact = false) {
   return {
     id: journey.id,
     label: journey.label,
+    display_label: journey.displayLabel ?? journey.label,
     category: journey.category,
+    public_line: journey.publicLine,
+    public_category: journey.publicCategory,
+    technical_category: journey.technicalCategory,
     number: journey.number,
     line_number: journey.lineNumber,
     operator: journey.operator,
@@ -853,6 +906,13 @@ function stopOutput(stop: JourneyStop | StationEvent, includeRaw: boolean) {
     realtime_departure: stop.realtimeDeparture,
     platform: stop.platform,
     realtime_platform: stop.realtimePlatform,
+    display_label: stop.displayLabel ?? stop.label,
+    public_line: stop.publicLine,
+    public_category: stop.publicCategory,
+    technical_category: stop.technicalCategory,
+    train_number: stop.trainNumber,
+    line_number: stop.lineNumber,
+    operator: stop.operator,
     cancelled: stop.cancelled === true,
     ...(includeRaw ? { raw: stop.raw } : {}),
   };

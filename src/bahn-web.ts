@@ -5,6 +5,7 @@ import { resolveBrowserExecutablePath } from "./browser.js";
 import type { DBhopperConfig } from "./types.js";
 import {
   DEFAULT_TIME_ZONE,
+  derivePublicCategory,
   localDateTimeToUtc,
   normalizeStationName,
   stationMatches,
@@ -404,6 +405,8 @@ function stationEventFromBahnWebEntry(
   const realtimeDeparture = parseBahnWebTimestamp(stringAttr(entry, "ezZeit"), timeZone);
   const category = categoryFromProduct(product);
   const lineNumber = stringAttr(product, "linienNummer") ?? lineFromProduct(product);
+  const publicCategory = derivePublicCategory(lineNumber, category);
+  const technicalCategory = technicalCategoryFromProduct(product, publicCategory);
   const label = labelFromProduct(product, category);
   const trainNumber = trainNumberFromProduct(product, category, lineNumber);
   const journeyId =
@@ -418,6 +421,11 @@ function stationEventFromBahnWebEntry(
     trainNumber,
     lineNumber,
     label,
+    displayLabel: label,
+    publicLine: lineNumber,
+    publicCategory,
+    technicalCategory,
+    operator: technicalCategory,
     plannedDeparture,
     realtimeDeparture,
     platform: stringAttr(entry, "gleis"),
@@ -431,6 +439,11 @@ function stationEventFromBahnWebEntry(
     number: trainNumber,
     lineNumber,
     label,
+    displayLabel: label,
+    publicLine: lineNumber,
+    publicCategory,
+    technicalCategory,
+    operator: technicalCategory,
     stops,
     cancelled,
     source: BAHN_WEB_SOURCE_API,
@@ -454,6 +467,11 @@ function buildStops(boardingStop: JourneyStop, pathNames: string[]) {
     trainNumber: boardingStop.trainNumber,
     lineNumber: boardingStop.lineNumber,
     label: boardingStop.label,
+    displayLabel: boardingStop.displayLabel,
+    publicLine: boardingStop.publicLine,
+    publicCategory: boardingStop.publicCategory,
+    technicalCategory: boardingStop.technicalCategory,
+    operator: boardingStop.operator,
     cancelled: boardingStop.cancelled,
     stopIndex: index,
   }));
@@ -580,6 +598,14 @@ function labelFromProduct(product: Record<string, unknown> | undefined, category
 function lineFromProduct(product?: Record<string, unknown>) {
   const text = stringAttr(product, "mittelText") ?? stringAttr(product, "name");
   return text?.match(/\b(?:RE|RB|S|IRE|MEX|FEX)\s*\d+\b/i)?.[0].replace(/\s+/g, "");
+}
+
+function technicalCategoryFromProduct(
+  product: Record<string, unknown> | undefined,
+  publicCategory?: string,
+) {
+  const shortText = stringAttr(product, "kurzText")?.trim().toUpperCase();
+  return shortText || publicCategory;
 }
 
 function trainNumberFromProduct(

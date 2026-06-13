@@ -35,9 +35,14 @@ export interface DbDelayProviderParityProbeParams extends DbDelayQueryToolParams
 export interface CleanedDelayTableRow {
     role: "delayed_regional" | "reachable_replacement";
     label?: string;
+    display_label?: string;
     category: string;
+    public_line?: string;
+    public_category?: string;
+    technical_category?: string;
     train_number?: string;
     line_number?: string;
+    operator?: string;
     delay_minutes: number | null;
     reachable: boolean | null;
     planned_boarding_time?: string;
@@ -52,10 +57,13 @@ export interface CleanedDelayTableRow {
 }
 export interface CleanedProviderComparison {
     same: boolean;
+    same_identity: boolean;
     official_row_count: number;
     web_row_count: number;
     only_official: string[];
     only_web: string[];
+    only_official_identity: string[];
+    only_web_identity: string[];
 }
 export interface ProviderParitySide {
     ok: boolean;
@@ -171,7 +179,11 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
             raw?: unknown;
             id: string;
             label: string | undefined;
+            display_label: string | undefined;
             category: string;
+            public_line: string | undefined;
+            public_category: string | undefined;
+            technical_category: string | undefined;
             number: string | undefined;
             line_number: string | undefined;
             operator: string | undefined;
@@ -193,6 +205,13 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                 realtime_departure: string | undefined;
                 platform: string | undefined;
                 realtime_platform: string | undefined;
+                display_label: string | undefined;
+                public_line: string | undefined;
+                public_category: string | undefined;
+                technical_category: string | undefined;
+                train_number: string | undefined;
+                line_number: string | undefined;
+                operator: string | undefined;
                 cancelled: boolean;
             }[];
         };
@@ -214,6 +233,13 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
             realtime_departure: string | undefined;
             platform: string | undefined;
             realtime_platform: string | undefined;
+            display_label: string | undefined;
+            public_line: string | undefined;
+            public_category: string | undefined;
+            technical_category: string | undefined;
+            train_number: string | undefined;
+            line_number: string | undefined;
+            operator: string | undefined;
             cancelled: boolean;
         };
         destination_station: {
@@ -231,6 +257,13 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
             realtime_departure: string | undefined;
             platform: string | undefined;
             realtime_platform: string | undefined;
+            display_label: string | undefined;
+            public_line: string | undefined;
+            public_category: string | undefined;
+            technical_category: string | undefined;
+            train_number: string | undefined;
+            line_number: string | undefined;
+            operator: string | undefined;
             cancelled: boolean;
         };
         matched_by: string[];
@@ -239,7 +272,11 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                 raw?: unknown;
                 id: string;
                 label: string | undefined;
+                display_label: string | undefined;
                 category: string;
+                public_line: string | undefined;
+                public_category: string | undefined;
+                technical_category: string | undefined;
                 number: string | undefined;
                 line_number: string | undefined;
                 operator: string | undefined;
@@ -261,6 +298,13 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                     realtime_departure: string | undefined;
                     platform: string | undefined;
                     realtime_platform: string | undefined;
+                    display_label: string | undefined;
+                    public_line: string | undefined;
+                    public_category: string | undefined;
+                    technical_category: string | undefined;
+                    train_number: string | undefined;
+                    line_number: string | undefined;
+                    operator: string | undefined;
                     cancelled: boolean;
                 }[];
             };
@@ -282,6 +326,13 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                 realtime_departure: string | undefined;
                 platform: string | undefined;
                 realtime_platform: string | undefined;
+                display_label: string | undefined;
+                public_line: string | undefined;
+                public_category: string | undefined;
+                technical_category: string | undefined;
+                train_number: string | undefined;
+                line_number: string | undefined;
+                operator: string | undefined;
                 cancelled: boolean;
             };
             destination_station: {
@@ -299,6 +350,13 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                 realtime_departure: string | undefined;
                 platform: string | undefined;
                 realtime_platform: string | undefined;
+                display_label: string | undefined;
+                public_line: string | undefined;
+                public_category: string | undefined;
+                technical_category: string | undefined;
+                train_number: string | undefined;
+                line_number: string | undefined;
+                operator: string | undefined;
                 cancelled: boolean;
             };
             matched_by: string[];
@@ -309,7 +367,11 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
             raw?: unknown;
             id: string;
             label: string | undefined;
+            display_label: string | undefined;
             category: string;
+            public_line: string | undefined;
+            public_category: string | undefined;
+            technical_category: string | undefined;
             number: string | undefined;
             line_number: string | undefined;
             operator: string | undefined;
@@ -331,6 +393,13 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                 realtime_departure: string | undefined;
                 platform: string | undefined;
                 realtime_platform: string | undefined;
+                display_label: string | undefined;
+                public_line: string | undefined;
+                public_category: string | undefined;
+                technical_category: string | undefined;
+                train_number: string | undefined;
+                line_number: string | undefined;
+                operator: string | undefined;
                 cancelled: boolean;
             }[];
         };
@@ -352,6 +421,13 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
             realtime_departure: string | undefined;
             platform: string | undefined;
             realtime_platform: string | undefined;
+            display_label: string | undefined;
+            public_line: string | undefined;
+            public_category: string | undefined;
+            technical_category: string | undefined;
+            train_number: string | undefined;
+            line_number: string | undefined;
+            operator: string | undefined;
             cancelled: boolean;
         };
         destination_station: {
@@ -369,6 +445,13 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
             realtime_departure: string | undefined;
             platform: string | undefined;
             realtime_platform: string | undefined;
+            display_label: string | undefined;
+            public_line: string | undefined;
+            public_category: string | undefined;
+            technical_category: string | undefined;
+            train_number: string | undefined;
+            line_number: string | undefined;
+            operator: string | undefined;
             cancelled: boolean;
         };
         matched_by: string[];
@@ -386,7 +469,11 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                 raw?: unknown;
                 id: string;
                 label: string | undefined;
+                display_label: string | undefined;
                 category: string;
+                public_line: string | undefined;
+                public_category: string | undefined;
+                technical_category: string | undefined;
                 number: string | undefined;
                 line_number: string | undefined;
                 operator: string | undefined;
@@ -408,6 +495,13 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                     realtime_departure: string | undefined;
                     platform: string | undefined;
                     realtime_platform: string | undefined;
+                    display_label: string | undefined;
+                    public_line: string | undefined;
+                    public_category: string | undefined;
+                    technical_category: string | undefined;
+                    train_number: string | undefined;
+                    line_number: string | undefined;
+                    operator: string | undefined;
                     cancelled: boolean;
                 }[];
             };
@@ -418,7 +512,11 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                 raw?: unknown;
                 id: string;
                 label: string | undefined;
+                display_label: string | undefined;
                 category: string;
+                public_line: string | undefined;
+                public_category: string | undefined;
+                technical_category: string | undefined;
                 number: string | undefined;
                 line_number: string | undefined;
                 operator: string | undefined;
@@ -440,6 +538,13 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                     realtime_departure: string | undefined;
                     platform: string | undefined;
                     realtime_platform: string | undefined;
+                    display_label: string | undefined;
+                    public_line: string | undefined;
+                    public_category: string | undefined;
+                    technical_category: string | undefined;
+                    train_number: string | undefined;
+                    line_number: string | undefined;
+                    operator: string | undefined;
                     cancelled: boolean;
                 }[];
             };
@@ -648,7 +753,11 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
             raw?: unknown;
             id: string;
             label: string | undefined;
+            display_label: string | undefined;
             category: string;
+            public_line: string | undefined;
+            public_category: string | undefined;
+            technical_category: string | undefined;
             number: string | undefined;
             line_number: string | undefined;
             operator: string | undefined;
@@ -670,6 +779,13 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                 realtime_departure: string | undefined;
                 platform: string | undefined;
                 realtime_platform: string | undefined;
+                display_label: string | undefined;
+                public_line: string | undefined;
+                public_category: string | undefined;
+                technical_category: string | undefined;
+                train_number: string | undefined;
+                line_number: string | undefined;
+                operator: string | undefined;
                 cancelled: boolean;
             }[];
         };
@@ -691,6 +807,13 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
             realtime_departure: string | undefined;
             platform: string | undefined;
             realtime_platform: string | undefined;
+            display_label: string | undefined;
+            public_line: string | undefined;
+            public_category: string | undefined;
+            technical_category: string | undefined;
+            train_number: string | undefined;
+            line_number: string | undefined;
+            operator: string | undefined;
             cancelled: boolean;
         };
         destination_station: {
@@ -708,6 +831,13 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
             realtime_departure: string | undefined;
             platform: string | undefined;
             realtime_platform: string | undefined;
+            display_label: string | undefined;
+            public_line: string | undefined;
+            public_category: string | undefined;
+            technical_category: string | undefined;
+            train_number: string | undefined;
+            line_number: string | undefined;
+            operator: string | undefined;
             cancelled: boolean;
         };
         matched_by: string[];
@@ -716,7 +846,11 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                 raw?: unknown;
                 id: string;
                 label: string | undefined;
+                display_label: string | undefined;
                 category: string;
+                public_line: string | undefined;
+                public_category: string | undefined;
+                technical_category: string | undefined;
                 number: string | undefined;
                 line_number: string | undefined;
                 operator: string | undefined;
@@ -738,6 +872,13 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                     realtime_departure: string | undefined;
                     platform: string | undefined;
                     realtime_platform: string | undefined;
+                    display_label: string | undefined;
+                    public_line: string | undefined;
+                    public_category: string | undefined;
+                    technical_category: string | undefined;
+                    train_number: string | undefined;
+                    line_number: string | undefined;
+                    operator: string | undefined;
                     cancelled: boolean;
                 }[];
             };
@@ -759,6 +900,13 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                 realtime_departure: string | undefined;
                 platform: string | undefined;
                 realtime_platform: string | undefined;
+                display_label: string | undefined;
+                public_line: string | undefined;
+                public_category: string | undefined;
+                technical_category: string | undefined;
+                train_number: string | undefined;
+                line_number: string | undefined;
+                operator: string | undefined;
                 cancelled: boolean;
             };
             destination_station: {
@@ -776,6 +924,13 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                 realtime_departure: string | undefined;
                 platform: string | undefined;
                 realtime_platform: string | undefined;
+                display_label: string | undefined;
+                public_line: string | undefined;
+                public_category: string | undefined;
+                technical_category: string | undefined;
+                train_number: string | undefined;
+                line_number: string | undefined;
+                operator: string | undefined;
                 cancelled: boolean;
             };
             matched_by: string[];
@@ -786,7 +941,11 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
             raw?: unknown;
             id: string;
             label: string | undefined;
+            display_label: string | undefined;
             category: string;
+            public_line: string | undefined;
+            public_category: string | undefined;
+            technical_category: string | undefined;
             number: string | undefined;
             line_number: string | undefined;
             operator: string | undefined;
@@ -808,6 +967,13 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                 realtime_departure: string | undefined;
                 platform: string | undefined;
                 realtime_platform: string | undefined;
+                display_label: string | undefined;
+                public_line: string | undefined;
+                public_category: string | undefined;
+                technical_category: string | undefined;
+                train_number: string | undefined;
+                line_number: string | undefined;
+                operator: string | undefined;
                 cancelled: boolean;
             }[];
         };
@@ -829,6 +995,13 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
             realtime_departure: string | undefined;
             platform: string | undefined;
             realtime_platform: string | undefined;
+            display_label: string | undefined;
+            public_line: string | undefined;
+            public_category: string | undefined;
+            technical_category: string | undefined;
+            train_number: string | undefined;
+            line_number: string | undefined;
+            operator: string | undefined;
             cancelled: boolean;
         };
         destination_station: {
@@ -846,6 +1019,13 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
             realtime_departure: string | undefined;
             platform: string | undefined;
             realtime_platform: string | undefined;
+            display_label: string | undefined;
+            public_line: string | undefined;
+            public_category: string | undefined;
+            technical_category: string | undefined;
+            train_number: string | undefined;
+            line_number: string | undefined;
+            operator: string | undefined;
             cancelled: boolean;
         };
         matched_by: string[];
@@ -863,7 +1043,11 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                 raw?: unknown;
                 id: string;
                 label: string | undefined;
+                display_label: string | undefined;
                 category: string;
+                public_line: string | undefined;
+                public_category: string | undefined;
+                technical_category: string | undefined;
                 number: string | undefined;
                 line_number: string | undefined;
                 operator: string | undefined;
@@ -885,6 +1069,13 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                     realtime_departure: string | undefined;
                     platform: string | undefined;
                     realtime_platform: string | undefined;
+                    display_label: string | undefined;
+                    public_line: string | undefined;
+                    public_category: string | undefined;
+                    technical_category: string | undefined;
+                    train_number: string | undefined;
+                    line_number: string | undefined;
+                    operator: string | undefined;
                     cancelled: boolean;
                 }[];
             };
@@ -895,7 +1086,11 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                 raw?: unknown;
                 id: string;
                 label: string | undefined;
+                display_label: string | undefined;
                 category: string;
+                public_line: string | undefined;
+                public_category: string | undefined;
+                technical_category: string | undefined;
                 number: string | undefined;
                 line_number: string | undefined;
                 operator: string | undefined;
@@ -917,6 +1112,13 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                     realtime_departure: string | undefined;
                     platform: string | undefined;
                     realtime_platform: string | undefined;
+                    display_label: string | undefined;
+                    public_line: string | undefined;
+                    public_category: string | undefined;
+                    technical_category: string | undefined;
+                    train_number: string | undefined;
+                    line_number: string | undefined;
+                    operator: string | undefined;
                     cancelled: boolean;
                 }[];
             };

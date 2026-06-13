@@ -13,6 +13,7 @@ describe("dbhopper package metadata", () => {
     assert.equal(pkg.repository.url, "git+https://github.com/ilyaZar/dbhopper.git");
     assert.deepEqual(pkg.openclaw.extensions, ["./dist/index.js"]);
     assert.deepEqual(manifest.skills, ["./skills"]);
+    assert.ok(pkg.files.includes("settings.yaml"));
     assert.deepEqual(manifest.contracts.tools, [
       "dbhopper_claim_schema",
       "dbhopper_list_claims",

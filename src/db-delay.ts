@@ -22,6 +22,11 @@ export interface StationEvent {
   trainNumber?: string;
   lineNumber?: string;
   label?: string;
+  displayLabel?: string;
+  publicLine?: string;
+  publicCategory?: string;
+  technicalCategory?: string;
+  operator?: string;
   plannedArrival?: string;
   plannedDeparture?: string;
   realtimeArrival?: string;
@@ -43,6 +48,10 @@ export interface Journey {
   number?: string;
   lineNumber?: string;
   label?: string;
+  displayLabel?: string;
+  publicLine?: string;
+  publicCategory?: string;
+  technicalCategory?: string;
   operator?: string;
   stops: JourneyStop[];
   cancelled?: boolean;
@@ -374,9 +383,19 @@ export function categoryMatches(journey: Journey, allowedTypes: string[]) {
 }
 
 export function getCategoryTokens(journey: Journey) {
-  const fields = [journey.category, journey.lineNumber, journey.label, journey.operator].filter(
-    (value): value is string => Boolean(value),
-  );
+  const publicFields = [
+    journey.publicCategory,
+    journey.publicLine,
+    journey.lineNumber,
+    journey.displayLabel,
+    journey.label,
+  ].filter((value): value is string => Boolean(value));
+  const fallbackFields = [
+    journey.category,
+    journey.technicalCategory,
+    journey.operator,
+  ].filter((value): value is string => Boolean(value));
+  const fields = publicFields.length ? publicFields : fallbackFields;
   const tokens = new Set<string>();
 
   for (const field of fields) {
@@ -413,6 +432,14 @@ export function getCategoryTokens(journey: Journey) {
   }
 
   return tokens;
+}
+
+export function derivePublicCategory(publicLine?: string, fallbackCategory?: string) {
+  const category = publicLine
+    ?.trim()
+    .toUpperCase()
+    .match(/^(ICE|ECE|EC|IC|IRE|RE|RB|S|MEX|FEX|NJ|FLX|BUS)\s*\d*/)?.[1];
+  return category ?? fallbackCategory?.trim().toUpperCase();
 }
 
 export function parseQueryDateTime(
@@ -575,6 +602,9 @@ function evaluateCommonJourney(journey: Journey, query: NormalizedCandidateQuery
   if (!boardingStop) {
     reasons.push("departure station is not served");
   }
+  if (boardingStop && !hasDepartureEvent(boardingStop)) {
+    reasons.push("boarding station has no departure event");
+  }
   if (!destinationStop) {
     reasons.push("arrival station is not served after departure station");
   }
@@ -604,6 +634,10 @@ function evaluateCommonJourney(journey: Journey, query: NormalizedCandidateQuery
   }
 
   return { boardingStop, destinationStop, reasons, matchedBy };
+}
+
+function hasDepartureEvent(event: StationEvent) {
+  return Boolean(event.plannedDeparture || event.realtimeDeparture);
 }
 
 function hasLongDistanceCategory(journey: Journey) {

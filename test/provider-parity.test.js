@@ -59,6 +59,27 @@ describe("delay provider parity", () => {
       delayMinutes: [27],
     });
     assert.deepEqual(filterSummary(web.journeys), filterSummary(official.journeys));
+
+    const officialRegional = official.journeys.find((journey) => journey.id === "journey-re1");
+    assert.equal(officialRegional.label, "RE1");
+    assert.equal(officialRegional.publicLine, "RE1");
+    assert.equal(officialRegional.publicCategory, "RE");
+    assert.equal(officialRegional.technicalCategory, "NX");
+    assert.equal(officialRegional.operator, "NXRE");
+  });
+
+  it("resolves common ASCII station aliases through Timetables fallback lookup", async () => {
+    const timetables = createTimetablesProvider({
+      dbClientId: "client-id",
+      dbApiKey: "api-key",
+      fetchImpl: fakeTimetablesFetch,
+      timeZone: "Europe/Berlin",
+    });
+
+    const matches = await timetables.resolveStation("Koeln Hbf");
+
+    assert.equal(matches[0].name, "Köln Hbf");
+    assert.equal(matches[0].evaNo, "8000207");
   });
 });
 
@@ -66,6 +87,9 @@ function comparableJourneys(journeys) {
   return journeys
     .map((journey) => ({
       category: journey.category,
+      displayLabel: journey.displayLabel,
+      publicLine: journey.publicLine,
+      publicCategory: journey.publicCategory,
       number: journey.number,
       lineNumber: journey.lineNumber,
       label: journey.label,
@@ -156,10 +180,20 @@ async function fakeBahnWebFetch(url) {
 
 async function fakeTimetablesFetch(url) {
   const text = String(url);
-  if (text.includes("/station/")) {
+  if (text.includes("/station/Hamm")) {
     return xmlResponse(`
       <stations>
         <station name="Hamm(Westf)Hbf" eva="8000149" ds100="EHM" />
+      </stations>
+    `);
+  }
+  if (text.includes("/station/Koeln%20Hbf")) {
+    return xmlResponse("<stations></stations>");
+  }
+  if (text.includes("/station/K%C3%B6ln%20Hbf")) {
+    return xmlResponse(`
+      <stations>
+        <station name="Köln Hbf" eva="8000207" ds100="KK" />
       </stations>
     `);
   }
@@ -167,8 +201,8 @@ async function fakeTimetablesFetch(url) {
     return xmlResponse(`
       <timetable station="Hamm(Westf)Hbf" eva="8000149">
         <s id="journey-re1">
-          <tl c="RE" n="26838" l="RE1" />
-          <dp pt="2606102218" pp="1"
+          <tl o="NXRE" c="NX" n="26838" />
+          <dp pt="2606102218" pp="1" l="RE1" fb="RE1"
             ppth="Hamm(Westf)Hbf|Dortmund Hbf|Bochum Hbf|Essen Hbf|Köln Hbf|Aachen Hbf" />
         </s>
         <s id="journey-ice">

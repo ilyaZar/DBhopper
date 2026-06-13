@@ -48,6 +48,7 @@ describe("db delay provider selection", () => {
         query_time: "22:00",
         service_date: "2026-06-10",
         delay_threshold_minutes: 20,
+        include_table_rows: true,
       },
       {
         workspaceRoot: root,
@@ -61,8 +62,13 @@ describe("db delay provider selection", () => {
     assert.equal(result.api_ready, true);
     assert.equal(result.web_ready, true);
     assert.equal(result.comparison.same, true);
+    assert.equal(result.comparison.same_identity, true);
     assert.equal(result.comparison.official_row_count, 2);
-    assert.equal(result.official.table_rows, undefined);
+    assert.equal(result.official.table_rows[0].label, "RE1");
+    assert.equal(result.official.table_rows[0].public_line, "RE1");
+    assert.equal(result.official.table_rows[0].public_category, "RE");
+    assert.equal(result.official.table_rows[0].technical_category, "NX");
+    assert.equal(result.official.table_rows[0].train_number, "26838");
   });
 });
 
@@ -172,8 +178,8 @@ async function fakeParityFetch(url) {
     return xmlResponse(`
       <timetable station="Hamm(Westf)Hbf" eva="8000149">
         <s id="journey-re1">
-          <tl c="RE" n="26838" l="RE1" />
-          <dp pt="2606102218" pp="1"
+          <tl o="NXRE" c="NX" n="26838" />
+          <dp pt="2606102218" pp="1" l="RE1" fb="RE1"
             ppth="Hamm(Westf)Hbf|Dortmund Hbf|Köln Hbf|Aachen Hbf" />
         </s>
         <s id="journey-ice">

@@ -18,6 +18,11 @@ export interface StationEvent {
     trainNumber?: string;
     lineNumber?: string;
     label?: string;
+    displayLabel?: string;
+    publicLine?: string;
+    publicCategory?: string;
+    technicalCategory?: string;
+    operator?: string;
     plannedArrival?: string;
     plannedDeparture?: string;
     realtimeArrival?: string;
@@ -37,6 +42,10 @@ export interface Journey {
     number?: string;
     lineNumber?: string;
     label?: string;
+    displayLabel?: string;
+    publicLine?: string;
+    publicCategory?: string;
+    technicalCategory?: string;
     operator?: string;
     stops: JourneyStop[];
     cancelled?: boolean;
@@ -139,6 +148,7 @@ export declare function normalizeStationName(name: string): string;
 export declare function stationMatches(candidate: StationRef, expected: StationRef): boolean;
 export declare function categoryMatches(journey: Journey, allowedTypes: string[]): boolean;
 export declare function getCategoryTokens(journey: Journey): Set<string>;
+export declare function derivePublicCategory(publicLine?: string, fallbackCategory?: string): string | undefined;
 export declare function parseQueryDateTime(value: string | Date, options?: {
     serviceDate?: string;
     timeZone?: string;

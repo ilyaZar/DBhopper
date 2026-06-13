@@ -5,6 +5,7 @@ import { createCredentialsToolDefinitions } from "./credentials-tools.js";
 import { createDbDelayToolDefinitions } from "./db-delay-tools.js";
 import { createPrivateSettingsToolDefinitions } from "./private-settings-tools.js";
 import { createTicketBuyingToolDefinitions } from "./ticket-buying.js";
+import { enabledToolNames, readTopLevelSettings, } from "./plugin-settings.js";
 import { buildDBhopperApprovalDescription, createDBhopperTools, resolveApprovalToolNames, } from "./tools.js";
 const configSchema = Type.Object({
     workspaceRoot: Type.Optional(Type.String({
@@ -74,7 +75,27 @@ const plugin = defineToolPlugin({
     name: "DBhopper",
     description: "NRW Mobilitätsgarantie claim tools and Deutsche Bahn delay-query tools.",
     configSchema,
-    tools: (tool) => [
+    tools: (tool) => createDBhopperToolDefinitions(tool),
+});
+const registerToolPlugin = plugin.register.bind(plugin);
+plugin.register = (api) => {
+    registerToolPlugin(api);
+    registerClaimApprovalHook(api);
+};
+export default plugin;
+export function createDBhopperToolDefinitions(tool, settings = readTopLevelSettings()) {
+    const enabled = enabledToolNames(settings);
+    return [
+        ...createClaimToolDefinitions(tool),
+        ...createPrivateSettingsToolDefinitions(tool),
+        ...createCredentialsToolDefinitions(tool),
+        ...createAccessToolDefinitions(tool),
+        ...createDbDelayToolDefinitions(tool),
+        ...createTicketBuyingToolDefinitions(tool),
+    ].filter((definition) => enabled.has(definition.name));
+}
+function createClaimToolDefinitions(tool) {
+    return [
         claimToolDefinition(tool, {
             name: "dbhopper_claim_schema",
             label: "DBhopper Claim Schema",
@@ -132,19 +153,8 @@ const plugin = defineToolPlugin({
                 headless: Type.Optional(Type.Boolean()),
             }, { additionalProperties: false }),
         }),
-        ...createPrivateSettingsToolDefinitions(tool),
-        ...createCredentialsToolDefinitions(tool),
-        ...createAccessToolDefinitions(tool),
-        ...createDbDelayToolDefinitions(tool),
-        ...createTicketBuyingToolDefinitions(tool),
-    ],
-});
-const registerToolPlugin = plugin.register.bind(plugin);
-plugin.register = (api) => {
-    registerToolPlugin(api);
-    registerClaimApprovalHook(api);
-};
-export default plugin;
+    ];
+}
 function claimToolDefinition(tool, definition) {
     return tool({
         ...definition,

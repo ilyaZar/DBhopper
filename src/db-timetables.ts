@@ -4,6 +4,7 @@ import type { DBhopperConfig } from "./types.js";
 import {
   DEFAULT_TIME_ZONE,
   addMinutes,
+  derivePublicCategory,
   localDateTimeToUtc,
   normalizeStationName,
   stationMatches,
@@ -84,12 +85,13 @@ export async function resolveStation(
   name: string,
   options: TimetablesProviderOptions = {},
 ) {
-  const xml = await fetchTimetablesText(
-    `/station/${encodeURIComponent(name)}`,
-    options,
-  );
-  const parsed = parseXml(xml);
-  const stationObjects = collectObjectsByKey(parsed, "station");
+  let stationObjects = await fetchStationObjects(name, options);
+  for (const alternativeName of stationSearchAlternatives(name)) {
+    if (stationObjects.length) {
+      break;
+    }
+    stationObjects = await fetchStationObjects(alternativeName, options);
+  }
 
   return stationObjects
     .map((station) => stationRefFromDbStation(station))
@@ -209,6 +211,18 @@ function normalizeBaseUrl(baseUrl?: string) {
   return (baseUrl || DEFAULT_TIMETABLE_BASE_URL).replace(/\/+$/, "");
 }
 
+async function fetchStationObjects(
+  name: string,
+  options: TimetablesProviderOptions,
+) {
+  const xml = await fetchTimetablesText(
+    `/station/${encodeURIComponent(name)}`,
+    options,
+  );
+  const parsed = parseXml(xml);
+  return collectObjectsByKey(parsed, "station");
+}
+
 function parseTimetableRows(xml: string) {
   if (!xml.trim()) {
     return [];
@@ -275,10 +289,24 @@ function stationEventFromTimetableRow(
     return null;
   }
 
-  const trainCategory = stringAttr(row.tl, "c") ?? "";
+  const technicalCategory = stringAttr(row.tl, "c") ?? "";
   const trainNumber = stringAttr(row.tl, "n");
-  const lineNumber = stringAttr(row.tl, "l");
-  const label = buildTrainLabel(trainCategory, trainNumber, lineNumber);
+  const operator = stringAttr(row.tl, "o");
+  const publicLine = choosePublicLine(
+    firstString(
+      stringAttr(departureNode, "l"),
+      stringAttr(arrivalNode, "l"),
+    ),
+    firstString(
+      stringAttr(departureNode, "fb"),
+      stringAttr(arrivalNode, "fb"),
+    ),
+    stringAttr(row.tl, "l"),
+    technicalCategory,
+  );
+  const publicCategory = derivePublicCategory(publicLine, technicalCategory);
+  const category = publicCategory ?? technicalCategory;
+  const label = buildTrainLabel(category, trainNumber, publicLine);
   const plannedArrival = parseDbTimestamp(stringAttr(arrivalNode, "pt"), timeZone);
   const plannedDeparture = parseDbTimestamp(stringAttr(departureNode, "pt"), timeZone);
   const realtimeArrival = parseDbTimestamp(stringAttr(arrivalNode, "ct"), timeZone);
@@ -289,10 +317,15 @@ function stationEventFromTimetableRow(
   const boardingStop: JourneyStop = {
     station: boardStation,
     journeyId: row.id,
-    trainCategory,
+    trainCategory: category,
     trainNumber,
-    lineNumber,
+    lineNumber: publicLine,
     label,
+    displayLabel: label,
+    publicLine,
+    publicCategory,
+    technicalCategory,
+    operator,
     plannedArrival,
     plannedDeparture,
     realtimeArrival,
@@ -306,10 +339,15 @@ function stationEventFromTimetableRow(
   const stops = buildStopsFromPath(boardingStop, pathNames);
   const journey: Journey = {
     id: row.id,
-    category: trainCategory,
+    category,
     number: trainNumber,
-    lineNumber,
+    lineNumber: publicLine,
     label,
+    displayLabel: label,
+    publicLine,
+    publicCategory,
+    technicalCategory,
+    operator,
     stops,
     cancelled,
     source: "db-timetables",
@@ -331,6 +369,11 @@ function buildStopsFromPath(boardingStop: JourneyStop, pathNames: string[]) {
     trainNumber: boardingStop.trainNumber,
     lineNumber: boardingStop.lineNumber,
     label: boardingStop.label,
+    displayLabel: boardingStop.displayLabel,
+    publicLine: boardingStop.publicLine,
+    publicCategory: boardingStop.publicCategory,
+    technicalCategory: boardingStop.technicalCategory,
+    operator: boardingStop.operator,
     stopIndex: index,
   }));
   const boardingIndex = pathStops.findIndex((stop) =>
@@ -438,6 +481,21 @@ function stationRefFromDbStation(station: Record<string, unknown>): StationRef |
   };
 }
 
+function stationSearchAlternatives(name: string) {
+  const alternatives = new Set<string>();
+  const replacements: Array<[RegExp, string]> = [
+    [/\bkoeln\b/gi, "Köln"],
+    [/\bkoln\b/gi, "Köln"],
+  ];
+  for (const [pattern, replacement] of replacements) {
+    const alternative = name.replace(pattern, replacement);
+    if (alternative !== name) {
+      alternatives.add(alternative);
+    }
+  }
+  return [...alternatives];
+}
+
 function rankStationMatch(station: StationRef, search: string) {
   const expected = normalizeStationName(search);
   const actual = normalizeStationName(station.name);
@@ -461,6 +519,39 @@ function buildTrainLabel(category: string, number?: string, lineNumber?: string)
     return lineNumber;
   }
   return category || number || "unknown";
+}
+
+function choosePublicLine(
+  stopLine: string | undefined,
+  fallbackLine: string | undefined,
+  timetableLine: string | undefined,
+  technicalCategory: string,
+) {
+  if (isRegionalPublicLine(stopLine)) {
+    return stopLine;
+  }
+  if (isRegionalPublicLine(fallbackLine)) {
+    return fallbackLine;
+  }
+  if (timetableLine?.trim()) {
+    return timetableLine.trim();
+  }
+  if (!isLongDistanceCategory(technicalCategory)) {
+    return firstString(stopLine, fallbackLine);
+  }
+  return undefined;
+}
+
+function isRegionalPublicLine(value: string | undefined) {
+  return /^(?:IRE|RE|RB|S|MEX|FEX)\s*\d+/i.test(value?.trim() ?? "");
+}
+
+function isLongDistanceCategory(value: string | undefined) {
+  return /^(?:ICE|ECE|EC|IC|FLX|NJ)$/i.test(value?.trim() ?? "");
+}
+
+function firstString(...values: Array<string | undefined>) {
+  return values.find((value) => value && value.trim())?.trim();
 }
 
 function isCancelled(...nodes: Array<Record<string, unknown> | undefined>) {

@@ -90,6 +90,21 @@ describe("db delay filtering", () => {
     assert.equal(trainServesRouteInOrder(invalid, hamm, koln), false);
   });
 
+  it("does not treat arrival-only board rows as boardable departures", () => {
+    const journey = regionalJourney({});
+    delete journey.stops[0].plannedDeparture;
+    delete journey.stops[0].realtimeDeparture;
+    journey.stops[0].plannedArrival = "2026-05-25T16:10:00.000Z";
+    journey.stops[0].realtimeArrival = "2026-05-25T16:32:00.000Z";
+
+    const result = filterRegionalDelayedCandidates([journey], baseQuery());
+
+    assert.equal(result.candidates.length, 0);
+    assert.ok(
+      result.discarded[0].reasons.includes("boarding station has no departure event"),
+    );
+  });
+
   it("measures delay at the boarding station", () => {
     const journey = regionalJourney({
       plannedDeparture: "2026-05-25T16:10:00.000Z",
@@ -97,6 +112,27 @@ describe("db delay filtering", () => {
     });
 
     assert.equal(delayAtBoardingStation(journey, hamm), 22);
+  });
+
+  it("uses public line category for regional filters before technical category", () => {
+    const journey = regionalJourney({
+      id: "NX-re6",
+      plannedDeparture: "2026-05-25T16:10:00.000Z",
+      realtimeDeparture: "2026-05-25T16:32:00.000Z",
+    });
+    journey.category = "RE";
+    journey.lineNumber = "RE6";
+    journey.publicLine = "RE6";
+    journey.publicCategory = "RE";
+    journey.technicalCategory = "NX";
+    journey.operator = "NXRE";
+    journey.label = "RE6";
+
+    const result = filterRegionalDelayedCandidates([journey], baseQuery());
+
+    assert.equal(result.candidates.length, 1);
+    assert.equal(result.candidates[0].journey.publicLine, "RE6");
+    assert.equal(result.candidates[0].journey.technicalCategory, "NX");
   });
 
   it("filters direct reachable long-distance replacements", () => {

@@ -189,7 +189,19 @@ export function categoryMatches(journey, allowedTypes) {
     return allowed.some((allowedType) => tokens.has(allowedType));
 }
 export function getCategoryTokens(journey) {
-    const fields = [journey.category, journey.lineNumber, journey.label, journey.operator].filter((value) => Boolean(value));
+    const publicFields = [
+        journey.publicCategory,
+        journey.publicLine,
+        journey.lineNumber,
+        journey.displayLabel,
+        journey.label,
+    ].filter((value) => Boolean(value));
+    const fallbackFields = [
+        journey.category,
+        journey.technicalCategory,
+        journey.operator,
+    ].filter((value) => Boolean(value));
+    const fields = publicFields.length ? publicFields : fallbackFields;
     const tokens = new Set();
     for (const field of fields) {
         const normalized = field.toUpperCase().replace(/[^A-Z0-9]+/g, " ");
@@ -224,6 +236,13 @@ export function getCategoryTokens(journey) {
         }
     }
     return tokens;
+}
+export function derivePublicCategory(publicLine, fallbackCategory) {
+    const category = publicLine
+        ?.trim()
+        .toUpperCase()
+        .match(/^(ICE|ECE|EC|IC|IRE|RE|RB|S|MEX|FEX|NJ|FLX|BUS)\s*\d*/)?.[1];
+    return category ?? fallbackCategory?.trim().toUpperCase();
 }
 export function parseQueryDateTime(value, options = {}) {
     if (value instanceof Date) {
@@ -331,6 +350,9 @@ function evaluateCommonJourney(journey, query) {
     if (!boardingStop) {
         reasons.push("departure station is not served");
     }
+    if (boardingStop && !hasDepartureEvent(boardingStop)) {
+        reasons.push("boarding station has no departure event");
+    }
     if (!destinationStop) {
         reasons.push("arrival station is not served after departure station");
     }
@@ -356,6 +378,9 @@ function evaluateCommonJourney(journey, query) {
         matchedBy.push("reachability");
     }
     return { boardingStop, destinationStop, reasons, matchedBy };
+}
+function hasDepartureEvent(event) {
+    return Boolean(event.plannedDeparture || event.realtimeDeparture);
 }
 function hasLongDistanceCategory(journey) {
     const tokens = getCategoryTokens(journey);

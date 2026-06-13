@@ -195,7 +195,7 @@ export async function runDbDelayProviderParityProbe(params, config = {}, signal)
         ? compareCleanedRows(officialRows, webRows)
         : undefined;
     return {
-        ok: official.ok === true && web.ok === true && comparison?.same === true,
+        ok: official.ok === true && web.ok === true && comparison?.same_identity === true,
         operation: "db_delay_provider_parity_probe",
         api_ready: official.ok === true,
         web_ready: web.ok === true,
@@ -440,23 +440,26 @@ function extractTableRows(result) {
 function compareCleanedRows(officialRows, webRows) {
     const officialKeys = officialRows.map(cleanedRowKey).sort();
     const webKeys = webRows.map(cleanedRowKey).sort();
+    const officialIdentityKeys = officialRows.map(cleanedRowIdentityKey).sort();
+    const webIdentityKeys = webRows.map(cleanedRowIdentityKey).sort();
     const officialSet = new Set(officialKeys);
     const webSet = new Set(webKeys);
+    const officialIdentitySet = new Set(officialIdentityKeys);
+    const webIdentitySet = new Set(webIdentityKeys);
     return {
         same: JSON.stringify(officialKeys) === JSON.stringify(webKeys),
+        same_identity: JSON.stringify(officialIdentityKeys) === JSON.stringify(webIdentityKeys),
         official_row_count: officialRows.length,
         web_row_count: webRows.length,
         only_official: officialKeys.filter((key) => !webSet.has(key)),
         only_web: webKeys.filter((key) => !officialSet.has(key)),
+        only_official_identity: officialIdentityKeys.filter((key) => !webIdentitySet.has(key)),
+        only_web_identity: webIdentityKeys.filter((key) => !officialIdentitySet.has(key)),
     };
 }
 function cleanedRowKey(row) {
     return [
-        row.role,
-        row.label,
-        row.category,
-        row.train_number,
-        row.line_number,
+        ...cleanedRowIdentityParts(row),
         row.planned_boarding_time,
         row.realtime_boarding_time,
         row.delay_minutes,
@@ -466,6 +469,27 @@ function cleanedRowKey(row) {
     ]
         .map((value) => String(value ?? ""))
         .join("|");
+}
+function cleanedRowIdentityKey(row) {
+    return [
+        ...cleanedRowIdentityParts(row),
+        row.boarding_station,
+        row.destination_station,
+    ]
+        .map((value) => String(value ?? ""))
+        .join("|");
+}
+function cleanedRowIdentityParts(row) {
+    const userFacingLine = row.role === "reachable_replacement"
+        ? row.display_label ?? row.label
+        : row.public_line ?? row.line_number;
+    return [
+        row.role,
+        row.display_label ?? row.label,
+        row.public_category ?? row.category,
+        userFacingLine,
+        row.train_number,
+    ];
 }
 function paritySideOutput(result, includeRows) {
     return {
@@ -485,9 +509,14 @@ function cleanedTableRows(regionalCandidates, replacements) {
         ...regionalCandidates.map((candidate) => ({
             role: "delayed_regional",
             label: candidate.journey.label,
+            display_label: candidate.journey.displayLabel ?? candidate.journey.label,
             category: candidate.journey.category,
+            public_line: candidate.journey.publicLine,
+            public_category: candidate.journey.publicCategory,
+            technical_category: candidate.journey.technicalCategory,
             train_number: candidate.journey.number,
             line_number: candidate.journey.lineNumber,
+            operator: candidate.journey.operator,
             delay_minutes: candidate.boardingDelayMinutes,
             reachable: null,
             planned_boarding_time: candidate.plannedBoardingTime,
@@ -503,9 +532,14 @@ function cleanedTableRows(regionalCandidates, replacements) {
         ...replacements.map((replacement) => ({
             role: "reachable_replacement",
             label: replacement.journey.label,
+            display_label: replacement.journey.displayLabel ?? replacement.journey.label,
             category: replacement.journey.category,
+            public_line: replacement.journey.publicLine,
+            public_category: replacement.journey.publicCategory,
+            technical_category: replacement.journey.technicalCategory,
             train_number: replacement.journey.number,
             line_number: replacement.journey.lineNumber,
+            operator: replacement.journey.operator,
             delay_minutes: null,
             reachable: replacement.reachable,
             planned_boarding_time: replacement.plannedBoardingTime,
@@ -553,7 +587,11 @@ function journeyOutput(journey, includeRaw, compact = false) {
     return {
         id: journey.id,
         label: journey.label,
+        display_label: journey.displayLabel ?? journey.label,
         category: journey.category,
+        public_line: journey.publicLine,
+        public_category: journey.publicCategory,
+        technical_category: journey.technicalCategory,
         number: journey.number,
         line_number: journey.lineNumber,
         operator: journey.operator,
@@ -575,6 +613,13 @@ function stopOutput(stop, includeRaw) {
         realtime_departure: stop.realtimeDeparture,
         platform: stop.platform,
         realtime_platform: stop.realtimePlatform,
+        display_label: stop.displayLabel ?? stop.label,
+        public_line: stop.publicLine,
+        public_category: stop.publicCategory,
+        technical_category: stop.technicalCategory,
+        train_number: stop.trainNumber,
+        line_number: stop.lineNumber,
+        operator: stop.operator,
         cancelled: stop.cancelled === true,
         ...(includeRaw ? { raw: stop.raw } : {}),
     };

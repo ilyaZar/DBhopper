@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { resolveBrowserExecutablePath } from "./browser.js";
-import { DEFAULT_TIME_ZONE, localDateTimeToUtc, normalizeStationName, stationMatches, } from "./db-delay.js";
+import { DEFAULT_TIME_ZONE, derivePublicCategory, localDateTimeToUtc, normalizeStationName, stationMatches, } from "./db-delay.js";
 export const BAHN_WEB_SOURCE_API = "bahn-web";
 export const DEFAULT_BAHN_WEB_BASE_URL = "https://int.bahn.de/web/api";
 export const BAHN_WEB_FALLBACK_BASE_URL = "https://www.bahn.de/web/api";
@@ -286,6 +286,8 @@ function stationEventFromBahnWebEntry(raw, boardStation, timeZone) {
     const realtimeDeparture = parseBahnWebTimestamp(stringAttr(entry, "ezZeit"), timeZone);
     const category = categoryFromProduct(product);
     const lineNumber = stringAttr(product, "linienNummer") ?? lineFromProduct(product);
+    const publicCategory = derivePublicCategory(lineNumber, category);
+    const technicalCategory = technicalCategoryFromProduct(product, publicCategory);
     const label = labelFromProduct(product, category);
     const trainNumber = trainNumberFromProduct(product, category, lineNumber);
     const journeyId = stringAttr(entry, "journeyId") ??
@@ -298,6 +300,11 @@ function stationEventFromBahnWebEntry(raw, boardStation, timeZone) {
         trainNumber,
         lineNumber,
         label,
+        displayLabel: label,
+        publicLine: lineNumber,
+        publicCategory,
+        technicalCategory,
+        operator: technicalCategory,
         plannedDeparture,
         realtimeDeparture,
         platform: stringAttr(entry, "gleis"),
@@ -311,6 +318,11 @@ function stationEventFromBahnWebEntry(raw, boardStation, timeZone) {
         number: trainNumber,
         lineNumber,
         label,
+        displayLabel: label,
+        publicLine: lineNumber,
+        publicCategory,
+        technicalCategory,
+        operator: technicalCategory,
         stops,
         cancelled,
         source: BAHN_WEB_SOURCE_API,
@@ -332,6 +344,11 @@ function buildStops(boardingStop, pathNames) {
         trainNumber: boardingStop.trainNumber,
         lineNumber: boardingStop.lineNumber,
         label: boardingStop.label,
+        displayLabel: boardingStop.displayLabel,
+        publicLine: boardingStop.publicLine,
+        publicCategory: boardingStop.publicCategory,
+        technicalCategory: boardingStop.technicalCategory,
+        operator: boardingStop.operator,
         cancelled: boardingStop.cancelled,
         stopIndex: index,
     }));
@@ -439,6 +456,10 @@ function labelFromProduct(product, category) {
 function lineFromProduct(product) {
     const text = stringAttr(product, "mittelText") ?? stringAttr(product, "name");
     return text?.match(/\b(?:RE|RB|S|IRE|MEX|FEX)\s*\d+\b/i)?.[0].replace(/\s+/g, "");
+}
+function technicalCategoryFromProduct(product, publicCategory) {
+    const shortText = stringAttr(product, "kurzText")?.trim().toUpperCase();
+    return shortText || publicCategory;
 }
 function trainNumberFromProduct(product, category, lineNumber) {
     const name = stringAttr(product, "name");
