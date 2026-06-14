@@ -28,11 +28,12 @@ profile IDs from `assets/private/settings.toml`. The status check must flag:
 
 - `PATH_CRED` or `PATH_PRF` values that are unreadable.
 - `PATH_CRED` or `PATH_PRF` values that point to a file instead of a directory.
-- missing selected `ID_CRED` or `ID_PRF` values.
+- missing selected `ID_USR`, `ID_CLM`, `ID_BUY`, or `ID_PYM` values.
 
-Use `dbhopper_credentials_validate` to validate credential TOML files without
-returning secrets. It checks TOML syntax, known fields, required `ID_CRED`, and
-the credential directory selected by `PATH_CRED`.
+Use `dbhopper_credentials_validate` to validate user credential and payment
+profile TOML files without returning secrets. It checks TOML syntax, known
+fields, required `ID_USR`/`ID_PYM`, and the credential directory selected by
+`PATH_CRED`.
 
 Credential tools return presence flags such as `hasBahnAPICredentials`,
 `hasBahnAccountCredentials`, `hasBahnAccountAPICredentials`, and
@@ -146,6 +147,9 @@ is:
 4. Submit the selected username and password.
 5. Confirm the Timetables product page is reachable.
 
+The selected `[bahnAPI]` technical credentials were probed directly on
+2026-06-13. The probe returned HTTP 200 with diagnosis `accepted`.
+
 ## Ticket Dry Runs
 
 Ticket-buying tools are testing-only. They may open the official DB website and
@@ -156,10 +160,24 @@ Safety rules:
 - Mark tool results with `testing: true`.
 - Return `purchaseSubmitted: false`.
 - Stop at search/results for `dbhopper_ticket_buying_dry_run`.
-- Stop before payment data or a legally binding final order button for
-  `dbhopper_ticket_checkout_dry_run`.
+- Stop on the payment boundary or before a legally binding final order button
+  for `dbhopper_ticket_checkout_dry_run`.
 - Do not click final payment or final booking controls.
-- Do not store payment card data in DBhopper files.
+- Do not store CVC, CVV, CID, PIN, or similar authentication secrets in
+  DBhopper files.
+- Do not capture page text after payment-profile fields are filled.
+- Capture screenshots after payment-profile fields only for the explicit
+  review-mode Check-page artifact. Mark those artifacts sensitive and keep them
+  under ignored runtime artifact paths.
+- Treat logged-in DB account identity as fixed. SEPA account-holder name and
+  birth date mismatches return sanitized warnings and keep DB's account values;
+  IBAN, mandate, and configured address fields remain compare-and-fill fields.
+- After payment `Continue` reaches DB's Check page, use
+  `TICKET_BUYING_MODE` from `assets/private/settings.toml`. The default
+  `"review"` mode captures a sensitive screenshot artifact for user inspection
+  and stops before any final order button. `"auto"` records that automatic
+  buying was requested, but final buying is not implemented yet, so it aborts
+  before any final order button.
 
 `dbhopper_ticket_buying_dry_run` uses the active credentials from
 `settings.toml` by default. With `open_browser: false`, it returns a
@@ -173,7 +191,14 @@ When `login_before_search: true`, the dry run logs into the configured
 `dbhopper_ticket_checkout_dry_run` accepts the same route and login controls,
 uses a default route of Hamm(Westf)Hbf -> Köln Hbf about one week after the run
 date, and returns `finalSafetyStop` values such as `payment_boundary`,
-`final_order_boundary`, or `no_safe_next_step`.
+`final_order_boundary`, or `no_safe_next_step`. If DB account identity differs
+from the selected payment profile, the tool returns a top-level `warnings`
+array so the agent can relay the mismatch without exposing private values.
+When the Check page is reached in review mode, `finalSafetyStop` is
+`check_page_review`, `reviewGate.status` is `awaiting_user_review`, and
+`reviewScreenshot` points to the sensitive local screenshot artifact. In auto
+mode, `reviewGate.status` is `buying_not_enabled`; the plugin does not click
+the final buying button.
 
 ## Delay Retrieval Tests
 
@@ -194,7 +219,15 @@ Provider parity tests should drive both Timetables and `bahn-web` through their
 provider parsers, then compare the normalized `Journey[]` data handed to the
 shared regional and replacement filters.
 
-`runDbDelayProviderParityProbe` is an internal comparison helper for live
-checks after API credentials work. It runs both providers for one query and
-compares cleaned `table_rows`; it does not add another user-facing OpenClaw
-tool.
+`npm run test:live:delay-backends` is the opt-in live comparison gate. It runs
+50 NRW route probes through both providers and writes sanitized artifacts under
+ignored `tmp/testing-delay-backends/`.
+
+The 2026-06-13 live run passed with 50 `bahn-web` successes, 47 official API
+successes, 425 matched user-visible rows, and no failed web probes. Failed API
+probe IDs were `p035`, `p038`, and `p039`.
+
+`runDbDelayProviderParityProbe` is an internal comparison helper for narrower
+live checks with valid API credentials. It runs both providers for one query
+and compares cleaned `table_rows`; it does not add another user-facing
+OpenClaw tool.

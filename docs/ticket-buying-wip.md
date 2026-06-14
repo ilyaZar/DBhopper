@@ -63,13 +63,12 @@ in `docs/testing_ecosystem.md`.
 
 ## Future Work
 
-1. Add controlled offer selection after the delay query has selected an ICE/IC
-   replacement.
-2. Investigate whether reaching the last pre-order screen requires payment
-   data, and keep payment data out of DBhopper until a separate safety design
-   exists.
-3. Add another explicit confirmation gate before any purchase-capable step.
-4. Keep payment submission out of this plugin until the interface and safety
-   policy are reviewed again.
+1. Decide the policy and user-confirmation shape for final purchase-capable
+   automation.
+2. Implement final buying only after that policy exists; `TICKET_BUYING_MODE =
+   "auto"` currently records intent but still stops before final order
+   controls.
+3. Keep payment profile data private, redacted from tool output, and out of
+   browser-run text artifacts after fields are filled.
 
 [rail-europe-pst]: https://press.raileurope.com/article/43609-deutsche-bahn-and-rail-europe-forge-continued-strategic-partnership-to-transform-international-rail-travel
