@@ -8,7 +8,12 @@ import {
   resolveSelectedCredentialFile,
 } from "./private-settings.js";
 import { parsePaymentProfileToml } from "./payment-profile.js";
-import { parseToml, tryParseToml } from "./toml.js";
+import {
+  normalizeTomlKeys,
+  parseToml,
+  tryParseToml,
+  type TomlKeyMapByPath,
+} from "./toml.js";
 import {
   validationError,
   validationErrorFromException,
@@ -43,6 +48,26 @@ export interface LoadedCredentialsProfile {
 }
 
 const CREDENTIALS_DIR = path.join("assets", "private", "credentials");
+const CREDENTIALS_TOML_ALIASES: TomlKeyMapByPath = {
+  "": {
+    id_usr: "ID_USR",
+    bahn_api: "bahnAPI",
+    bahn_account: "bahnAccount",
+    bahn_account_api: "bahnAccountAPI",
+  },
+  bahnAPI: {
+    client_id: "clientId",
+    api_key: "apiKey",
+  },
+  browser: {
+    user_data_dir: "userDataDir",
+  },
+};
+const PAYMENT_PROFILE_ID_ALIASES: TomlKeyMapByPath = {
+  "": {
+    id_pym: "ID_PYM",
+  },
+};
 
 export function credentialsDir(config: DBhopperConfig = {}) {
   return path.join(resolveWorkspace(config).root, CREDENTIALS_DIR);
@@ -121,7 +146,12 @@ export async function validateCredentialsFiles(config: DBhopperConfig = {}) {
 }
 
 function isPaymentProfileToml(text: string) {
-  const parsed = tryParseToml(text);
+  const parsedValue = tryParseToml(text);
+  const parsed = normalizeTomlKeys(
+    parsedValue,
+    "credentials.toml",
+    PAYMENT_PROFILE_ID_ALIASES,
+  );
   return Boolean(
     parsed &&
       typeof parsed === "object" &&
@@ -176,7 +206,11 @@ export function credentialsSummary(loaded?: LoadedCredentialsProfile) {
 }
 
 export function parseCredentialsToml(text: string, source = "credentials.toml") {
-  const parsed = parseToml(text, source);
+  const parsed = normalizeTomlKeys(
+    parseToml(text, source),
+    source,
+    CREDENTIALS_TOML_ALIASES,
+  );
   assertCredentialsShape(parsed, source);
   return normalizeCredentials(parsed as DBhopperCredentials);
 }

@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import { resolveSelectedPaymentProfileFile } from "./private-settings.js";
-import { parseToml } from "./toml.js";
+import { normalizeTomlKeys, parseToml } from "./toml.js";
 import { validationErrorFromException } from "./validation-messages.js";
 const PAYMENT_METHODS = new Set(["sepa", "credit_card", "paypal"]);
 const FORBIDDEN_PAYMENT_KEYS = [
@@ -10,6 +10,66 @@ const FORBIDDEN_PAYMENT_KEYS = [
     /security\s*code/i,
     /pin/i,
 ];
+const PAYMENT_PROFILE_TOML_ALIASES = {
+    "": {
+        id_pym: "ID_PYM",
+    },
+    "payment.sepa": {
+        account_owner: "accountOwner",
+        street_number: "streetNumber",
+        street_and_house_number: "streetNumber",
+        streetAndHouseNumber: "streetNumber",
+        street_n_house_num: "streetNumber",
+        streetNhouseNum: "streetNumber",
+        additional_info: "additionalInfo",
+        other_address: "additionalInfo",
+        otherAddress: "additionalInfo",
+        other_adress: "additionalInfo",
+        otherAdress: "additionalInfo",
+        other_address_info: "additionalInfo",
+        otherAddressInfo: "additionalInfo",
+        other_adress_info: "additionalInfo",
+        otherAdressInfo: "additionalInfo",
+        postal_code: "zip",
+        postalCode: "zip",
+        postcode: "zip",
+        town_city: "city",
+        townCity: "city",
+        mandate_accepted: "mandateAccepted",
+        save_as_preferred: "saveAsPreferred",
+    },
+    "payment.sepa.address": {
+        street_number: "streetNumber",
+        street_and_house_number: "streetNumber",
+        streetAndHouseNumber: "streetNumber",
+        street_n_house_num: "streetNumber",
+        streetNhouseNum: "streetNumber",
+        additional_info: "additionalInfo",
+        other_address: "additionalInfo",
+        otherAddress: "additionalInfo",
+        other_adress: "additionalInfo",
+        otherAdress: "additionalInfo",
+        other_address_info: "additionalInfo",
+        otherAddressInfo: "additionalInfo",
+        other_adress_info: "additionalInfo",
+        otherAdressInfo: "additionalInfo",
+        postal_code: "zip",
+        postalCode: "zip",
+        postcode: "zip",
+        town_city: "city",
+        townCity: "city",
+    },
+    "payment.card": {
+        cardholder_name: "cardholderName",
+        card_number: "cardNumber",
+        expiry_month: "expiryMonth",
+        expiry_year: "expiryYear",
+        save_as_preferred: "saveAsPreferred",
+    },
+    "payment.paypal": {
+        save_as_preferred: "saveAsPreferred",
+    },
+};
 export async function readSelectedPaymentProfile(config = {}) {
     const resolved = await resolveSelectedPaymentProfileFile(config);
     if (!resolved) {
@@ -25,13 +85,13 @@ export async function readSelectedPaymentProfile(config = {}) {
     };
 }
 export function parsePaymentProfileToml(text, source = "payment-profile.toml") {
-    const parsed = parseToml(text, source);
+    const parsed = normalizeTomlKeys(parseToml(text, source), source, PAYMENT_PROFILE_TOML_ALIASES);
     assertPaymentProfileShape(parsed, source);
     return normalizePaymentProfile(parsed);
 }
 export function schemaValidationMessagesForPaymentProfile(value, source) {
     try {
-        assertPaymentProfileShape(value, source);
+        assertPaymentProfileShape(normalizeTomlKeys(value, source, PAYMENT_PROFILE_TOML_ALIASES), source);
         return [];
     }
     catch (error) {
@@ -152,19 +212,10 @@ function assertPaymentProfileShape(value, source) {
                 "iban",
                 "birthdate",
                 "birthday",
-                "streetNhouseNum",
-                "streetAndHouseNumber",
                 "streetNumber",
                 "additionalInfo",
-                "otherAddress",
-                "otherAdress",
-                "otherAddressInfo",
-                "otherAdressInfo",
                 "zip",
-                "postcode",
-                "postalCode",
                 "city",
-                "townCity",
                 "country",
                 "address",
                 "mandateAccepted",
@@ -187,19 +238,10 @@ function assertPaymentProfileShape(value, source) {
                 normalizePaymentBirthdate(birthday, `${source}.payment.sepa.birthday`);
             }
             for (const key of [
-                "streetNhouseNum",
-                "streetAndHouseNumber",
                 "streetNumber",
                 "additionalInfo",
-                "otherAddress",
-                "otherAdress",
-                "otherAddressInfo",
-                "otherAdressInfo",
                 "zip",
-                "postcode",
-                "postalCode",
                 "city",
-                "townCity",
                 "country",
             ]) {
                 if (key in sepa) {
@@ -217,14 +259,9 @@ function assertPaymentProfileShape(value, source) {
                 const address = sepa.address;
                 assertSection(address, `${source}.payment.sepa.address`, [
                     "streetNumber",
-                    "streetAndHouseNumber",
                     "additionalInfo",
-                    "otherAddressInfo",
                     "zip",
-                    "postcode",
-                    "postalCode",
                     "city",
-                    "townCity",
                     "country",
                 ]);
                 for (const key of Object.keys(address)) {

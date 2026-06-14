@@ -2,10 +2,30 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { readPrivateSettings, resolveSelectedCredentialFile, } from "./private-settings.js";
 import { parsePaymentProfileToml } from "./payment-profile.js";
-import { parseToml, tryParseToml } from "./toml.js";
+import { normalizeTomlKeys, parseToml, tryParseToml, } from "./toml.js";
 import { validationError, validationErrorFromException, } from "./validation-messages.js";
 import { resolveWorkspace } from "./workspace.js";
 const CREDENTIALS_DIR = path.join("assets", "private", "credentials");
+const CREDENTIALS_TOML_ALIASES = {
+    "": {
+        id_usr: "ID_USR",
+        bahn_api: "bahnAPI",
+        bahn_account: "bahnAccount",
+        bahn_account_api: "bahnAccountAPI",
+    },
+    bahnAPI: {
+        client_id: "clientId",
+        api_key: "apiKey",
+    },
+    browser: {
+        user_data_dir: "userDataDir",
+    },
+};
+const PAYMENT_PROFILE_ID_ALIASES = {
+    "": {
+        id_pym: "ID_PYM",
+    },
+};
 export function credentialsDir(config = {}) {
     return path.join(resolveWorkspace(config).root, CREDENTIALS_DIR);
 }
@@ -72,7 +92,8 @@ export async function validateCredentialsFiles(config = {}) {
     };
 }
 function isPaymentProfileToml(text) {
-    const parsed = tryParseToml(text);
+    const parsedValue = tryParseToml(text);
+    const parsed = normalizeTomlKeys(parsedValue, "credentials.toml", PAYMENT_PROFILE_ID_ALIASES);
     return Boolean(parsed &&
         typeof parsed === "object" &&
         !Array.isArray(parsed) &&
@@ -113,7 +134,7 @@ export function credentialsSummary(loaded) {
     };
 }
 export function parseCredentialsToml(text, source = "credentials.toml") {
-    const parsed = parseToml(text, source);
+    const parsed = normalizeTomlKeys(parseToml(text, source), source, CREDENTIALS_TOML_ALIASES);
     assertCredentialsShape(parsed, source);
     return normalizeCredentials(parsed);
 }

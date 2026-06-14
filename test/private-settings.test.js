@@ -143,44 +143,44 @@ describe("dbhopper private settings", () => {
     );
 
     assert.equal(status.ok, true);
-    assert.match(settings, /ID_USR = "02"/);
-    assert.match(settings, /ID_CLM = "03"/);
-    assert.match(settings, /ID_BUY = "02"/);
-    assert.match(settings, /ID_PYM = "02"/);
-    assert.match(settings, /TICKET_BUYING_MODE = "auto"/);
-    assert.match(settings, new RegExp(escapeRegExp(`PATH_CRED = "${credentialsDir}"`)));
-    assert.match(settings, new RegExp(escapeRegExp(`PATH_PRF = "${profilesDir}"`)));
-    assert.match(settings, /DELAY_PROVIDER = "bahn-web"/);
-    assert.match(settings, /DELAY_FALLBACK = "none"/);
+    assert.match(settings, /id_usr = "02"/);
+    assert.match(settings, /id_clm = "03"/);
+    assert.match(settings, /id_buy = "02"/);
+    assert.match(settings, /id_pym = "02"/);
+    assert.match(settings, /ticket_buying_mode = "auto"/);
+    assert.match(settings, new RegExp(escapeRegExp(`path_cred = "${credentialsDir}"`)));
+    assert.match(settings, new RegExp(escapeRegExp(`path_prf = "${profilesDir}"`)));
+    assert.match(settings, /delay_provider = "bahn-web"/);
+    assert.match(settings, /delay_fallback = "none"/);
   });
 
   it("accepts ticket buying mode aliases and rejects disagreements", () => {
     const parsed = parsePrivateSettingsToml([
-      'ID_USR = "01"',
-      'ID_CLM = "01"',
-      'ID_BUY = "01"',
-      'ID_PYM = "01"',
+      'id_usr = "01"',
+      'id_clm = "01"',
+      'id_buy = "01"',
+      'id_pym = "01"',
       'buying_mode = "auto"',
-      'PATH_CRED = "assets/private/credentials"',
-      'PATH_PRF = "assets/private/profiles"',
-      'DELAY_PROVIDER = "bahn-web"',
-      'DELAY_FALLBACK = "none"',
+      'path_cred = "assets/private/credentials"',
+      'path_prf = "assets/private/profiles"',
+      'delay_provider = "bahn-web"',
+      'delay_fallback = "none"',
       "",
     ].join("\n"));
 
     assert.equal(parsed.TICKET_BUYING_MODE, "auto");
     assert.throws(
       () => parsePrivateSettingsToml([
-        'ID_USR = "01"',
-        'ID_CLM = "01"',
-        'ID_BUY = "01"',
-        'ID_PYM = "01"',
+        'id_usr = "01"',
+        'id_clm = "01"',
+        'id_buy = "01"',
+        'id_pym = "01"',
         'TICKET_BUYING_MODE = "review"',
         'ticket_buying_mode = "auto"',
-        'PATH_CRED = "assets/private/credentials"',
-        'PATH_PRF = "assets/private/profiles"',
-        'DELAY_PROVIDER = "bahn-web"',
-        'DELAY_FALLBACK = "none"',
+        'path_cred = "assets/private/credentials"',
+        'path_prf = "assets/private/profiles"',
+        'delay_provider = "bahn-web"',
+        'delay_fallback = "none"',
         "",
       ].join("\n")),
       /aliases must not disagree/,
@@ -270,7 +270,7 @@ describe("dbhopper private settings", () => {
       credentialsDir: credentialsFile,
       profilesDir,
     });
-    await fs.writeFile(credentialsFile, 'ID_USR = "01"\n', "utf8");
+    await fs.writeFile(credentialsFile, 'id_usr = "01"\n', "utf8");
     await writeProfile(profilesDir, "01", "private-profile-01.toml", "First");
     await writeBuyingProfile(profilesDir, "01", "buying-profile-01.toml");
 
@@ -353,15 +353,15 @@ async function writeSettings(
   await fs.writeFile(
     path.join(root, "assets", "private", "settings.toml"),
     [
-      `ID_USR = "${credentialId}"`,
-      `ID_CLM = "${profileId}"`,
-      `ID_BUY = "${buyingProfileId}"`,
-      `ID_PYM = "${paymentProfileId}"`,
-      `TICKET_BUYING_MODE = "${ticketBuyingMode}"`,
-      `PATH_CRED = "${credentialsDir}"`,
-      `PATH_PRF = "${profilesDir}"`,
-      'DELAY_PROVIDER = "bahn-web"',
-      'DELAY_FALLBACK = "none"',
+      `id_usr = "${credentialId}"`,
+      `id_clm = "${profileId}"`,
+      `id_buy = "${buyingProfileId}"`,
+      `id_pym = "${paymentProfileId}"`,
+      `ticket_buying_mode = "${ticketBuyingMode}"`,
+      `path_cred = "${credentialsDir}"`,
+      `path_prf = "${profilesDir}"`,
+      'delay_provider = "bahn-web"',
+      'delay_fallback = "none"',
       "",
     ].join("\n"),
     "utf8",
@@ -374,13 +374,13 @@ async function writePaymentProfile(dir, id, fileName) {
     path.join(dir, fileName),
     [
       "version = 1",
-      `ID_PYM = "${id}"`,
+      `id_pym = "${id}"`,
       'method = "sepa"',
       "",
       "[payment.sepa]",
-      'accountOwner = "Account Owner"',
+      'account_owner = "Account Owner"',
       'iban = "DE00000000000000000000"',
-      "mandateAccepted = true",
+      "mandate_accepted = true",
       "",
     ].join("\n"),
     "utf8",
@@ -393,13 +393,13 @@ async function writeBuyingProfile(dir, id, fileName) {
     path.join(dir, fileName),
     [
       "version = 1",
-      `ID_BUY = "${id}"`,
-      'defaultFare = "super_sparpreis"',
-      'fallbackFares = ["sparpreis", "flexpreis"]',
-      'travelClass = "second"',
-      "continueToCustomerData = true",
-      'bookingFor = "self"',
-      "continueToPaymentBoundary = true",
+      `id_buy = "${id}"`,
+      'default_fare = "super_sparpreis"',
+      'fallback_fares = ["sparpreis", "flexpreis"]',
+      'travel_class = "second"',
+      "continue_to_customer_data = true",
+      'booking_for = "self"',
+      "continue_to_payment_boundary = true",
       "",
     ].join("\n"),
     "utf8",
@@ -412,13 +412,13 @@ async function writeCredential(dir, id, fileName, overrides = {}) {
     path.join(dir, fileName),
     [
       "version = 1",
-      ...(id ? [`ID_USR = "${id}"`] : []),
+      ...(id ? [`id_usr = "${id}"`] : []),
       "",
-      "[bahnAPI]",
-      `clientId = "${overrides.clientId ?? `client-${id}`}"`,
-      `apiKey = "${overrides.apiKey ?? `key-${id}`}"`,
+      "[bahn_api]",
+      `client_id = "${overrides.clientId ?? `client-${id}`}"`,
+      `api_key = "${overrides.apiKey ?? `key-${id}`}"`,
       "",
-      "[bahnAccount]",
+      "[bahn_account]",
       `username = "${overrides.username ?? `user-${id}@example.org`}"`,
       `password = "${overrides.password ?? `password-${id}`}"`,
       "",
@@ -433,23 +433,23 @@ async function writeProfile(dir, id, fileName, firstName) {
     path.join(dir, fileName),
     [
       "version = 1",
-      `ID_CLM = "${id}"`,
+      `id_clm = "${id}"`,
       "",
       "[claimant]",
       'salutation = "FAMILY"',
-      `firstName = "${firstName}"`,
-      'lastName = "Mustermann"',
+      `first_name = "${firstName}"`,
+      'last_name = "Mustermann"',
       'email = "maria@example.org"',
       'phone = "+4922112345678"',
       "",
       "[claimant.address]",
-      'streetNumber = "Musterstrasse 1"',
+      'street_number = "Musterstrasse 1"',
       'zip = "50667"',
       'city = "Koeln"',
       'country = "Deutschland"',
       "",
       "[claimant.bank]",
-      'accountOwner = "Maria Mustermann"',
+      'account_owner = "Maria Mustermann"',
       'iban = "fill-iban"',
       "",
     ].join("\n"),

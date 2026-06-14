@@ -11,6 +11,7 @@ import {
   validateWorkspaceTomlFiles,
   writeSubmittedRecipe,
 } from "../dist/workspace.js";
+import { parseClaimToml, parsePrivateProfileToml } from "../dist/claim-toml.js";
 
 describe("dbhopper workspace", () => {
   it("creates per-claim folders and copies evidence", async () => {
@@ -62,23 +63,23 @@ describe("dbhopper workspace", () => {
       path.join(root, "assets", "private", "profiles", "private-profile-01.toml"),
       [
         "version = 1",
-        'ID_CLM = "01"',
+        'id_clm = "01"',
         "",
         "[claimant]",
         'salutation = "FAMILY"',
-        'firstName = "Maria"',
-        'lastName = "Mustermann"',
+        'first_name = "Maria"',
+        'last_name = "Mustermann"',
         'email = "maria@example.org"',
         'phone = "+4922112345678"',
         "",
         "[claimant.address]",
-        'streetNumber = "Musterstrasse 1"',
+        'street_number = "Musterstrasse 1"',
         'zip = "50667"',
         'city = "Koeln"',
         'country = "Deutschland"',
         "",
         "[claimant.bank]",
-        'accountOwner = "Maria Mustermann"',
+        'account_owner = "Maria Mustermann"',
         'iban = "fill-iban"',
         "",
       ].join("\n"),
@@ -116,11 +117,11 @@ describe("dbhopper workspace", () => {
       path.join(root, "claims", "bad", "claim.toml"),
       [
         "version = 1",
-        'claimId = "bad"',
+        'claim_id = "bad"',
         "",
         "[journey]",
-        'startStaiton = "Koeln Hbf"',
-        "delayMinutes = 25",
+        'start_staiton = "Koeln Hbf"',
+        "delay_minutes = 25",
         "",
       ].join("\n"),
       "utf8",
@@ -128,7 +129,7 @@ describe("dbhopper workspace", () => {
 
     await assert.rejects(
       () => readClaim("bad", { workspaceRoot: root }),
-      /startStaiton is not a supported field/,
+      /start_staiton is not a supported field/,
     );
 
     await assert.rejects(
@@ -145,6 +146,65 @@ describe("dbhopper workspace", () => {
     );
   });
 
+  it("keeps old camelCase claim and profile aliases compatible", () => {
+    const claim = parseClaimToml([
+      "version = 1",
+      'claimId = "legacy-claim"',
+      "",
+      "[journey]",
+      'startStation = "Koeln Hbf"',
+      'endStation = "Duesseldorf Hbf"',
+      "delayMinutes = 25",
+      "",
+      "[[files]]",
+      'role = "base_ticket"',
+      'path = "ticket.pdf"',
+      "reusableAsset = true",
+      "",
+    ].join("\n"));
+    const profile = parsePrivateProfileToml([
+      "version = 1",
+      'ID_CLM = "01"',
+      "",
+      "[claimant]",
+      'salutation = "FAMILY"',
+      'firstName = "Maria"',
+      'lastName = "Mustermann"',
+      'email = "maria@example.org"',
+      'phone = "+4922112345678"',
+      "",
+      "[claimant.address]",
+      'streetNumber = "Musterstrasse 1"',
+      'zip = "50667"',
+      'city = "Koeln"',
+      'country = "Deutschland"',
+      "",
+      "[claimant.bank]",
+      'accountOwner = "Maria Mustermann"',
+      'iban = "fill-iban"',
+      "",
+    ].join("\n"));
+
+    assert.equal(claim.claimId, "legacy-claim");
+    assert.equal(claim.journey.startStation, "Koeln Hbf");
+    assert.equal(claim.files[0].reusableAsset, true);
+    assert.equal(profile.ID_CLM, "01");
+    assert.equal(profile.claimant.firstName, "Maria");
+  });
+
+  it("rejects conflicting claim aliases", () => {
+    assert.throws(
+      () =>
+        parseClaimToml([
+          "version = 1",
+          'claim_id = "snake-claim"',
+          'claimId = "legacy-claim"',
+          "",
+        ].join("\n")),
+      /aliases must not disagree/,
+    );
+  });
+
   it("flags wrong profile TOML value types in workspace validation", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-profile-invalid-"));
     await fs.mkdir(path.join(root, "assets", "private", "profiles"), { recursive: true });
@@ -152,23 +212,23 @@ describe("dbhopper workspace", () => {
       path.join(root, "assets", "private", "profiles", "broken.toml"),
       [
         "version = 1",
-        'ID_CLM = "01"',
+        'id_clm = "01"',
         "",
         "[claimant]",
         'salutation = "FAMILY"',
-        "firstName = 123",
-        'lastName = "Mustermann"',
+        "first_name = 123",
+        'last_name = "Mustermann"',
         'email = "maria@example.org"',
         'phone = "+4922112345678"',
         "",
         "[claimant.address]",
-        'streetNumber = "Musterstrasse 1"',
+        'street_number = "Musterstrasse 1"',
         'zip = "50667"',
         'city = "Koeln"',
         'country = "Deutschland"',
         "",
         "[claimant.bank]",
-        'accountOwner = "Maria Mustermann"',
+        'account_owner = "Maria Mustermann"',
         'iban = "fill-iban"',
         "",
       ].join("\n"),
@@ -189,23 +249,23 @@ describe("dbhopper workspace", () => {
       path.join(root, "assets", "private", "profiles", "private-profile-01.toml"),
       [
         "version = 1",
-        'ID_CLM = "01"',
+        'id_clm = "01"',
         "",
         "[claimant]",
         'salutation = "FAMILY"',
-        'firstName = "Maria"',
-        'lastName = "Mustermann"',
+        'first_name = "Maria"',
+        'last_name = "Mustermann"',
         'email = "maria@example.org"',
         'phone = "+4922112345678"',
         "",
         "[claimant.address]",
-        'streetNumber = "Musterstrasse 1"',
+        'street_number = "Musterstrasse 1"',
         'zip = "50667"',
         'city = "Koeln"',
         'country = "Deutschland"',
         "",
         "[claimant.bank]",
-        'accountOwner = "Maria Mustermann"',
+        'account_owner = "Maria Mustermann"',
         'iban = "fill-iban"',
         "",
       ].join("\n"),
@@ -230,7 +290,7 @@ describe("dbhopper workspace", () => {
     const recipe = await fs.readFile(recipePath, "utf8");
 
     assert.match(recipe, /email = "maria@example.org"/);
-    assert.match(recipe, /startStation = "Koeln Hbf"/);
+    assert.match(recipe, /start_station = "Koeln Hbf"/);
   });
 });
 
@@ -239,14 +299,14 @@ async function writeSettings(root) {
   await fs.writeFile(
     path.join(root, "assets", "private", "settings.toml"),
     [
-      'ID_USR = "01"',
-      'ID_CLM = "01"',
-      'ID_BUY = "01"',
-      'ID_PYM = "01"',
-      'PATH_CRED = "assets/private/credentials"',
-      'PATH_PRF = "assets/private/profiles"',
-      'DELAY_PROVIDER = "bahn-web"',
-      'DELAY_FALLBACK = "none"',
+      'id_usr = "01"',
+      'id_clm = "01"',
+      'id_buy = "01"',
+      'id_pym = "01"',
+      'path_cred = "assets/private/credentials"',
+      'path_prf = "assets/private/profiles"',
+      'delay_provider = "bahn-web"',
+      'delay_fallback = "none"',
       "",
     ].join("\n"),
     "utf8",

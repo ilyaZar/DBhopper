@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type { DBhopperConfig, ValidationMessage } from "./types.js";
-import { parseToml } from "./toml.js";
+import { normalizeTomlKeys, parseToml, type TomlKeyMapByPath } from "./toml.js";
 import {
   validationError,
   validationErrorFromException,
@@ -55,11 +55,25 @@ const SETTINGS_KEYS = new Set([
   "DELAY_PROVIDER",
   "DELAY_FALLBACK",
 ]);
-const SETTINGS_KEY_ALIASES = new Set([
-  ...SETTINGS_KEYS,
-  "ticket_buying_mode",
-  "buying_mode",
-]);
+const PRIVATE_ID_ALIASES: TomlKeyMapByPath = {
+  "": {
+    id_usr: "ID_USR",
+    id_clm: "ID_CLM",
+    id_buy: "ID_BUY",
+    id_pym: "ID_PYM",
+  },
+};
+const PRIVATE_SETTINGS_ALIASES: TomlKeyMapByPath = {
+  "": {
+    ...PRIVATE_ID_ALIASES[""],
+    ticket_buying_mode: "TICKET_BUYING_MODE",
+    buying_mode: "TICKET_BUYING_MODE",
+    path_cred: "PATH_CRED",
+    path_prf: "PATH_PRF",
+    delay_provider: "DELAY_PROVIDER",
+    delay_fallback: "DELAY_FALLBACK",
+  },
+};
 const DELAY_PROVIDER_VALUES = new Set(["auto", "db-timetables", "bahn-web"]);
 const DELAY_FALLBACK_VALUES = new Set(["none", "db-timetables", "bahn-web"]);
 const TICKET_BUYING_MODE_VALUES = new Set(["review", "auto"]);
@@ -118,15 +132,15 @@ export function parsePrivateSettingsToml(
 
 export function stringifyPrivateSettingsToml(settings: DBhopperPrivateSettings) {
   return [
-    `ID_USR = ${tomlString(settings.ID_USR)}`,
-    `ID_CLM = ${tomlString(settings.ID_CLM)}`,
-    `ID_BUY = ${tomlString(settings.ID_BUY)}`,
-    `ID_PYM = ${tomlString(settings.ID_PYM)}`,
-    `TICKET_BUYING_MODE = ${tomlString(settings.TICKET_BUYING_MODE)}`,
-    `PATH_CRED = ${tomlString(settings.PATH_CRED)}`,
-    `PATH_PRF = ${tomlString(settings.PATH_PRF)}`,
-    `DELAY_PROVIDER = ${tomlString(settings.DELAY_PROVIDER)}`,
-    `DELAY_FALLBACK = ${tomlString(settings.DELAY_FALLBACK)}`,
+    `id_usr = ${tomlString(settings.ID_USR)}`,
+    `id_clm = ${tomlString(settings.ID_CLM)}`,
+    `id_buy = ${tomlString(settings.ID_BUY)}`,
+    `id_pym = ${tomlString(settings.ID_PYM)}`,
+    `ticket_buying_mode = ${tomlString(settings.TICKET_BUYING_MODE)}`,
+    `path_cred = ${tomlString(settings.PATH_CRED)}`,
+    `path_prf = ${tomlString(settings.PATH_PRF)}`,
+    `delay_provider = ${tomlString(settings.DELAY_PROVIDER)}`,
+    `delay_fallback = ${tomlString(settings.DELAY_FALLBACK)}`,
     "",
   ].join("\n");
 }
@@ -387,20 +401,22 @@ function normalizePrivateSettings(
   value: unknown,
   source: string,
 ): DBhopperPrivateSettings {
-  assertTable(value, source);
-  const table = value as Record<string, unknown>;
+  const normalizedValue = normalizeTomlKeys(
+    value,
+    source,
+    PRIVATE_SETTINGS_ALIASES,
+  );
+  assertTable(normalizedValue, source);
+  const table = normalizedValue as Record<string, unknown>;
   for (const key of Object.keys(table)) {
-    if (!SETTINGS_KEY_ALIASES.has(key)) {
+    if (!SETTINGS_KEYS.has(key)) {
       throw new Error(`${source}.${key} is not a supported field`);
     }
   }
-  const ticketBuyingMode = ticketBuyingModeFromSettings(table, source);
   const normalized: Record<string, unknown> = {
     ...table,
-    TICKET_BUYING_MODE: ticketBuyingMode,
+    TICKET_BUYING_MODE: table.TICKET_BUYING_MODE ?? "review",
   };
-  delete normalized.ticket_buying_mode;
-  delete normalized.buying_mode;
   assertPrivateSettingsShape(normalized, source);
   return normalized as unknown as DBhopperPrivateSettings;
 }
@@ -446,32 +462,6 @@ function assertPrivateSettingsShape(
     DELAY_FALLBACK_VALUES,
     `${source}.DELAY_FALLBACK`,
   );
-}
-
-function ticketBuyingModeFromSettings(
-  value: Record<string, unknown>,
-  source: string,
-) {
-  const entries = [
-    ["TICKET_BUYING_MODE", value.TICKET_BUYING_MODE],
-    ["ticket_buying_mode", value.ticket_buying_mode],
-    ["buying_mode", value.buying_mode],
-  ].filter((entry): entry is [string, unknown] => entry[1] !== undefined);
-  if (entries.length === 0) {
-    return "review";
-  }
-  for (const [key, entry] of entries) {
-    assertString(entry, `${source}.${key}`);
-    normalizeTicketBuyingMode(entry as string, `${source}.${key}`);
-  }
-  const normalized = entries.map(([, entry]) => entry as string);
-  const first = normalized[0];
-  if (normalized.some((entry) => entry !== first)) {
-    throw new Error(
-      `${source}.TICKET_BUYING_MODE aliases must not disagree`,
-    );
-  }
-  return first as DBhopperTicketBuyingMode;
 }
 
 function normalizeTicketBuyingMode(
@@ -597,7 +587,7 @@ function duplicateIds(items: PrivateIdFile[]) {
 }
 
 function parseIdDocument(text: string, source: string) {
-  const parsed = parseToml(text, source);
+  const parsed = normalizeTomlKeys(parseToml(text, source), source, PRIVATE_ID_ALIASES);
   assertTable(parsed, source);
   return parsed;
 }

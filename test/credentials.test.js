@@ -7,6 +7,7 @@ import path from "node:path";
 import {
   applyCredentialsToConfig,
   credentialsSummary,
+  parseCredentialsToml,
   readSelectedCredentialsProfile,
   validateCredentialsFiles,
 } from "../dist/credentials.js";
@@ -21,22 +22,22 @@ describe("dbhopper credentials", () => {
       path.join(credentialsDir, "credentials-01.toml"),
       [
         "version = 1",
-        'ID_USR = "01"',
+        'id_usr = "01"',
         "",
-        "[bahnAPI]",
-        'clientId = "client-secret-value"',
-        'apiKey = "api-secret-value"',
+        "[bahn_api]",
+        'client_id = "client-secret-value"',
+        'api_key = "api-secret-value"',
         "",
-        "[bahnAccountAPI]",
+        "[bahn_account_api]",
         'username = "api-user@example.org"',
         'password = "api-account-secret"',
         "",
-        "[bahnAccount]",
+        "[bahn_account]",
         'username = "maria@example.org"',
         'password = "account-secret-value"',
         "",
         "[browser]",
-        'userDataDir = "assets/private/browser/db-ticket-buying"',
+        'user_data_dir = "assets/private/browser/db-ticket-buying"',
         "",
       ].join("\n"),
       "utf8",
@@ -59,6 +60,46 @@ describe("dbhopper credentials", () => {
     const config = applyCredentialsToConfig({ workspaceRoot: root }, loaded);
     assert.equal(config.dbClientId, "client-secret-value");
     assert.equal(config.dbApiKey, "api-secret-value");
+  });
+
+  it("keeps old camelCase credentials aliases compatible", () => {
+    const credentials = parseCredentialsToml([
+      "version = 1",
+      'ID_USR = "01"',
+      "",
+      "[bahnAPI]",
+      'clientId = "client-secret-value"',
+      'apiKey = "api-secret-value"',
+      "",
+      "[browser]",
+      'userDataDir = "assets/private/browser/db-ticket-buying"',
+      "",
+    ].join("\n"));
+
+    assert.equal(credentials.ID_USR, "01");
+    assert.equal(credentials.bahnAPI.clientId, "client-secret-value");
+    assert.equal(
+      credentials.browser.userDataDir,
+      "assets/private/browser/db-ticket-buying",
+    );
+  });
+
+  it("rejects conflicting credentials aliases", () => {
+    assert.throws(
+      () =>
+        parseCredentialsToml([
+          "version = 1",
+          'id_usr = "01"',
+          "",
+          "[bahn_api]",
+          'client_id = "client-secret-value"',
+          "",
+          "[bahnAPI]",
+          'clientId = "different-client-value"',
+          "",
+        ].join("\n")),
+      /aliases must not disagree/,
+    );
   });
 
   it("rejects unknown fields", async () => {
@@ -87,7 +128,7 @@ describe("dbhopper credentials", () => {
   it("flags PATH_CRED when credentials validation sees a file", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-creds-path-"));
     const credentialsFile = path.join(root, "credentials-as-file.toml");
-    await fs.writeFile(credentialsFile, 'ID_USR = "01"\n', "utf8");
+    await fs.writeFile(credentialsFile, 'id_usr = "01"\n', "utf8");
     await writeSettings(root, credentialsFile);
 
     const result = await validateCredentialsFiles({ workspaceRoot: root });
@@ -106,14 +147,14 @@ async function writeSettings(root, credentialsPath = "assets/private/credentials
   await fs.writeFile(
     path.join(root, "assets", "private", "settings.toml"),
     [
-      'ID_USR = "01"',
-      'ID_CLM = "01"',
-      'ID_BUY = "01"',
-      'ID_PYM = "01"',
-      `PATH_CRED = "${credentialsPath}"`,
-      'PATH_PRF = "assets/private/profiles"',
-      'DELAY_PROVIDER = "bahn-web"',
-      'DELAY_FALLBACK = "none"',
+      'id_usr = "01"',
+      'id_clm = "01"',
+      'id_buy = "01"',
+      'id_pym = "01"',
+      `path_cred = "${credentialsPath}"`,
+      'path_prf = "assets/private/profiles"',
+      'delay_provider = "bahn-web"',
+      'delay_fallback = "none"',
       "",
     ].join("\n"),
     "utf8",

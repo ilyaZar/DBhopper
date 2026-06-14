@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import { resolveSelectedBuyingProfileFile } from "./private-settings.js";
-import { parseToml } from "./toml.js";
+import { normalizeTomlKeys, parseToml } from "./toml.js";
 import { validationErrorFromException } from "./validation-messages.js";
 export const BUYING_FARE_PRODUCT_ORDER = [
     "super_sparpreis",
@@ -60,6 +60,17 @@ const BOOKING_FOR_ALIASES = new Map([
     ["another person", "other"],
     ["book for another person", "other"],
 ]);
+const BUYING_PROFILE_TOML_ALIASES = {
+    "": {
+        id_buy: "ID_BUY",
+        default_fare: "defaultFare",
+        fallback_fares: "fallbackFares",
+        travel_class: "travelClass",
+        continue_to_customer_data: "continueToCustomerData",
+        booking_for: "bookingFor",
+        continue_to_payment_boundary: "continueToPaymentBoundary",
+    },
+};
 export async function readSelectedBuyingProfile(config = {}) {
     const resolved = await resolveSelectedBuyingProfileFile(config);
     if (!resolved) {
@@ -75,13 +86,13 @@ export async function readSelectedBuyingProfile(config = {}) {
     };
 }
 export function parseBuyingProfileToml(text, source = "buying-profile.toml") {
-    const parsed = parseToml(text, source);
+    const parsed = normalizeTomlKeys(parseToml(text, source), source, BUYING_PROFILE_TOML_ALIASES);
     assertBuyingProfileShape(parsed, source);
     return normalizeBuyingProfile(parsed);
 }
 export function schemaValidationMessagesForBuyingProfile(value, source) {
     try {
-        assertBuyingProfileShape(value, source);
+        assertBuyingProfileShape(normalizeTomlKeys(value, source, BUYING_PROFILE_TOML_ALIASES), source);
         return [];
     }
     catch (error) {

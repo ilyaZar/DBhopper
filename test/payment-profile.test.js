@@ -13,19 +13,19 @@ describe("dbhopper payment profiles", () => {
     const profile = parsePaymentProfileToml(
       [
         "version = 1",
-        'ID_PYM = "01"',
+        'id_pym = "01"',
         'method = "sepa"',
         "",
         "[payment.sepa]",
-        'accountOwner = " Maria Example "',
+        'account_owner = " Maria Example "',
         'iban = "de00 0000 0000 0000 0000 00"',
         'birthdate = "1962-09-02"',
-        "mandateAccepted = true",
-        "saveAsPreferred = false",
+        "mandate_accepted = true",
+        "save_as_preferred = false",
         "",
         "[payment.sepa.address]",
-        'streetNumber = " Example Str. 42 "',
-        'additionalInfo = " Floor 2 "',
+        'street_number = " Example Str. 42 "',
+        'additional_info = " Floor 2 "',
         'zip = "48151"',
         'city = "Münster"',
         'country = "Germany"',
@@ -76,7 +76,6 @@ describe("dbhopper payment profiles", () => {
         'birthday = "02/09/1962"',
         'streetNhouseNum = "Example Str. 42"',
         'otherAdress = "Floor 2"',
-        'otherAddressInfo = ""',
         'zip = "48151"',
         'city = "Muenster"',
         'country = "Germany"',
@@ -92,18 +91,38 @@ describe("dbhopper payment profiles", () => {
     assert.equal(formatPaymentBirthdateForDbUi("1962-09-02"), "02/09/1962");
   });
 
+  it("rejects conflicting payment aliases", () => {
+    assert.throws(
+      () =>
+        parsePaymentProfileToml(
+          [
+            "version = 1",
+            'id_pym = "01"',
+            'method = "sepa"',
+            "",
+            "[payment.sepa]",
+            'account_owner = "Maria Example"',
+            'accountOwner = "Different Example"',
+            'iban = "DE00000000000000000000"',
+            "",
+          ].join("\n"),
+        ),
+      /aliases must not disagree/,
+    );
+  });
+
   it("accepts card profiles without CVC", () => {
     const profile = parsePaymentProfileToml(
       [
         "version = 1",
-        'ID_PYM = "02"',
+        'id_pym = "02"',
         'method = "credit_card"',
         "",
         "[payment.card]",
-        'cardholderName = "Card User"',
-        'cardNumber = "4111 1111 1111 1111"',
-        'expiryMonth = "12"',
-        'expiryYear = "2030"',
+        'cardholder_name = "Card User"',
+        'card_number = "4111 1111 1111 1111"',
+        'expiry_month = "12"',
+        'expiry_year = "2030"',
         "",
       ].join("\n"),
     );
@@ -128,12 +147,12 @@ describe("dbhopper payment profiles", () => {
         parsePaymentProfileToml(
           [
             "version = 1",
-            'ID_PYM = "02"',
+            'id_pym = "02"',
             'method = "credit_card"',
             "",
             "[payment.card]",
-            'cardholderName = "Card User"',
-            'cardNumber = "4111111111111111"',
+            'cardholder_name = "Card User"',
+            'card_number = "4111111111111111"',
             'cvc = "123"',
             "",
           ].join("\n"),
@@ -148,11 +167,11 @@ describe("dbhopper payment profiles", () => {
         parsePaymentProfileToml(
           [
             "version = 1",
-            'ID_PYM = "01"',
+            'id_pym = "01"',
             'method = "sepa"',
             "",
             "[payment.sepa]",
-            'accountOwner = "Maria Example"',
+            'account_owner = "Maria Example"',
             'iban = "DE00000000000000000000"',
             'birthdate = "1962-09-02"',
             'birthday = "03/09/1962"',

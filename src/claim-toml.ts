@@ -1,7 +1,12 @@
 import { stringify } from "smol-toml";
 
 import type { DBhopperClaim, ValidationMessage } from "./types.js";
-import { parseToml } from "./toml.js";
+import {
+  normalizeTomlKeys,
+  parseToml,
+  renameTomlKeys,
+  type TomlKeyMapByPath,
+} from "./toml.js";
 import { validationErrorFromException } from "./validation-messages.js";
 
 type PrimitiveKind = "string" | "number" | "boolean";
@@ -42,6 +47,84 @@ const FILE_ROLES = [
   "screenshot",
   "other",
 ] as const;
+const CLAIM_TOML_ALIASES: TomlKeyMapByPath = {
+  "": {
+    id_clm: "ID_CLM",
+    claim_id: "claimId",
+  },
+  claimant: {
+    first_name: "firstName",
+    last_name: "lastName",
+  },
+  "claimant.address": {
+    street_number: "streetNumber",
+  },
+  "claimant.bank": {
+    account_owner: "accountOwner",
+  },
+  journey: {
+    scheduled_departure_time: "scheduledDepartureTime",
+    start_station: "startStation",
+    end_station: "endStation",
+    planned_line: "plannedLine",
+    planned_train_label: "plannedTrainLabel",
+    delay_minutes: "delayMinutes",
+    disruption_type: "disruptionType",
+    replacement_started_at: "replacementStartedAt",
+    used_delayed_vehicle: "usedDelayedVehicle",
+    used_identical_local_alternative: "usedIdenticalLocalAlternative",
+    excluded_reasons: "excludedReasons",
+  },
+  ticket: {
+    base_ticket_name: "baseTicketName",
+    base_ticket_category: "baseTicketCategory",
+    tariff_area: "tariffArea",
+    substitute_type: "substituteType",
+    substitute_cost: "substituteCost",
+  },
+  files: {
+    reusable_asset: "reusableAsset",
+  },
+};
+const CLAIM_TOML_OUTPUT_KEYS: TomlKeyMapByPath = {
+  "": {
+    ID_CLM: "id_clm",
+    claimId: "claim_id",
+  },
+  claimant: {
+    firstName: "first_name",
+    lastName: "last_name",
+  },
+  "claimant.address": {
+    streetNumber: "street_number",
+  },
+  "claimant.bank": {
+    accountOwner: "account_owner",
+  },
+  journey: {
+    scheduledDepartureTime: "scheduled_departure_time",
+    startStation: "start_station",
+    endStation: "end_station",
+    plannedLine: "planned_line",
+    plannedTrainLabel: "planned_train_label",
+    delayMinutes: "delay_minutes",
+    disruptionType: "disruption_type",
+    replacementStartedAt: "replacement_started_at",
+    usedDelayedVehicle: "used_delayed_vehicle",
+    usedIdenticalLocalAlternative: "used_identical_local_alternative",
+    excludedReasons: "excluded_reasons",
+  },
+  ticket: {
+    baseTicketName: "base_ticket_name",
+    baseTicketCategory: "base_ticket_category",
+    tariffArea: "tariff_area",
+    substituteType: "substitute_type",
+    substituteCost: "substitute_cost",
+  },
+  files: {
+    reusableAsset: "reusable_asset",
+  },
+};
 
 const bankSchema: TomlSchema = object(
   {
@@ -149,7 +232,7 @@ export function stringifySubmittedRecipeToml(claim: DBhopperClaim) {
 }
 
 export function assertClaimTomlShape(claim: DBhopperClaim, source = "claim.toml") {
-  assertSchema(claim, claimFileSchema, source);
+  assertSchema(normalizeTomlKeys(claim, source, CLAIM_TOML_ALIASES), claimFileSchema, source);
 }
 
 function stripPrivateClaimFields(claim: DBhopperClaim): DBhopperClaim {
@@ -172,7 +255,7 @@ export function schemaValidationMessages(
 ): ValidationMessage[] {
   const schema = kind === "profile" ? privateProfileSchema : claimFileSchema;
   try {
-    assertSchema(value, schema, source);
+    assertSchema(normalizeTomlKeys(value, source, CLAIM_TOML_ALIASES), schema, source);
     return [];
   } catch (error) {
     return [validationErrorFromException("invalid_toml_schema", error)];
@@ -180,13 +263,17 @@ export function schemaValidationMessages(
 }
 
 function parseTomlDocument(text: string, schema: TomlSchema, source: string) {
-  const parsed = parseToml(text, source);
+  const parsed = normalizeTomlKeys(
+    parseToml(text, source),
+    source,
+    CLAIM_TOML_ALIASES,
+  );
   assertSchema(parsed, schema, source);
   return parsed;
 }
 
 function stringifyToml(value: DBhopperClaim) {
-  return `${stringify(cleanForToml(value))}`;
+  return `${stringify(renameTomlKeys(cleanForToml(value), CLAIM_TOML_OUTPUT_KEYS))}`;
 }
 
 function assertSchema(value: unknown, schema: TomlSchema, path: string) {
