@@ -6,6 +6,7 @@ import {
   credentialsSummary,
   readSelectedCredentialsProfile,
 } from "./credentials.js";
+import { errorMessage } from "./errors.js";
 import {
   BAHN_WEB_RESEARCH_SUMMARY,
   BAHN_WEB_SOURCE_API,
@@ -677,10 +678,6 @@ function sourceApiNotes(provider: string) {
   return provider === BAHN_WEB_SOURCE_API
     ? BAHN_WEB_RESEARCH_SUMMARY.limitations
     : DB_DELAY_RESEARCH_SUMMARY.limitations;
-}
-
-function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
 }
 
 function combinedResearchSummary() {

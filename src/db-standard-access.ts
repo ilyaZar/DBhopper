@@ -11,6 +11,7 @@ import {
   credentialsSummary,
   readSelectedCredentialsProfile,
 } from "./credentials.js";
+import { errorMessage } from "./errors.js";
 import { performDbAccountLogin } from "./db-login.js";
 import type { DBhopperConfig } from "./types.js";
 import { resolveWorkspace } from "./workspace.js";
@@ -104,7 +105,7 @@ export async function runDbStandardLoginCheck(
       operation: "db_standard_login_check",
       accessPath: "db_standard_website",
       credentials: credentialsSummary(loadedCredentials),
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
       artifactDir: session?.artifactDir,
       artifacts,
       needsUserAction: true,

@@ -1,5 +1,6 @@
 import { Type } from "typebox";
 import { privateSettingsStatus, writePrivateSettingsIds, } from "./private-settings.js";
+import { errorMessage } from "./errors.js";
 export const PRIVATE_SETTINGS_TOOL_NAMES = [
     "dbhopper_private_settings_status",
     "dbhopper_private_settings_select",
@@ -67,7 +68,7 @@ export function createPrivateSettingsToolDefinitions(tool) {
                     return {
                         ok: false,
                         operation: "private_settings_select",
-                        error: error instanceof Error ? error.message : String(error),
+                        error: errorMessage(error),
                         status: await privateSettingsStatus(config).catch(() => undefined),
                     };
                 }

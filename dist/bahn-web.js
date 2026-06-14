@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { resolveBrowserExecutablePath } from "./browser.js";
+import { errorMessage } from "./errors.js";
 import { DEFAULT_TIME_ZONE, derivePublicCategory, localDateTimeToUtc, normalizeStationName, stationMatches, } from "./db-delay.js";
 export const BAHN_WEB_SOURCE_API = "bahn-web";
 export const DEFAULT_BAHN_WEB_BASE_URL = "https://int.bahn.de/web/api";
@@ -552,7 +553,4 @@ function boolAttr(value, key) {
 }
 function toArray(value) {
     return Array.isArray(value) ? value : value === undefined || value === null ? [] : [value];
-}
-function errorMessage(error) {
-    return error instanceof Error ? error.message : String(error);
 }

@@ -1,4 +1,5 @@
 import { XMLParser } from "fast-xml-parser";
+import { errorMessage } from "./errors.js";
 import { DEFAULT_TIME_ZONE, addMinutes, derivePublicCategory, localDateTimeToUtc, normalizeStationName, stationMatches, } from "./db-delay.js";
 import { extractDbErrorMessage } from "./db-api-errors.js";
 export const DEFAULT_TIMETABLE_BASE_URL = "https://apis.deutschebahn.com/db-api-marketplace/apis/timetables/v1";
@@ -481,7 +482,4 @@ function stringAttr(value, key) {
 }
 function toArray(value) {
     return Array.isArray(value) ? value : value === undefined || value === null ? [] : [value];
-}
-function errorMessage(error) {
-    return error instanceof Error ? error.message : String(error);
 }

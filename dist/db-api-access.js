@@ -1,3 +1,4 @@
+import { errorMessage } from "./errors.js";
 import { applyCredentialsToConfig, credentialsSummary, readSelectedCredentialsProfile, } from "./credentials.js";
 import { diagnoseDbApiCredentialResponse, extractDbErrorMessage, } from "./db-api-errors.js";
 import { DEFAULT_TIMETABLE_BASE_URL, timetablesConfigStatus } from "./db-timetables.js";
@@ -13,7 +14,7 @@ export async function runDbApiCredentialProbe(params, config = {}, options = {})
             operation: "db_api_credential_probe",
             source_api: "db-timetables",
             needsConfiguration: true,
-            message: error instanceof Error ? error.message : String(error),
+            message: errorMessage(error),
             credentials: credentialsSummary(loadedCredentials),
             credentialSignals: bahnAPICredentialSignals(config),
             configStatus: baseStatus,
@@ -85,7 +86,7 @@ export async function runDbApiCredentialProbe(params, config = {}, options = {})
             credentials: credentialsSummary(loadedCredentials),
             credentialSignals,
             configStatus: status,
-            error: error instanceof Error ? error.message : String(error),
+            error: errorMessage(error),
             browserLoginDoesNotProveApiKeyValidity: true,
         };
     }

@@ -5,6 +5,7 @@ import {
   writePrivateSettingsIds,
   type DBhopperTicketBuyingMode,
 } from "./private-settings.js";
+import { errorMessage } from "./errors.js";
 import type { DBhopperConfig } from "./types.js";
 
 export const PRIVATE_SETTINGS_TOOL_NAMES = [
@@ -106,7 +107,7 @@ export function createPrivateSettingsToolDefinitions(tool: any) {
           return {
             ok: false,
             operation: "private_settings_select",
-            error: error instanceof Error ? error.message : String(error),
+            error: errorMessage(error),
             status: await privateSettingsStatus(config).catch(() => undefined),
           };
         }

@@ -1,5 +1,6 @@
 import { Type } from "typebox";
 import { applyCredentialsToConfig, credentialsSummary, readSelectedCredentialsProfile, } from "./credentials.js";
+import { errorMessage } from "./errors.js";
 import { BAHN_WEB_RESEARCH_SUMMARY, BAHN_WEB_SOURCE_API, createBahnWebProvider, } from "./bahn-web.js";
 import { DB_DELAY_RESEARCH_SUMMARY, createTimetablesProvider, timetablesConfigStatus, } from "./db-timetables.js";
 import { diagnoseDbApiCredentialErrorMessage } from "./db-api-errors.js";
@@ -422,9 +423,6 @@ function sourceApiNotes(provider) {
     return provider === BAHN_WEB_SOURCE_API
         ? BAHN_WEB_RESEARCH_SUMMARY.limitations
         : DB_DELAY_RESEARCH_SUMMARY.limitations;
-}
-function errorMessage(error) {
-    return error instanceof Error ? error.message : String(error);
 }
 function combinedResearchSummary() {
     return {

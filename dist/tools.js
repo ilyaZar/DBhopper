@@ -1,5 +1,6 @@
 import { probeBrowser, runBrowserClaim } from "./browser.js";
 import { claimSchemaReference, validateClaim } from "./validation.js";
+import { errorMessage } from "./errors.js";
 import { claimPaths, listClaims, prepareClaim, readClaim, redactEmail, validateWorkspaceTomlFiles, writeSubmittedRecipe, } from "./workspace.js";
 const SIDE_EFFECT_TOOL_NAMES = new Set([
     "dbhopper_prepare_claim",
@@ -322,7 +323,7 @@ function errorResult(operation, error, needsUserAction = false) {
     return textResult({
         ok: false,
         operation,
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage(error),
         needsUserAction,
     });
 }

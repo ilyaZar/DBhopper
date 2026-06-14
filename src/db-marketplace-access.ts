@@ -14,6 +14,7 @@ import {
   credentialsSummary,
   readSelectedCredentialsProfile,
 } from "./credentials.js";
+import { errorMessage } from "./errors.js";
 import { performDbAccountLogin } from "./db-login.js";
 import type { DBhopperConfig } from "./types.js";
 import { resolveWorkspace } from "./workspace.js";
@@ -198,7 +199,7 @@ export async function runDbMarketplaceAccessCheck(
       operation: "db_marketplace_access_check",
       accessPath: "db_api_marketplace_browser",
       credentials: credentialsSummary(loadedCredentials),
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
       artifactDir: session?.artifactDir,
       artifacts,
       needsUserAction: true,

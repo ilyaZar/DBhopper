@@ -4,6 +4,7 @@ import path from "node:path";
 import type { Browser, Page } from "playwright-core";
 
 import type { DBhopperClaim, DBhopperConfig } from "./types.js";
+import { errorMessage } from "./errors.js";
 import { resolveClaimFilePath } from "./workspace.js";
 
 export interface BrowserRunParams {
@@ -165,7 +166,7 @@ export async function runBrowserClaim(params: BrowserRunParams): Promise<Browser
       artifacts,
       submitted: false,
       needsUserAction: true,
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
     };
   } finally {
     await browser?.close();
