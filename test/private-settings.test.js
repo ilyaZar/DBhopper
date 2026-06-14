@@ -14,16 +14,15 @@ import { prepareClaim } from "../dist/workspace.js";
 
 describe("dbhopper private settings", () => {
   it("routes credentials and profiles through selected IDs", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-settings-"));
-    const credentialsDir = path.join(root, "external-creds");
-    const profilesDir = path.join(root, "external-profiles");
-    await writeSettings(root, {
-      credentialId: "02",
-      profileId: "03",
-      paymentProfileId: "01",
-      credentialsDir,
-      profilesDir,
-    });
+    const { root, credentialsDir, profilesDir } = await createSettingsWorkspace(
+      "dbhopper-settings-",
+      {
+        credentialsDirName: "external-creds",
+        profilesDirName: "external-profiles",
+        credentialId: "02",
+        profileId: "03",
+      },
+    );
     await writeCredential(credentialsDir, "01", "credentials-01.toml");
     await writeCredential(credentialsDir, "02", "credentials-02.toml");
     await writePaymentProfile(credentialsDir, "01", "payment-profile-01.toml");
@@ -69,16 +68,13 @@ describe("dbhopper private settings", () => {
   });
 
   it("requires explicit credential IDs", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-settings-explicit-"));
-    const credentialsDir = path.join(root, "assets", "private", "credentials");
-    const profilesDir = path.join(root, "assets", "private", "profiles");
-    await writeSettings(root, {
-      credentialId: "01",
-      profileId: "01",
-      paymentProfileId: "01",
-      credentialsDir,
-      profilesDir,
-    });
+    const { root, credentialsDir, profilesDir } = await createSettingsWorkspace(
+      "dbhopper-settings-explicit-",
+      {
+        credentialsDirName: path.join("assets", "private", "credentials"),
+        profilesDirName: path.join("assets", "private", "profiles"),
+      },
+    );
     await writeCredential(credentialsDir, undefined, "credentials-without-id.toml", {
       clientId: " client-with-space ",
       apiKey: " key-with-space ",
@@ -108,16 +104,9 @@ describe("dbhopper private settings", () => {
   });
 
   it("updates only ID fields and preserves user-controlled paths", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-settings-write-"));
-    const credentialsDir = path.join(root, "creds");
-    const profilesDir = path.join(root, "profiles");
-    await writeSettings(root, {
-      credentialId: "01",
-      profileId: "01",
-      paymentProfileId: "01",
-      credentialsDir,
-      profilesDir,
-    });
+    const { root, credentialsDir, profilesDir } = await createSettingsWorkspace(
+      "dbhopper-settings-write-",
+    );
     await writeCredential(credentialsDir, "01", "credentials-01.toml");
     await writeCredential(credentialsDir, "02", "credentials-02.toml");
     await writePaymentProfile(credentialsDir, "01", "payment-profile-01.toml");
@@ -188,16 +177,13 @@ describe("dbhopper private settings", () => {
   });
 
   it("uses PATH_PRF instead of the internal profile directory", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-settings-path-"));
-    const credentialsDir = path.join(root, "creds");
-    const profilesDir = path.join(root, "outside-profiles");
-    await writeSettings(root, {
-      credentialId: "01",
-      profileId: "03",
-      paymentProfileId: "01",
-      credentialsDir,
-      profilesDir,
-    });
+    const { root, credentialsDir, profilesDir } = await createSettingsWorkspace(
+      "dbhopper-settings-path-",
+      {
+        profilesDirName: "outside-profiles",
+        profileId: "03",
+      },
+    );
     await writeCredential(credentialsDir, "01", "credentials-01.toml");
     await writePaymentProfile(credentialsDir, "01", "payment-profile-01.toml");
     await writeProfile(profilesDir, "03", "private-profile-03.toml", "External");
@@ -228,16 +214,13 @@ describe("dbhopper private settings", () => {
   });
 
   it("uses PATH_CRED instead of the internal credential directory", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-settings-cred-path-"));
-    const credentialsDir = path.join(root, "outside-creds");
-    const profilesDir = path.join(root, "profiles");
-    await writeSettings(root, {
-      credentialId: "02",
-      profileId: "01",
-      paymentProfileId: "01",
-      credentialsDir,
-      profilesDir,
-    });
+    const { root, credentialsDir, profilesDir } = await createSettingsWorkspace(
+      "dbhopper-settings-cred-path-",
+      {
+        credentialsDirName: "outside-creds",
+        credentialId: "02",
+      },
+    );
     await writeCredential(credentialsDir, "02", "credentials-02.toml", {
       clientId: "external-client",
     });
@@ -260,15 +243,12 @@ describe("dbhopper private settings", () => {
   });
 
   it("flags PATH_CRED when it points to a file", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-settings-file-path-"));
-    const credentialsFile = path.join(root, "credentials-as-file.toml");
-    const profilesDir = path.join(root, "profiles");
-    await writeSettings(root, {
-      credentialId: "01",
-      profileId: "01",
-      paymentProfileId: "01",
+    const {
+      root,
       credentialsDir: credentialsFile,
       profilesDir,
+    } = await createSettingsWorkspace("dbhopper-settings-file-path-", {
+      credentialsDirName: "credentials-as-file.toml",
     });
     await fs.writeFile(credentialsFile, 'id_usr = "01"\n', "utf8");
     await writeProfile(profilesDir, "01", "private-profile-01.toml", "First");
@@ -295,17 +275,15 @@ describe("dbhopper private settings", () => {
   });
 
   it("flags missing selected IDs", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-settings-missing-"));
-    const credentialsDir = path.join(root, "creds");
-    const profilesDir = path.join(root, "profiles");
-    await writeSettings(root, {
-      credentialId: "09",
-      profileId: "03",
-      buyingProfileId: "04",
-      paymentProfileId: "05",
-      credentialsDir,
-      profilesDir,
-    });
+    const { root, credentialsDir, profilesDir } = await createSettingsWorkspace(
+      "dbhopper-settings-missing-",
+      {
+        credentialId: "09",
+        profileId: "03",
+        buyingProfileId: "04",
+        paymentProfileId: "05",
+      },
+    );
     await writeCredential(credentialsDir, "01", "credentials-01.toml");
     await writePaymentProfile(credentialsDir, "01", "payment-profile-01.toml");
     await writeProfile(profilesDir, "01", "private-profile-01.toml", "First");
@@ -336,6 +314,28 @@ describe("dbhopper private settings", () => {
     );
   });
 });
+
+async function createSettingsWorkspace(
+  prefix,
+  {
+    credentialsDirName = "creds",
+    profilesDirName = "profiles",
+    ...settings
+  } = {},
+) {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), prefix));
+  const credentialsDir = path.join(root, credentialsDirName);
+  const profilesDir = path.join(root, profilesDirName);
+  await writeSettings(root, {
+    credentialId: "01",
+    profileId: "01",
+    paymentProfileId: "01",
+    credentialsDir,
+    profilesDir,
+    ...settings,
+  });
+  return { root, credentialsDir, profilesDir };
+}
 
 async function writeSettings(
   root,
