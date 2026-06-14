@@ -5,13 +5,14 @@ import os from "node:os";
 import path from "node:path";
 
 import { runDbApiCredentialProbe } from "../dist/db-api-access.js";
+import { writePrivateSettingsFixture } from "./helpers/private-settings.js";
 
 describe("dbhopper access diagnostics", () => {
   it("probes DB API credentials without returning secrets", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-access-"));
     const credentialsDir = path.join(root, "assets", "private", "credentials");
     await fs.mkdir(credentialsDir, { recursive: true });
-    await writeSettings(root);
+    await writePrivateSettingsFixture(root);
     await fs.writeFile(
       path.join(credentialsDir, "credentials-01.toml"),
       [
@@ -63,24 +64,5 @@ async function fakeUnauthorizedFetch() {
       statusText: "Unauthorized",
       headers: { "content-type": "application/xml" },
     },
-  );
-}
-
-async function writeSettings(root) {
-  await fs.mkdir(path.join(root, "assets", "private"), { recursive: true });
-  await fs.writeFile(
-    path.join(root, "assets", "private", "settings.toml"),
-    [
-      'id_usr = "01"',
-      'id_clm = "01"',
-      'id_buy = "01"',
-      'id_pym = "01"',
-      'path_cred = "assets/private/credentials"',
-      'path_prf = "assets/private/profiles"',
-      'delay_provider = "bahn-web"',
-      'delay_fallback = "none"',
-      "",
-    ].join("\n"),
-    "utf8",
   );
 }
