@@ -7,7 +7,6 @@ export declare function claimSchemaReference(): {
     requiredFacts: {
         privateProfile: string;
         privateProfileShape: {
-            version: number;
             claimant: {
                 salutation: string;
                 firstName: string;
@@ -31,7 +30,6 @@ export declare function claimSchemaReference(): {
         formData: string[];
     };
     editableClaimTomlShape: {
-        version: number;
         claimId: string;
         journey: {
             date: string;

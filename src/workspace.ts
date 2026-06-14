@@ -223,7 +223,6 @@ export async function prepareClaim(
   const existingFiles = Array.isArray(incoming.files) ? incoming.files : [];
   const storedClaim: DBhopperClaim = {
     ...incoming,
-    version: 1,
     claimId,
     status: incoming.status || "draft",
     files: [...existingFiles, ...copiedFiles],

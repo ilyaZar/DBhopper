@@ -1,5 +1,4 @@
-version = 1
-id_buy = "01"
+ID_BUY = "01"
 
 default_fare = "super_sparpreis"
 fallback_fares = ["sparpreis", "flexpreis", "cheapest_available"]

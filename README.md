@@ -46,6 +46,8 @@ Private profile and credential templates live under `docs/examples/`. Copy
 `assets/private/credentials/credentials-01.toml`. Keep real profiles and
 credentials private.
 
+TOML field names are case-sensitive; use the spelling shown in the examples.
+
 ## Configuration
 
 ### 1. Delay retrieval
@@ -59,10 +61,10 @@ use_delay_retrieval: true
 The default provider is controlled in `assets/private/settings.toml`:
 
 ```toml
-id_usr = "01"
-id_clm = "01"
-id_buy = "01"
-id_pym = "01"
+ID_USR = "01"
+ID_CLM = "01"
+ID_BUY = "01"
+ID_PYM = "01"
 ticket_buying_mode = "review"
 path_cred = "assets/private/credentials"
 path_prf = "assets/private/profiles"
@@ -131,7 +133,7 @@ confirmation PDF as the joined audit recipe.
 Use `assets/private/settings.toml` to select the claim profile and credential
 IDs used for claim filing. `path_cred` and `path_prf` may be relative to the
 plugin directory or absolute paths in the user file system. Claim filing uses
-`id_clm` from the shared profiles directory.
+`ID_CLM` from the shared profiles directory.
 The `assets/private/settings.toml` file itself always stays in that fixed
 location.
 
@@ -146,9 +148,9 @@ use_ticket_buying: true
 Ticket buying uses the selected private IDs from
 `assets/private/settings.toml`:
 
-- `id_usr`: Bahn account credentials and browser profile.
-- `id_buy`: fare, class, and customer-data choices.
-- `id_pym`: payment method and fillable payment fields.
+- `ID_USR`: Bahn account credentials and browser profile.
+- `ID_BUY`: fare, class, and customer-data choices.
+- `ID_PYM`: payment method and fillable payment fields.
 - `ticket_buying_mode`: final Check-page behavior.
 
 `ticket_buying_mode = "review"` is the default. Checkout may fill the

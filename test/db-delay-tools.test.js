@@ -86,8 +86,7 @@ async function writePrivateFiles(root) {
   await fs.writeFile(
     path.join(credentialsDir, "credentials-01.toml"),
     [
-      "version = 1",
-      'id_usr = "01"',
+      'ID_USR = "01"',
       "",
       "[bahn_api]",
       'client_id = "client-id"',

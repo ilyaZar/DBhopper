@@ -1,5 +1,4 @@
-version = 1
-id_clm = "01"
+ID_CLM = "01"
 
 [claimant]
 salutation = "FAMILY"

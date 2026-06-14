@@ -94,7 +94,6 @@ const BOOKING_FOR_ALIASES = new Map<string, DBhopperBookingFor>([
 ]);
 const BUYING_PROFILE_TOML_ALIASES: TomlKeyMapByPath = {
   "": {
-    id_buy: "ID_BUY",
     default_fare: "defaultFare",
     fallback_fares: "fallbackFares",
     travel_class: "travelClass",
@@ -127,6 +126,7 @@ export function parseBuyingProfileToml(
     parseToml(text, source),
     source,
     BUYING_PROFILE_TOML_ALIASES,
+    true,
   );
   assertBuyingProfileShape(parsed, source);
   return normalizeBuyingProfile(parsed);
@@ -138,7 +138,7 @@ export function schemaValidationMessagesForBuyingProfile(
 ): ValidationMessage[] {
   try {
     assertBuyingProfileShape(
-      normalizeTomlKeys(value, source, BUYING_PROFILE_TOML_ALIASES),
+      normalizeTomlKeys(value, source, BUYING_PROFILE_TOML_ALIASES, true),
       source,
     );
     return [];
@@ -229,7 +229,6 @@ function assertBuyingProfileShape(
   assertTable(value, source);
   const allowed = new Set([
     "ID_BUY",
-    "version",
     "defaultFare",
     "fallbackFares",
     "travelClass",
@@ -251,9 +250,6 @@ function assertBuyingProfileShape(
   assertString(value.ID_BUY, `${source}.ID_BUY`);
   if (!/^\d{2,}$/.test(value.ID_BUY)) {
     throw new Error(`${source}.ID_BUY must be a quoted numeric ID like "01"`);
-  }
-  if ("version" in value && value.version !== 1) {
-    throw new Error(`${source}.version must be 1`);
   }
   assertString(value.defaultFare, `${source}.defaultFare`);
   normalizeFareProduct(value.defaultFare, `${source}.defaultFare`);

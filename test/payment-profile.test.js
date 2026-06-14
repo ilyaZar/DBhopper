@@ -12,8 +12,7 @@ describe("dbhopper payment profiles", () => {
   it("normalizes sepa payment profiles and redacts summaries", () => {
     const profile = parsePaymentProfileToml(
       [
-        "version = 1",
-        'id_pym = "01"',
+        'ID_PYM = "01"',
         'method = "sepa"',
         "",
         "[payment.sepa]",
@@ -63,19 +62,20 @@ describe("dbhopper payment profiles", () => {
     assert.doesNotMatch(JSON.stringify(summary), /Maria|DE00|48151|1962/);
   });
 
-  it("accepts birthday alias and DB UI birthdate format", () => {
+  it("accepts DB UI birthdate format on the canonical field", () => {
     const profile = parsePaymentProfileToml(
       [
-        "version = 1",
         'ID_PYM = "01"',
         'method = "sepa"',
         "",
         "[payment.sepa]",
-        'accountOwner = "Maria Example"',
+        'account_owner = "Maria Example"',
         'iban = "DE00000000000000000000"',
-        'birthday = "02/09/1962"',
-        'streetNhouseNum = "Example Str. 42"',
-        'otherAdress = "Floor 2"',
+        'birthdate = "02/09/1962"',
+        "",
+        "[payment.sepa.address]",
+        'street_number = "Example Str. 42"',
+        'additional_info = "Floor 2"',
         'zip = "48151"',
         'city = "Muenster"',
         'country = "Germany"',
@@ -91,31 +91,73 @@ describe("dbhopper payment profiles", () => {
     assert.equal(formatPaymentBirthdateForDbUi("1962-09-02"), "02/09/1962");
   });
 
-  it("rejects conflicting payment aliases", () => {
+  it("rejects unsupported payment-profile keys", () => {
     assert.throws(
       () =>
         parsePaymentProfileToml(
           [
-            "version = 1",
             'id_pym = "01"',
             'method = "sepa"',
             "",
+          ].join("\n"),
+        ),
+      /id_pym is not a supported field/,
+    );
+    assert.throws(
+      () =>
+        parsePaymentProfileToml(
+          [
+            'ID_PYM = "01"',
+            'method = "sepa"',
+            "",
             "[payment.sepa]",
-            'account_owner = "Maria Example"',
             'accountOwner = "Different Example"',
             'iban = "DE00000000000000000000"',
             "",
           ].join("\n"),
         ),
-      /aliases must not disagree/,
+      /use account_owner/,
+    );
+    assert.throws(
+      () =>
+        parsePaymentProfileToml(
+          [
+            'ID_PYM = "01"',
+            'method = "sepa"',
+            "",
+            "[payment.sepa]",
+            'account_owner = "Maria Example"',
+            'iban = "DE00000000000000000000"',
+            'birthday = "03/09/1962"',
+            "",
+          ].join("\n"),
+        ),
+      /birthday is not a supported field/,
+    );
+    assert.throws(
+      () =>
+        parsePaymentProfileToml(
+          [
+            'ID_PYM = "01"',
+            'method = "sepa"',
+            "",
+            "[payment.sepa]",
+            'account_owner = "Maria Example"',
+            'iban = "DE00000000000000000000"',
+            "",
+            "[payment.sepa.address]",
+            'streetNhouseNum = "Example Str. 42"',
+            "",
+          ].join("\n"),
+        ),
+      /streetNhouseNum is not a supported field/,
     );
   });
 
   it("accepts card profiles without CVC", () => {
     const profile = parsePaymentProfileToml(
       [
-        "version = 1",
-        'id_pym = "02"',
+        'ID_PYM = "02"',
         'method = "credit_card"',
         "",
         "[payment.card]",
@@ -146,8 +188,7 @@ describe("dbhopper payment profiles", () => {
       () =>
         parsePaymentProfileToml(
           [
-            "version = 1",
-            'id_pym = "02"',
+            'ID_PYM = "02"',
             'method = "credit_card"',
             "",
             "[payment.card]",
@@ -161,24 +202,4 @@ describe("dbhopper payment profiles", () => {
     );
   });
 
-  it("rejects mismatched birthdate aliases", () => {
-    assert.throws(
-      () =>
-        parsePaymentProfileToml(
-          [
-            "version = 1",
-            'id_pym = "01"',
-            'method = "sepa"',
-            "",
-            "[payment.sepa]",
-            'account_owner = "Maria Example"',
-            'iban = "DE00000000000000000000"',
-            'birthdate = "1962-09-02"',
-            'birthday = "03/09/1962"',
-            "",
-          ].join("\n"),
-        ),
-      /birthdate and birthday must match/,
-    );
-  });
 });

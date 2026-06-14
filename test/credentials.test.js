@@ -22,8 +22,7 @@ describe("dbhopper credentials", () => {
     await fs.writeFile(
       path.join(credentialsDir, "credentials-01.toml"),
       [
-        "version = 1",
-        'id_usr = "01"',
+        'ID_USR = "01"',
         "",
         "[bahn_api]",
         'client_id = "client-secret-value"',
@@ -63,43 +62,36 @@ describe("dbhopper credentials", () => {
     assert.equal(config.dbApiKey, "api-secret-value");
   });
 
-  it("keeps old camelCase credentials aliases compatible", () => {
-    const credentials = parseCredentialsToml([
-      "version = 1",
-      'ID_USR = "01"',
-      "",
-      "[bahnAPI]",
-      'clientId = "client-secret-value"',
-      'apiKey = "api-secret-value"',
-      "",
-      "[browser]",
-      'userDataDir = "assets/private/browser/db-ticket-buying"',
-      "",
-    ].join("\n"));
-
-    assert.equal(credentials.ID_USR, "01");
-    assert.equal(credentials.bahnAPI.clientId, "client-secret-value");
-    assert.equal(
-      credentials.browser.userDataDir,
-      "assets/private/browser/db-ticket-buying",
-    );
-  });
-
-  it("rejects conflicting credentials aliases", () => {
+  it("rejects unsupported credentials keys", () => {
     assert.throws(
       () =>
         parseCredentialsToml([
-          "version = 1",
           'id_usr = "01"',
           "",
-          "[bahn_api]",
-          'client_id = "client-secret-value"',
+        ].join("\n")),
+      /id_usr is not a supported field/,
+    );
+    assert.throws(
+      () =>
+        parseCredentialsToml([
+          'ID_USR = "01"',
           "",
           "[bahnAPI]",
+          'client_id = "client-secret-value"',
+          "",
+        ].join("\n")),
+      /use bahn_api/,
+    );
+    assert.throws(
+      () =>
+        parseCredentialsToml([
+          'ID_USR = "01"',
+          "",
+          "[bahn_api]",
           'clientId = "different-client-value"',
           "",
         ].join("\n")),
-      /aliases must not disagree/,
+      /use client_id/,
     );
   });
 
@@ -110,7 +102,6 @@ describe("dbhopper credentials", () => {
     await fs.writeFile(
       path.join(credentialsDir, "bad.toml"),
       [
-        "version = 1",
         "unexpected = true",
         "",
       ].join("\n"),
@@ -129,7 +120,7 @@ describe("dbhopper credentials", () => {
   it("flags PATH_CRED when credentials validation sees a file", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-creds-path-"));
     const credentialsFile = path.join(root, "credentials-as-file.toml");
-    await fs.writeFile(credentialsFile, 'id_usr = "01"\n', "utf8");
+    await fs.writeFile(credentialsFile, 'ID_USR = "01"\n', "utf8");
     await writePrivateSettingsFixture(root, { credentialsPath: credentialsFile });
 
     const result = await validateCredentialsFiles({ workspaceRoot: root });

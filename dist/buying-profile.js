@@ -62,7 +62,6 @@ const BOOKING_FOR_ALIASES = new Map([
 ]);
 const BUYING_PROFILE_TOML_ALIASES = {
     "": {
-        id_buy: "ID_BUY",
         default_fare: "defaultFare",
         fallback_fares: "fallbackFares",
         travel_class: "travelClass",
@@ -86,13 +85,13 @@ export async function readSelectedBuyingProfile(config = {}) {
     };
 }
 export function parseBuyingProfileToml(text, source = "buying-profile.toml") {
-    const parsed = normalizeTomlKeys(parseToml(text, source), source, BUYING_PROFILE_TOML_ALIASES);
+    const parsed = normalizeTomlKeys(parseToml(text, source), source, BUYING_PROFILE_TOML_ALIASES, true);
     assertBuyingProfileShape(parsed, source);
     return normalizeBuyingProfile(parsed);
 }
 export function schemaValidationMessagesForBuyingProfile(value, source) {
     try {
-        assertBuyingProfileShape(normalizeTomlKeys(value, source, BUYING_PROFILE_TOML_ALIASES), source);
+        assertBuyingProfileShape(normalizeTomlKeys(value, source, BUYING_PROFILE_TOML_ALIASES, true), source);
         return [];
     }
     catch (error) {
@@ -168,7 +167,6 @@ function assertBuyingProfileShape(value, source) {
     assertTable(value, source);
     const allowed = new Set([
         "ID_BUY",
-        "version",
         "defaultFare",
         "fallbackFares",
         "travelClass",
@@ -190,9 +188,6 @@ function assertBuyingProfileShape(value, source) {
     assertString(value.ID_BUY, `${source}.ID_BUY`);
     if (!/^\d{2,}$/.test(value.ID_BUY)) {
         throw new Error(`${source}.ID_BUY must be a quoted numeric ID like "01"`);
-    }
-    if ("version" in value && value.version !== 1) {
-        throw new Error(`${source}.version must be 1`);
     }
     assertString(value.defaultFare, `${source}.defaultFare`);
     normalizeFareProduct(value.defaultFare, `${source}.defaultFare`);

@@ -29,7 +29,6 @@ export declare function readSelectedBuyingProfile(config?: DBhopperConfig): Prom
         continueToCustomerData: boolean;
         bookingFor: DBhopperBookingFor;
         continueToPaymentBoundary: boolean;
-        version?: 1;
     };
 } | undefined>;
 export declare function parseBuyingProfileToml(text: string, source?: string): {
@@ -40,7 +39,6 @@ export declare function parseBuyingProfileToml(text: string, source?: string): {
     continueToCustomerData: boolean;
     bookingFor: DBhopperBookingFor;
     continueToPaymentBoundary: boolean;
-    version?: 1;
 };
 export declare function schemaValidationMessagesForBuyingProfile(value: unknown, source: string): ValidationMessage[];
 export declare function buyingProfileSummary(loaded?: LoadedBuyingProfile): {

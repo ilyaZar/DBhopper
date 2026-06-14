@@ -136,10 +136,10 @@ describe("dbhopper private settings", () => {
     );
 
     assert.equal(status.ok, true);
-    assert.match(settings, /id_usr = "02"/);
-    assert.match(settings, /id_clm = "03"/);
-    assert.match(settings, /id_buy = "02"/);
-    assert.match(settings, /id_pym = "02"/);
+    assert.match(settings, /ID_USR = "02"/);
+    assert.match(settings, /ID_CLM = "03"/);
+    assert.match(settings, /ID_BUY = "02"/);
+    assert.match(settings, /ID_PYM = "02"/);
     assert.match(settings, /ticket_buying_mode = "auto"/);
     assert.match(settings, new RegExp(escapeRegExp(`path_cred = "${credentialsDir}"`)));
     assert.match(settings, new RegExp(escapeRegExp(`path_prf = "${profilesDir}"`)));
@@ -147,36 +147,36 @@ describe("dbhopper private settings", () => {
     assert.match(settings, /delay_fallback = "none"/);
   });
 
-  it("accepts ticket buying mode aliases and rejects disagreements", () => {
-    const parsed = parsePrivateSettingsToml([
-      'id_usr = "01"',
-      'id_clm = "01"',
-      'id_buy = "01"',
-      'id_pym = "01"',
-      'buying_mode = "auto"',
-      'path_cred = "assets/private/credentials"',
-      'path_prf = "assets/private/profiles"',
-      'delay_provider = "bahn-web"',
-      'delay_fallback = "none"',
-      "",
-    ].join("\n"));
-
-    assert.equal(parsed.TICKET_BUYING_MODE, "auto");
+  it("rejects unsupported private settings keys", () => {
     assert.throws(
       () => parsePrivateSettingsToml([
-        'id_usr = "01"',
-        'id_clm = "01"',
-        'id_buy = "01"',
-        'id_pym = "01"',
-        'TICKET_BUYING_MODE = "review"',
-        'ticket_buying_mode = "auto"',
+        'ID_USR = "01"',
+        'ID_CLM = "01"',
+        'ID_BUY = "01"',
+        'ID_PYM = "01"',
+        'buying_mode = "auto"',
         'path_cred = "assets/private/credentials"',
         'path_prf = "assets/private/profiles"',
         'delay_provider = "bahn-web"',
         'delay_fallback = "none"',
         "",
       ].join("\n")),
-      /aliases must not disagree/,
+      /buying_mode is not a supported field/,
+    );
+    assert.throws(
+      () => parsePrivateSettingsToml([
+        'id_usr = "01"',
+        'ID_CLM = "01"',
+        'ID_BUY = "01"',
+        'ID_PYM = "01"',
+        'ticket_buying_mode = "review"',
+        'path_cred = "assets/private/credentials"',
+        'path_prf = "assets/private/profiles"',
+        'delay_provider = "bahn-web"',
+        'delay_fallback = "none"',
+        "",
+      ].join("\n")),
+      /id_usr is not a supported field/,
     );
   });
 
@@ -259,7 +259,7 @@ describe("dbhopper private settings", () => {
     } = await createSettingsWorkspace("dbhopper-settings-file-path-", {
       credentialsDirName: "credentials-as-file.toml",
     });
-    await fs.writeFile(credentialsFile, 'id_usr = "01"\n', "utf8");
+    await fs.writeFile(credentialsFile, 'ID_USR = "01"\n', "utf8");
     await writePrivateProfileFixture(profilesDir, "01", "private-profile-01.toml", "First");
     await writeBuyingProfile(profilesDir, "01", "buying-profile-01.toml");
 
@@ -356,8 +356,7 @@ async function writePaymentProfile(dir, id, fileName) {
   await fs.writeFile(
     path.join(dir, fileName),
     [
-      "version = 1",
-      `id_pym = "${id}"`,
+      `ID_PYM = "${id}"`,
       'method = "sepa"',
       "",
       "[payment.sepa]",
@@ -375,8 +374,7 @@ async function writeBuyingProfile(dir, id, fileName) {
   await fs.writeFile(
     path.join(dir, fileName),
     [
-      "version = 1",
-      `id_buy = "${id}"`,
+      `ID_BUY = "${id}"`,
       'default_fare = "super_sparpreis"',
       'fallback_fares = ["sparpreis", "flexpreis"]',
       'travel_class = "second"',
@@ -394,8 +392,7 @@ async function writeCredential(dir, id, fileName, overrides = {}) {
   await fs.writeFile(
     path.join(dir, fileName),
     [
-      "version = 1",
-      ...(id ? [`id_usr = "${id}"`] : []),
+      ...(id ? [`ID_USR = "${id}"`] : []),
       "",
       "[bahn_api]",
       `client_id = "${overrides.clientId ?? `client-${id}`}"`,

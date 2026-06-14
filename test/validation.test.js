@@ -5,7 +5,6 @@ import { validateClaim } from "../dist/validation.js";
 
 function validClaim() {
   return {
-    version: 1,
     claimant: {
       firstName: "Maria",
       lastName: "Mustermann",

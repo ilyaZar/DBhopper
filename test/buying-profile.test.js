@@ -11,8 +11,7 @@ describe("dbhopper buying profiles", () => {
   it("normalizes the selected fare product and fallback order", () => {
     const profile = parseBuyingProfileToml(
       [
-        "version = 1",
-        'id_buy = "01"',
+        'ID_BUY = "01"',
         'default_fare = "Super Sparpreis"',
         'fallback_fares = ["Sparpreis", "Flexpreis"]',
         'travel_class = "2. Klasse"',
@@ -36,37 +35,28 @@ describe("dbhopper buying profiles", () => {
     assert.equal(preference.continueToPaymentBoundary, true);
   });
 
-  it("keeps old camelCase buying-profile aliases compatible", () => {
-    const profile = parseBuyingProfileToml(
-      [
-        "version = 1",
-        'ID_BUY = "01"',
-        'defaultFare = "Super Sparpreis"',
-        'fallbackFares = ["Sparpreis"]',
-        'travelClass = "2. Klasse"',
-        "",
-      ].join("\n"),
-    );
-
-    assert.equal(profile.ID_BUY, "01");
-    assert.equal(profile.defaultFare, "super_sparpreis");
-    assert.deepEqual(profile.fallbackFares, ["sparpreis"]);
-    assert.equal(profile.travelClass, "second");
-  });
-
-  it("rejects conflicting buying-profile aliases", () => {
+  it("rejects unsupported buying-profile keys", () => {
     assert.throws(
       () =>
         parseBuyingProfileToml(
           [
-            "version = 1",
             'id_buy = "01"',
-            'default_fare = "super_sparpreis"',
+            'default_fare = "Super Sparpreis"',
+            "",
+          ].join("\n"),
+        ),
+      /id_buy is not a supported field/,
+    );
+    assert.throws(
+      () =>
+        parseBuyingProfileToml(
+          [
+            'ID_BUY = "01"',
             'defaultFare = "sparpreis"',
             "",
           ].join("\n"),
         ),
-      /aliases must not disagree/,
+      /use default_fare/,
     );
   });
 
@@ -87,8 +77,7 @@ describe("dbhopper buying profiles", () => {
   it("accepts cheapest available as an explicit fare preference", () => {
     const profile = parseBuyingProfileToml(
       [
-        "version = 1",
-        'id_buy = "01"',
+        'ID_BUY = "01"',
         'default_fare = "cheapest available"',
         'fallback_fares = ["Super Saver Fare", "Saver Fare", "Flex Fare"]',
         "",
@@ -110,8 +99,7 @@ describe("dbhopper buying profiles", () => {
       () =>
         parseBuyingProfileToml(
           [
-            "version = 1",
-            'id_buy = "01"',
+            'ID_BUY = "01"',
             'default_fare = "cheap_anything"',
             "",
           ].join("\n"),

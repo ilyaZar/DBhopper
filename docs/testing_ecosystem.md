@@ -29,11 +29,11 @@ profile IDs from `assets/private/settings.toml`. The status check must flag:
 - `path_cred` or `path_prf` values that are unreadable.
 - `path_cred` or `path_prf` values that point to a file instead of a
   directory.
-- missing selected `id_usr`, `id_clm`, `id_buy`, or `id_pym` values.
+- missing selected `ID_USR`, `ID_CLM`, `ID_BUY`, or `ID_PYM` values.
 
 Use `dbhopper_credentials_validate` to validate user credential and payment
 profile TOML files without returning secrets. It checks TOML syntax, known
-fields, required `id_usr`/`id_pym`, and the credential directory selected by
+fields, required `ID_USR`/`ID_PYM`, and the credential directory selected by
 `path_cred`.
 
 Credential tools return presence flags such as `hasBahnAPICredentials`,
