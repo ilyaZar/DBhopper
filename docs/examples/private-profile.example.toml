@@ -1,19 +1,19 @@
 version = 1
-ID_CLM = "01"
+id_clm = "01"
 
 [claimant]
 salutation = "FAMILY"
-firstName = "Maria"
-lastName = "Mustermann"
+first_name = "Maria"
+last_name = "Mustermann"
 email = "maria.mustermann@example.org"
 phone = "+4922112345678"
 
 [claimant.address]
-streetNumber = "Musterstrasse 1"
+street_number = "Musterstrasse 1"
 zip = "50667"
 city = "Koeln"
 country = "Deutschland"
 
 [claimant.bank]
-accountOwner = "Maria Mustermann"
+account_owner = "Maria Mustermann"
 iban = "fill-iban"

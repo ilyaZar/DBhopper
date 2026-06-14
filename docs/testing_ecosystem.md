@@ -26,14 +26,15 @@ file list.
 Use `dbhopper_private_settings_status` to check the selected credential and
 profile IDs from `assets/private/settings.toml`. The status check must flag:
 
-- `PATH_CRED` or `PATH_PRF` values that are unreadable.
-- `PATH_CRED` or `PATH_PRF` values that point to a file instead of a directory.
-- missing selected `ID_USR`, `ID_CLM`, `ID_BUY`, or `ID_PYM` values.
+- `path_cred` or `path_prf` values that are unreadable.
+- `path_cred` or `path_prf` values that point to a file instead of a
+  directory.
+- missing selected `id_usr`, `id_clm`, `id_buy`, or `id_pym` values.
 
 Use `dbhopper_credentials_validate` to validate user credential and payment
 profile TOML files without returning secrets. It checks TOML syntax, known
-fields, required `ID_USR`/`ID_PYM`, and the credential directory selected by
-`PATH_CRED`.
+fields, required `id_usr`/`id_pym`, and the credential directory selected by
+`path_cred`.
 
 Credential tools return presence flags such as `hasBahnAPICredentials`,
 `hasBahnAccountCredentials`, `hasBahnAccountAPICredentials`, and
@@ -42,7 +43,8 @@ cookies, browser storage, or full credential file contents.
 
 ## Browser Profiles
 
-Browser login checks use the selected credential file's `[browser].userDataDir`.
+Browser login checks use the selected credential file's
+`[browser].user_data_dir`.
 The profile is persistent so DB sessions can be reused for normal workflows.
 One-time credential checks, however, must not pass merely because a saved
 session is already logged in.
@@ -106,22 +108,22 @@ required for pass/fail classification.
 ## Account Checks
 
 `dbhopper_db_standard_login_check` verifies the DB passenger website account
-stored in `[bahnAccount]`. It opens the DB website, submits the selected
+stored in `[bahn_account]`. It opens the DB website, submits the selected
 credentials, checks the stay-logged-in checkbox when DB exposes one, and
 returns sanitized structured output. It must not submit registrations, account
 setting changes, purchases, or payment actions.
 
 `dbhopper_db_marketplace_access_check` verifies the DB API Marketplace browser
-login stored in `[bahnAccountAPI]`. It starts at the Marketplace login route,
+login stored in `[bahn_account_api]`. It starts at the Marketplace login route,
 clicks the DB customer-account gate when present, follows DB identity hosts such
 as `id.bahn.de`, and then reuses the shared login helper. It also checks that
 the Timetables product page is reachable.
 
 Marketplace browser login and technical API-key validity are separate checks.
-A successful `[bahnAccountAPI]` browser login does not prove that `[bahnAPI]`
-`clientId` and `apiKey` are valid for DB Timetables.
+A successful `[bahn_account_api]` browser login does not prove that
+`[bahn_api]` `client_id` and `api_key` are valid for DB Timetables.
 
-`dbhopper_db_api_credential_probe` verifies `[bahnAPI]` with a direct DB
+`dbhopper_db_api_credential_probe` verifies `[bahn_api]` with a direct DB
 Timetables probe. It returns sanitized credential presence and DB response
 status/error information. HTTP 401 `Invalid client id or secret` means the
 official API path remains blocked until the DB Marketplace application,
@@ -133,12 +135,12 @@ raw DB error text.
 ## Current Live Findings
 
 The standard DB website login path has been tested through Chromium with
-selected `[bahnAccount]` credentials. DB's stay-logged-in checkbox can be found
+selected `[bahn_account]` credentials. DB's stay-logged-in checkbox can be found
 by label, including `"Stay logged in"`, and may also appear as
 `input#rememberMe--checkbox` or `name=rememberMe`.
 
 The DB API Marketplace browser path has been tested with a clean DBhopper
-browser profile and selected `[bahnAccountAPI]` credentials. The working flow
+browser profile and selected `[bahn_account_api]` credentials. The working flow
 is:
 
 1. Open the Marketplace login route.
@@ -147,7 +149,7 @@ is:
 4. Submit the selected username and password.
 5. Confirm the Timetables product page is reachable.
 
-The selected `[bahnAPI]` technical credentials were probed directly on
+The selected `[bahn_api]` technical credentials were probed directly on
 2026-06-13. The probe returned HTTP 200 with diagnosis `accepted`.
 
 ## Ticket Dry Runs
@@ -173,7 +175,7 @@ Safety rules:
   birth date mismatches return sanitized warnings and keep DB's account values;
   IBAN, mandate, and configured address fields remain compare-and-fill fields.
 - After payment `Continue` reaches DB's Check page, use
-  `TICKET_BUYING_MODE` from `assets/private/settings.toml`. The default
+  `ticket_buying_mode` from `assets/private/settings.toml`. The default
   `"review"` mode captures a sensitive screenshot artifact for user inspection
   and stops before any final order button. `"auto"` records that automatic
   buying was requested, but final buying is not implemented yet, so it aborts
@@ -186,7 +188,7 @@ website, applies the supplied route and outbound date/time, and stops after
 search/results.
 
 When `login_before_search: true`, the dry run logs into the configured
-`[bahnAccount]` before searching. `stay_logged_in` defaults to `true`.
+`[bahn_account]` before searching. `stay_logged_in` defaults to `true`.
 
 `dbhopper_ticket_checkout_dry_run` accepts the same route and login controls,
 uses a default route of Hamm(Westf)Hbf -> Köln Hbf about one week after the run
@@ -204,12 +206,12 @@ the final buying button.
 
 Delay retrieval tests cover both provider paths:
 
-- official DB Timetables API using `[bahnAPI]`
+- official DB Timetables API using `[bahn_api]`
 - deterministic `bahn-web` retrieval using DB passenger website JSON calls
 
-The default delay provider is controlled by `DELAY_PROVIDER` in
+The default delay provider is controlled by `delay_provider` in
 `assets/private/settings.toml`; the current default is `"bahn-web"` with
-`DELAY_FALLBACK = "none"`.
+`delay_fallback = "none"`.
 
 Tests should cover provider selection, configured fallback behavior, route
 matching, delay filtering, inclusive query windows, sanitized outputs, and the

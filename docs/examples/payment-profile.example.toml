@@ -1,22 +1,22 @@
 version = 1
-ID_PYM = "01"
+id_pym = "01"
 method = "sepa"
 
 [payment.sepa]
-accountOwner = "fill-account-owner"
+account_owner = "fill-account-owner"
 iban = "fill-iban"
 birthdate = "1962-09-02"
-streetNhouseNum = "fill-street-and-house-number"
-additionalInfo = "fill-other-address-info"
+street_number = "fill-street-and-house-number"
+additional_info = "fill-other-address-info"
 zip = "fill-postcode"
 city = "fill-city"
 country = "Germany"
-mandateAccepted = true
-saveAsPreferred = false
+mandate_accepted = true
+save_as_preferred = false
 
 [payment.card]
-cardholderName = "fill-cardholder-name"
-cardNumber = "fill-card-number"
-expiryMonth = "fill-expiry-month"
-expiryYear = "fill-expiry-year"
-saveAsPreferred = false
+cardholder_name = "fill-cardholder-name"
+card_number = "fill-card-number"
+expiry_month = "fill-expiry-month"
+expiry_year = "fill-expiry-year"
+save_as_preferred = false
