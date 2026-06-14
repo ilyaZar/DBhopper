@@ -1,8 +1,9 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { parse } from "smol-toml";
 import { readPrivateSettings, resolveSelectedCredentialFile, } from "./private-settings.js";
 import { parsePaymentProfileToml } from "./payment-profile.js";
+import { parseToml, tryParseToml } from "./toml.js";
+import { validationError, validationErrorFromException, } from "./validation-messages.js";
 import { resolveWorkspace } from "./workspace.js";
 const CREDENTIALS_DIR = path.join("assets", "private", "credentials");
 export function credentialsDir(config = {}) {
@@ -30,11 +31,7 @@ export async function validateCredentialsFiles(config = {}) {
     const dir = settings.credentialsDir;
     const messages = [];
     const stat = await fs.stat(dir).catch((error) => {
-        messages.push({
-            code: "invalid_credentials_directory",
-            message: `PATH_CRED ${dir} is not readable: ${error.code ?? error.message}`,
-            severity: "error",
-        });
+        messages.push(validationError("invalid_credentials_directory", `PATH_CRED ${dir} is not readable: ${error.code ?? error.message}`));
         return undefined;
     });
     if (!stat) {
@@ -44,11 +41,7 @@ export async function validateCredentialsFiles(config = {}) {
         };
     }
     if (!stat.isDirectory()) {
-        messages.push({
-            code: "invalid_credentials_directory",
-            message: `PATH_CRED ${dir} must point to a directory`,
-            severity: "error",
-        });
+        messages.push(validationError("invalid_credentials_directory", `PATH_CRED ${dir} must point to a directory`));
         return {
             ok: false,
             messages,
@@ -70,11 +63,7 @@ export async function validateCredentialsFiles(config = {}) {
             }
         }
         catch (error) {
-            messages.push({
-                code: "invalid_credentials_toml",
-                message: error instanceof Error ? error.message : String(error),
-                severity: "error",
-            });
+            messages.push(validationErrorFromException("invalid_credentials_toml", error));
         }
     }
     return {
@@ -83,16 +72,11 @@ export async function validateCredentialsFiles(config = {}) {
     };
 }
 function isPaymentProfileToml(text) {
-    try {
-        const parsed = parse(text);
-        return Boolean(parsed &&
-            typeof parsed === "object" &&
-            !Array.isArray(parsed) &&
-            "ID_PYM" in parsed);
-    }
-    catch {
-        return false;
-    }
+    const parsed = tryParseToml(text);
+    return Boolean(parsed &&
+        typeof parsed === "object" &&
+        !Array.isArray(parsed) &&
+        "ID_PYM" in parsed);
 }
 export function applyCredentialsToConfig(config, loaded) {
     const { dbClientId: _dbClientId, dbApiKey: _dbApiKey, ...baseConfig } = config;
@@ -129,13 +113,7 @@ export function credentialsSummary(loaded) {
     };
 }
 export function parseCredentialsToml(text, source = "credentials.toml") {
-    let parsed;
-    try {
-        parsed = parse(text);
-    }
-    catch (error) {
-        throw new Error(`${source}: invalid TOML: ${errorMessage(error)}`);
-    }
+    const parsed = parseToml(text, source);
     assertCredentialsShape(parsed, source);
     return normalizeCredentials(parsed);
 }
@@ -251,7 +229,4 @@ function assertString(value, source) {
     if (typeof value !== "string" || value.length === 0) {
         throw new Error(`${source} must be a non-empty string`);
     }
-}
-function errorMessage(error) {
-    return error instanceof Error ? error.message : String(error);
 }

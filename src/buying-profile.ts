@@ -1,7 +1,5 @@
 import fs from "node:fs/promises";
 
-import { parse } from "smol-toml";
-
 import type {
   DBhopperBuyingProfile,
   DBhopperBookingFor,
@@ -11,6 +9,8 @@ import type {
   ValidationMessage,
 } from "./types.js";
 import { resolveSelectedBuyingProfileFile } from "./private-settings.js";
+import { parseToml } from "./toml.js";
+import { validationErrorFromException } from "./validation-messages.js";
 
 export interface LoadedBuyingProfile {
   buyingProfileName: string;
@@ -112,12 +112,7 @@ export function parseBuyingProfileToml(
   text: string,
   source = "buying-profile.toml",
 ) {
-  let parsed: unknown;
-  try {
-    parsed = parse(text);
-  } catch (error) {
-    throw new Error(`${source}: invalid TOML: ${errorMessage(error)}`);
-  }
+  const parsed = parseToml(text, source);
   assertBuyingProfileShape(parsed, source);
   return normalizeBuyingProfile(parsed);
 }
@@ -130,11 +125,7 @@ export function schemaValidationMessagesForBuyingProfile(
     assertBuyingProfileShape(value, source);
     return [];
   } catch (error) {
-    return [{
-      code: "invalid_toml_schema",
-      message: error instanceof Error ? error.message : String(error),
-      severity: "error",
-    }];
+    return [validationErrorFromException("invalid_toml_schema", error)];
   }
 }
 
@@ -314,8 +305,4 @@ function assertString(value: unknown, source: string): asserts value is string {
   if (typeof value !== "string" || value.length === 0) {
     throw new Error(`${source} must be a non-empty string`);
   }
-}
-
-function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
 }

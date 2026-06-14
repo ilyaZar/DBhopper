@@ -1,7 +1,5 @@
 import fs from "node:fs/promises";
 
-import { parse } from "smol-toml";
-
 import type {
   DBhopperConfig,
   DBhopperPaymentMethod,
@@ -9,6 +7,8 @@ import type {
   ValidationMessage,
 } from "./types.js";
 import { resolveSelectedPaymentProfileFile } from "./private-settings.js";
+import { parseToml } from "./toml.js";
+import { validationErrorFromException } from "./validation-messages.js";
 
 export interface LoadedPaymentProfile {
   paymentProfileName: string;
@@ -51,12 +51,7 @@ export function parsePaymentProfileToml(
   text: string,
   source = "payment-profile.toml",
 ) {
-  let parsed: unknown;
-  try {
-    parsed = parse(text);
-  } catch (error) {
-    throw new Error(`${source}: invalid TOML: ${errorMessage(error)}`);
-  }
+  const parsed = parseToml(text, source);
   assertPaymentProfileShape(parsed, source);
   return normalizePaymentProfile(parsed);
 }
@@ -69,11 +64,7 @@ export function schemaValidationMessagesForPaymentProfile(
     assertPaymentProfileShape(value, source);
     return [];
   } catch (error) {
-    return [{
-      code: "invalid_toml_schema",
-      message: error instanceof Error ? error.message : String(error),
-      severity: "error",
-    }];
+    return [validationErrorFromException("invalid_toml_schema", error)];
   }
 }
 
@@ -475,10 +466,6 @@ function assertOptionalString(value: unknown, source: string): asserts value is 
   if (value !== undefined && typeof value !== "string") {
     throw new Error(`${source} must be a string`);
   }
-}
-
-function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
 }
 
 function normalizeOptionalPaymentBirthdate(value: string | undefined) {

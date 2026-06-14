@@ -1,7 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { parse } from "smol-toml";
+import { parseToml } from "./toml.js";
+import { validationError, validationErrorFromException, } from "./validation-messages.js";
 const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SETTINGS_RELATIVE_PATH = path.join("assets", "private", "settings.toml");
 const DEFAULT_CREDENTIALS_PATH = path.join("assets", "private", "credentials");
@@ -66,13 +67,7 @@ export async function readPrivateSettings(config = {}) {
     };
 }
 export function parsePrivateSettingsToml(text, source = "settings.toml") {
-    let parsed;
-    try {
-        parsed = parse(text);
-    }
-    catch (error) {
-        throw new Error(`${source}: invalid TOML: ${errorMessage(error)}`);
-    }
+    const parsed = parseToml(text, source);
     return normalizePrivateSettings(parsed, source);
 }
 export function stringifyPrivateSettingsToml(settings) {
@@ -356,22 +351,14 @@ async function listIdFiles(dir, idField) {
     const items = [];
     const pathField = idField === "ID_USR" || idField === "ID_PYM" ? "PATH_CRED" : "PATH_PRF";
     const stat = await fs.stat(dir).catch((error) => {
-        messages.push({
-            code: "invalid_private_directory",
-            message: `${pathField} ${dir} is not readable: ${error.code ?? error.message}`,
-            severity: "error",
-        });
+        messages.push(validationError("invalid_private_directory", `${pathField} ${dir} is not readable: ${error.code ?? error.message}`));
         return undefined;
     });
     if (!stat) {
         return { items, messages, directoryOk: false };
     }
     if (!stat.isDirectory()) {
-        messages.push({
-            code: "invalid_private_directory",
-            message: `${pathField} ${dir} must point to a directory`,
-            severity: "error",
-        });
+        messages.push(validationError("invalid_private_directory", `${pathField} ${dir} must point to a directory`));
         return { items, messages, directoryOk: false };
     }
     const entries = await fs.readdir(dir, { withFileTypes: true });
@@ -400,20 +387,12 @@ async function listIdFiles(dir, idField) {
             });
         }
         catch (error) {
-            messages.push({
-                code: "invalid_private_id_file",
-                message: error instanceof Error ? error.message : String(error),
-                severity: "error",
-            });
+            messages.push(validationErrorFromException("invalid_private_id_file", error));
         }
     }
     items.sort((a, b) => a.id.localeCompare(b.id) || a.fileName.localeCompare(b.fileName));
     for (const item of duplicateIds(items)) {
-        messages.push({
-            code: "duplicate_private_id",
-            message: `${idField} ${item.id} appears in more than one TOML file`,
-            severity: "error",
-        });
+        messages.push(validationError("duplicate_private_id", `${idField} ${item.id} appears in more than one TOML file`));
     }
     return { items, messages, directoryOk: true };
 }
@@ -435,11 +414,7 @@ function resolveIdFromList(items, idField, id, messages) {
     if (matches.length === 1) {
         return matches[0];
     }
-    messages.push({
-        code: "missing_selected_private_id",
-        message: `${idField} ${id} does not exist`,
-        severity: "error",
-    });
+    messages.push(validationError("missing_selected_private_id", `${idField} ${id} does not exist`));
     return undefined;
 }
 function duplicateIds(items) {
@@ -454,13 +429,7 @@ function duplicateIds(items) {
     return [...duplicates.values()];
 }
 function parseIdDocument(text, source) {
-    let parsed;
-    try {
-        parsed = parse(text);
-    }
-    catch (error) {
-        throw new Error(`${source}: invalid TOML: ${errorMessage(error)}`);
-    }
+    const parsed = parseToml(text, source);
     assertTable(parsed, source);
     return parsed;
 }
@@ -496,7 +465,4 @@ function assertOneOf(value, allowed, source) {
 }
 function tomlString(value) {
     return JSON.stringify(value);
-}
-function errorMessage(error) {
-    return error instanceof Error ? error.message : String(error);
 }

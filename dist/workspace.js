@@ -5,6 +5,7 @@ import { assertClaimTomlShape, mergeClaims, parseClaimToml, parsePrivateProfileT
 import { configuredProfilesDir, listBuyingProfileIdFiles, listClaimProfileIdFiles, listPaymentProfileIdFiles, privateSettingsStatus, resolveSelectedClaimProfileFile, } from "./private-settings.js";
 import { parseBuyingProfileToml, schemaValidationMessagesForBuyingProfile, } from "./buying-profile.js";
 import { parsePaymentProfileToml, schemaValidationMessagesForPaymentProfile, } from "./payment-profile.js";
+import { validationErrorFromException } from "./validation-messages.js";
 const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CLAIM_ID_MAX = 80;
 export function resolveWorkspace(config = {}) {
@@ -203,11 +204,7 @@ export async function validateWorkspaceTomlFiles(config = {}) {
             messages.push(...schemaValidationMessages(parsed, "profile", profileFile.filePath));
         }
         catch (error) {
-            messages.push({
-                code: "invalid_profile_toml",
-                message: error instanceof Error ? error.message : String(error),
-                severity: "error",
-            });
+            messages.push(validationErrorFromException("invalid_profile_toml", error));
         }
     }
     const routedBuyingProfiles = await listBuyingProfileIdFiles(config);
@@ -217,11 +214,7 @@ export async function validateWorkspaceTomlFiles(config = {}) {
             messages.push(...schemaValidationMessagesForBuyingProfile(parsed, profileFile.filePath));
         }
         catch (error) {
-            messages.push({
-                code: "invalid_buying_profile_toml",
-                message: error instanceof Error ? error.message : String(error),
-                severity: "error",
-            });
+            messages.push(validationErrorFromException("invalid_buying_profile_toml", error));
         }
     }
     const routedPaymentProfiles = await listPaymentProfileIdFiles(config);
@@ -231,11 +224,7 @@ export async function validateWorkspaceTomlFiles(config = {}) {
             messages.push(...schemaValidationMessagesForPaymentProfile(parsed, profileFile.filePath));
         }
         catch (error) {
-            messages.push({
-                code: "invalid_payment_profile_toml",
-                message: error instanceof Error ? error.message : String(error),
-                severity: "error",
-            });
+            messages.push(validationErrorFromException("invalid_payment_profile_toml", error));
         }
     }
     const claimDirs = await fs.readdir(workspace.claimsDir, { withFileTypes: true });
@@ -256,11 +245,7 @@ export async function validateWorkspaceTomlFiles(config = {}) {
             }
         }
         catch (error) {
-            messages.push({
-                code: "invalid_claim_toml",
-                message: error instanceof Error ? error.message : String(error),
-                severity: "error",
-            });
+            messages.push(validationErrorFromException("invalid_claim_toml", error));
         }
     }
     return {

@@ -1,6 +1,8 @@
-import { parse, stringify } from "smol-toml";
+import { stringify } from "smol-toml";
 
 import type { DBhopperClaim, ValidationMessage } from "./types.js";
+import { parseToml } from "./toml.js";
+import { validationErrorFromException } from "./validation-messages.js";
 
 type PrimitiveKind = "string" | "number" | "boolean";
 
@@ -173,21 +175,12 @@ export function schemaValidationMessages(
     assertSchema(value, schema, source);
     return [];
   } catch (error) {
-    return [{
-      code: "invalid_toml_schema",
-      message: error instanceof Error ? error.message : String(error),
-      severity: "error",
-    }];
+    return [validationErrorFromException("invalid_toml_schema", error)];
   }
 }
 
 function parseTomlDocument(text: string, schema: TomlSchema, source: string) {
-  let parsed: unknown;
-  try {
-    parsed = parse(text);
-  } catch (error) {
-    throw new Error(`${source}: invalid TOML: ${errorMessage(error)}`);
-  }
+  const parsed = parseToml(text, source);
   assertSchema(parsed, schema, source);
   return parsed;
 }
@@ -334,8 +327,4 @@ function mergeObjects(base: unknown, override: unknown): unknown {
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
-}
-
-function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
 }

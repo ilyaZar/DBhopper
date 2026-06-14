@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
-import { parse } from "smol-toml";
 import { resolveSelectedPaymentProfileFile } from "./private-settings.js";
+import { parseToml } from "./toml.js";
+import { validationErrorFromException } from "./validation-messages.js";
 const PAYMENT_METHODS = new Set(["sepa", "credit_card", "paypal"]);
 const FORBIDDEN_PAYMENT_KEYS = [
     /cvc/i,
@@ -24,13 +25,7 @@ export async function readSelectedPaymentProfile(config = {}) {
     };
 }
 export function parsePaymentProfileToml(text, source = "payment-profile.toml") {
-    let parsed;
-    try {
-        parsed = parse(text);
-    }
-    catch (error) {
-        throw new Error(`${source}: invalid TOML: ${errorMessage(error)}`);
-    }
+    const parsed = parseToml(text, source);
     assertPaymentProfileShape(parsed, source);
     return normalizePaymentProfile(parsed);
 }
@@ -40,11 +35,7 @@ export function schemaValidationMessagesForPaymentProfile(value, source) {
         return [];
     }
     catch (error) {
-        return [{
-                code: "invalid_toml_schema",
-                message: error instanceof Error ? error.message : String(error),
-                severity: "error",
-            }];
+        return [validationErrorFromException("invalid_toml_schema", error)];
     }
 }
 export function paymentProfileSummary(loaded) {
@@ -358,9 +349,6 @@ function assertOptionalString(value, source) {
     if (value !== undefined && typeof value !== "string") {
         throw new Error(`${source} must be a string`);
     }
-}
-function errorMessage(error) {
-    return error instanceof Error ? error.message : String(error);
 }
 function normalizeOptionalPaymentBirthdate(value) {
     return value ? normalizePaymentBirthdate(value) : undefined;

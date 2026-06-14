@@ -29,6 +29,7 @@ import {
   parsePaymentProfileToml,
   schemaValidationMessagesForPaymentProfile,
 } from "./payment-profile.js";
+import { validationErrorFromException } from "./validation-messages.js";
 
 export interface FileInput {
   role: ClaimFileRole;
@@ -302,11 +303,7 @@ export async function validateWorkspaceTomlFiles(config: DBhopperConfig = {}) {
         ...schemaValidationMessages(parsed, "profile", profileFile.filePath),
       );
     } catch (error) {
-      messages.push({
-        code: "invalid_profile_toml",
-        message: error instanceof Error ? error.message : String(error),
-        severity: "error" as const,
-      });
+      messages.push(validationErrorFromException("invalid_profile_toml", error));
     }
   }
 
@@ -321,11 +318,9 @@ export async function validateWorkspaceTomlFiles(config: DBhopperConfig = {}) {
         ...schemaValidationMessagesForBuyingProfile(parsed, profileFile.filePath),
       );
     } catch (error) {
-      messages.push({
-        code: "invalid_buying_profile_toml",
-        message: error instanceof Error ? error.message : String(error),
-        severity: "error" as const,
-      });
+      messages.push(
+        validationErrorFromException("invalid_buying_profile_toml", error),
+      );
     }
   }
 
@@ -340,11 +335,9 @@ export async function validateWorkspaceTomlFiles(config: DBhopperConfig = {}) {
         ...schemaValidationMessagesForPaymentProfile(parsed, profileFile.filePath),
       );
     } catch (error) {
-      messages.push({
-        code: "invalid_payment_profile_toml",
-        message: error instanceof Error ? error.message : String(error),
-        severity: "error" as const,
-      });
+      messages.push(
+        validationErrorFromException("invalid_payment_profile_toml", error),
+      );
     }
   }
 
@@ -365,11 +358,7 @@ export async function validateWorkspaceTomlFiles(config: DBhopperConfig = {}) {
         await readPrivateProfile(profileSelection);
       }
     } catch (error) {
-      messages.push({
-        code: "invalid_claim_toml",
-        message: error instanceof Error ? error.message : String(error),
-        severity: "error" as const,
-      });
+      messages.push(validationErrorFromException("invalid_claim_toml", error));
     }
   }
 

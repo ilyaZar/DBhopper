@@ -1,8 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import { parse } from "smol-toml";
-
 import type { DBhopperConfig, ValidationMessage } from "./types.js";
 import {
   configuredCredentialsDir,
@@ -10,6 +8,11 @@ import {
   resolveSelectedCredentialFile,
 } from "./private-settings.js";
 import { parsePaymentProfileToml } from "./payment-profile.js";
+import { parseToml, tryParseToml } from "./toml.js";
+import {
+  validationError,
+  validationErrorFromException,
+} from "./validation-messages.js";
 import { resolveWorkspace } from "./workspace.js";
 
 export interface DBhopperCredentials {
@@ -68,11 +71,10 @@ export async function validateCredentialsFiles(config: DBhopperConfig = {}) {
   const dir = settings.credentialsDir;
   const messages: ValidationMessage[] = [];
   const stat = await fs.stat(dir).catch((error: NodeJS.ErrnoException) => {
-    messages.push({
-      code: "invalid_credentials_directory",
-      message: `PATH_CRED ${dir} is not readable: ${error.code ?? error.message}`,
-      severity: "error",
-    });
+    messages.push(validationError(
+      "invalid_credentials_directory",
+      `PATH_CRED ${dir} is not readable: ${error.code ?? error.message}`,
+    ));
     return undefined;
   });
 
@@ -83,11 +85,10 @@ export async function validateCredentialsFiles(config: DBhopperConfig = {}) {
     };
   }
   if (!stat.isDirectory()) {
-    messages.push({
-      code: "invalid_credentials_directory",
-      message: `PATH_CRED ${dir} must point to a directory`,
-      severity: "error",
-    });
+    messages.push(validationError(
+      "invalid_credentials_directory",
+      `PATH_CRED ${dir} must point to a directory`,
+    ));
     return {
       ok: false,
       messages,
@@ -109,11 +110,7 @@ export async function validateCredentialsFiles(config: DBhopperConfig = {}) {
         parseCredentialsToml(raw, filePath);
       }
     } catch (error) {
-      messages.push({
-        code: "invalid_credentials_toml",
-        message: error instanceof Error ? error.message : String(error),
-        severity: "error",
-      });
+      messages.push(validationErrorFromException("invalid_credentials_toml", error));
     }
   }
 
@@ -124,17 +121,13 @@ export async function validateCredentialsFiles(config: DBhopperConfig = {}) {
 }
 
 function isPaymentProfileToml(text: string) {
-  try {
-    const parsed = parse(text);
-    return Boolean(
-      parsed &&
-        typeof parsed === "object" &&
-        !Array.isArray(parsed) &&
-        "ID_PYM" in parsed,
-    );
-  } catch {
-    return false;
-  }
+  const parsed = tryParseToml(text);
+  return Boolean(
+    parsed &&
+      typeof parsed === "object" &&
+      !Array.isArray(parsed) &&
+      "ID_PYM" in parsed,
+  );
 }
 
 export function applyCredentialsToConfig(
@@ -183,12 +176,7 @@ export function credentialsSummary(loaded?: LoadedCredentialsProfile) {
 }
 
 export function parseCredentialsToml(text: string, source = "credentials.toml") {
-  let parsed: unknown;
-  try {
-    parsed = parse(text);
-  } catch (error) {
-    throw new Error(`${source}: invalid TOML: ${errorMessage(error)}`);
-  }
+  const parsed = parseToml(text, source);
   assertCredentialsShape(parsed, source);
   return normalizeCredentials(parsed as DBhopperCredentials);
 }
@@ -325,8 +313,4 @@ function assertString(value: unknown, source: string): asserts value is string {
   if (typeof value !== "string" || value.length === 0) {
     throw new Error(`${source} must be a non-empty string`);
   }
-}
-
-function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
 }
