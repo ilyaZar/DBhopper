@@ -18,10 +18,10 @@ openclaw plugins enable dbhopper
 Configure `plugins.entries.dbhopper.config.workspaceRoot` to this plugin
 directory. DBhopper has two local settings layers:
 
-- `settings.yaml` at the plugin top level controls which workflow tools are
-  available to the agent.
-- `assets/private/settings.toml` selects private credential/profile IDs and
-  private file paths.
+- `settings.yaml` at the plugin top level controls which workflow tool calls
+  are allowed to run.
+- `assets/private/settings.toml` selects private credential, claim-profile, and
+  buying-profile IDs plus private file paths.
 
 The default `settings.yaml` enables only delay retrieval:
 
@@ -31,9 +31,17 @@ use_claim_requests: false
 use_ticket_buying: false
 ```
 
+DBhopper still registers the full public tool contract. When a disabled
+workflow tool is called, it returns a structured `feature_disabled` result
+instead of running browser automation or writing files. To change the enabled
+workflows, edit `settings.yaml` and set the relevant flag to `true`; reload or
+restart the plugin if the running OpenClaw process does not pick up the change.
+
 Private profile and credential templates live under `docs/examples/`. Copy
 `docs/examples/private-profile.example.toml` to
-`assets/private/profiles/private-profile-01.toml` and copy
+`assets/private/profiles/private-profile-01.toml`, copy
+`docs/examples/buying-profile.example.toml` to
+`assets/private/profiles/buying-profile-01.toml`, and copy
 `docs/examples/credentials.example.toml` to
 `assets/private/credentials/credentials-01.toml`. Keep real profiles and
 credentials private.
@@ -51,8 +59,11 @@ use_delay_retrieval: true
 The default provider is controlled in `assets/private/settings.toml`:
 
 ```toml
-ID_CRED = "01"
-ID_PRF = "01"
+ID_USR = "01"
+ID_CLM = "01"
+ID_BUY = "01"
+ID_PYM = "01"
+TICKET_BUYING_MODE = "review"
 PATH_CRED = "assets/private/credentials"
 PATH_PRF = "assets/private/profiles"
 DELAY_PROVIDER = "bahn-web"
@@ -62,6 +73,12 @@ DELAY_FALLBACK = "none"
 `bahn-web` uses Deutsche Bahn passenger website JSON retrieval and works without
 DB API Marketplace credentials. It is deterministic after retrieval, but the
 website endpoint is unofficial and may change.
+
+To change the default delay provider, edit `DELAY_PROVIDER` in
+`assets/private/settings.toml`. Supported values are `"bahn-web"`,
+`"db-timetables"`, and `"auto"`. Keep `DELAY_FALLBACK = "none"` unless the
+agent should automatically retry with the other provider after a provider
+failure.
 
 For the official provider, create a DB API Marketplace application, subscribe
 it to the Timetables product, and put the technical credentials in `[bahnAPI]`
@@ -107,13 +124,14 @@ use_claim_requests: true
 
 Claim-specific journey, ticket, and file data is stored in
 `claims/<claim-id>/claim.toml`. Claimant and bank details stay in the selected
-private profile and are joined in memory for validation and browser filing. A
+claim profile and are joined in memory for validation and browser filing. A
 successful submit writes `claim_submitted_recipe.toml` next to the downloaded
 confirmation PDF as the joined audit recipe.
 
-Use `assets/private/settings.toml` to select the private profile and
-credential IDs used for claim filing. `PATH_CRED` and `PATH_PRF` may be
+Use `assets/private/settings.toml` to select the claim profile and credential
+IDs used for claim filing. `PATH_CRED` and `PATH_PRF` may be
 relative to the plugin directory or absolute paths in the user file system.
+Claim filing uses `ID_CLM` from the shared profiles directory.
 The `assets/private/settings.toml` file itself always stays in that fixed
 location.
 
@@ -125,10 +143,29 @@ Autonomous ticket-buying tools are disabled by default. Enable them explicitly:
 use_ticket_buying: true
 ```
 
-Ticket buying uses the configured browser profile and selected Bahn account
-credentials. Store browser user-data paths and Bahn login values in the
-selected credential TOML file. The one-time login checks can verify that the
-selected account and browser profile work before ticket workflows are used.
+Ticket buying uses the selected private IDs from
+`assets/private/settings.toml`:
+
+- `ID_USR`: Bahn account credentials and browser profile.
+- `ID_BUY`: fare, class, and customer-data choices.
+- `ID_PYM`: payment method and fillable payment fields.
+- `TICKET_BUYING_MODE`: final Check-page behavior.
+
+`TICKET_BUYING_MODE = "review"` is the default. Checkout may fill the configured
+forms and reach DB's final Check page, then it saves a sensitive screenshot
+artifact for user inspection and stops before any final order control.
+
+`TICKET_BUYING_MODE = "auto"` records that automatic buying was requested, but
+final buying is not enabled yet. The tool still stops with
+`buying_not_enabled` before the final order button.
+
+Change the mode with `dbhopper_private_settings_select` by passing
+`ticket_buying_mode: "review"` or `ticket_buying_mode: "auto"`.
+
+Buying profiles support `super_sparpreis`, `sparpreis`, `flexpreis`, and
+`cheapest_available`. Payment-profile summaries expose only method and
+field-presence metadata, never payment values. Logged-in DB account identity
+fields are checked but not changed.
 
 ## Usage
 
@@ -195,8 +232,11 @@ The main ticket tools are:
 
 Use these tools after the delay result identifies the target route, service
 date, train label, and departure time. Ticket workflows use deterministic
-browser automation and ignored local artifacts; the agent should not infer or
-invent checkout state from screenshots or raw page text.
+browser automation and ignored local artifacts. In review mode, the checkout
+tool returns `reviewScreenshot` for the agent to show to the user. In auto
+mode, final buying still stops with `buying_not_enabled`; there is no final
+purchase click yet. The agent should not infer or invent checkout state from
+screenshots or raw page text.
 
 ## Troubleshooting
 
@@ -204,8 +244,9 @@ If an OpenClaw-routed agent can describe the skill but cannot call
 `dbhopper_*`, check the sandbox tool policy. The local config needs DBhopper in
 both `tools.alsoAllow` and `tools.sandbox.tools.alsoAllow`.
 
-If a workflow is missing from the agent's tool list, check `settings.yaml` and
-restart or reload the plugin after changing feature flags.
+If a workflow tool returns `feature_disabled`, check `settings.yaml`, enable the
+matching `use_*` flag, and reload or restart the plugin if the running
+OpenClaw process does not pick up the change.
 
 ## Development
 

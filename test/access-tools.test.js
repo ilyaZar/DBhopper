@@ -16,7 +16,7 @@ describe("dbhopper access diagnostics", () => {
       path.join(credentialsDir, "credentials-01.toml"),
       [
         "version = 1",
-        'ID_CRED = "01"',
+        'ID_USR = "01"',
         "",
         "[bahnAPI]",
         'clientId = "client-secret-value"',
@@ -71,8 +71,10 @@ async function writeSettings(root) {
   await fs.writeFile(
     path.join(root, "assets", "private", "settings.toml"),
     [
-      'ID_CRED = "01"',
-      'ID_PRF = "01"',
+      'ID_USR = "01"',
+      'ID_CLM = "01"',
+      'ID_BUY = "01"',
+      'ID_PYM = "01"',
       'PATH_CRED = "assets/private/credentials"',
       'PATH_PRF = "assets/private/profiles"',
       'DELAY_PROVIDER = "bahn-web"',

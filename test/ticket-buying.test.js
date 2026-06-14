@@ -1,8 +1,5 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import fs from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
 
 import {
   defaultCheckoutServiceDate,
@@ -64,10 +61,39 @@ describe("dbhopper ticket buying dry run", () => {
     assert.equal(plan.target.departureStation, "Hamm(Westf)Hbf");
     assert.equal(plan.target.arrivalStation, "Köln Hbf");
     assert.equal(plan.target.serviceDate, "2026-06-18");
-    assert.equal(plan.safety.mayEnterPaymentData, false);
+    assert.equal(plan.fareSelection.defaultFare, "super_sparpreis");
+    assert.deepEqual(plan.fareSelection.preferenceOrder, [
+      "super_sparpreis",
+      "sparpreis",
+      "flexpreis",
+    ]);
+    assert.equal(plan.fareSelection.travelClass, "second");
+    assert.equal(plan.fareSelection.continueToCustomerData, true);
+    assert.equal(plan.fareSelection.bookingFor, "self");
+    assert.equal(plan.fareSelection.continueToPaymentBoundary, true);
+    assert.equal(plan.ticketBuyingMode, "review");
+    assert.equal(plan.finalBuying.requested, false);
+    assert.equal(plan.finalBuying.enabled, false);
+    assert.equal(plan.safety.mayEnterPaymentProfileData, true);
+    assert.equal(plan.safety.mayReviewCheckPage, true);
     assert.equal(plan.safety.maySubmitPayment, false);
     assert.equal(plan.safety.mayClickFinalOrder, false);
     assert.equal(defaultCheckoutServiceDate(new Date("2026-06-11T12:00:00.000Z")), "2026-06-18");
+  });
+
+  it("marks auto mode as requested but not buying-enabled", () => {
+    const plan = ticketCheckoutPlan(
+      { continue_after_payment_profile: true },
+      undefined,
+      new Date("2026-06-11T12:00:00.000Z"),
+      undefined,
+      "auto",
+    );
+
+    assert.equal(plan.ticketBuyingMode, "auto");
+    assert.equal(plan.finalBuying.requested, true);
+    assert.equal(plan.finalBuying.enabled, false);
+    assert.equal(plan.safety.mayClickFinalOrder, false);
   });
 
   it("returns a checkout plan without opening a browser", async () => {
@@ -82,6 +108,7 @@ describe("dbhopper ticket buying dry run", () => {
     assert.equal(result.operation, "ticket_checkout_dry_run");
     assert.equal(result.purchaseSubmitted, false);
     assert.equal(result.finalSafetyStop, "not_started");
+    assert.equal(result.ticketBuyingMode, "review");
   });
 
   it("recognizes final order button text", () => {

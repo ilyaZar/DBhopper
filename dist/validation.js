@@ -28,8 +28,8 @@ const REQUIRED_BROWSER_FIELDS = [
     "ticket.tariffArea",
     "ticket.substituteType",
     "ticket.substituteCost",
-    "bank.accountOwner",
-    "bank.iban",
+    "claimant.bank.accountOwner",
+    "claimant.bank.iban",
 ];
 export function validateClaim(claim, options = {}) {
     const messages = [];
@@ -60,7 +60,7 @@ export function claimSchemaReference() {
             privateProfile: [
                 "Store reusable sensitive claimant and bank data in",
                 "assets/private/profiles/*.toml and select it with",
-                "assets/private/settings.toml ID_PRF.",
+                "assets/private/settings.toml ID_CLM.",
             ].join(" "),
             privateProfileShape: {
                 version: 1,
@@ -76,10 +76,10 @@ export function claimSchemaReference() {
                         city: "Koeln",
                         country: "Deutschland",
                     },
-                },
-                bank: {
-                    accountOwner: "Maria Mustermann",
-                    iban: "DE89370400440532013000",
+                    bank: {
+                        accountOwner: "Maria Mustermann",
+                        iban: "fill-iban",
+                    },
                 },
             },
             eligibility: [
@@ -127,7 +127,7 @@ export function claimSchemaReference() {
                 { role: "substitute_receipt", path: "ice-ticket.pdf" },
             ],
         },
-        submittedRecipeShape: "claim_submitted_recipe.toml joins editable claim.toml with the selected private profile after successful submit.",
+        submittedRecipeShape: "claim_submitted_recipe.toml joins editable claim.toml with the selected claim profile after successful submit.",
     };
 }
 function validateJourney(claim, now, messages) {

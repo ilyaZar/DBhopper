@@ -22,7 +22,7 @@ export interface ClaimFile {
 }
 
 export interface DBhopperClaim {
-  ID_PRF?: string;
+  ID_CLM?: string;
   version?: 1;
   claimId?: string;
   status?: string;
@@ -37,6 +37,10 @@ export interface DBhopperClaim {
       zip?: string;
       city?: string;
       country?: string;
+    };
+    bank?: {
+      accountOwner?: string;
+      iban?: string;
     };
   };
   journey?: {
@@ -62,12 +66,76 @@ export interface DBhopperClaim {
     companions?: number;
     description?: string;
   };
-  bank?: {
-    accountOwner?: string;
-    iban?: string;
-  };
   files?: ClaimFile[];
   metadata?: Record<string, unknown>;
+}
+
+export type DBhopperFareProduct =
+  | "super_sparpreis"
+  | "sparpreis"
+  | "flexpreis"
+  | "cheapest_available";
+
+export type DBhopperTravelClass = "second" | "first";
+export type DBhopperBookingFor = "self" | "other";
+export type DBhopperPaymentMethod = "sepa" | "credit_card" | "paypal";
+
+export interface DBhopperBuyingProfile {
+  ID_BUY: string;
+  version?: 1;
+  defaultFare: DBhopperFareProduct;
+  fallbackFares?: DBhopperFareProduct[];
+  travelClass?: DBhopperTravelClass;
+  continueToCustomerData?: boolean;
+  bookingFor?: DBhopperBookingFor;
+  continueToPaymentBoundary?: boolean;
+}
+
+export interface DBhopperPaymentProfile {
+  ID_PYM: string;
+  version?: 1;
+  method: DBhopperPaymentMethod;
+  payment?: {
+    sepa?: {
+      accountOwner?: string;
+      iban?: string;
+      birthdate?: string;
+      birthday?: string;
+      streetNhouseNum?: string;
+      streetAndHouseNumber?: string;
+      streetNumber?: string;
+      additionalInfo?: string;
+      otherAddress?: string;
+      otherAdress?: string;
+      otherAddressInfo?: string;
+      otherAdressInfo?: string;
+      zip?: string;
+      postcode?: string;
+      postalCode?: string;
+      city?: string;
+      townCity?: string;
+      country?: string;
+      address?: {
+        streetNumber?: string;
+        additionalInfo?: string;
+        zip?: string;
+        city?: string;
+        country?: string;
+      };
+      mandateAccepted?: boolean;
+      saveAsPreferred?: boolean;
+    };
+    card?: {
+      cardholderName?: string;
+      cardNumber?: string;
+      expiryMonth?: string;
+      expiryYear?: string;
+      saveAsPreferred?: boolean;
+    };
+    paypal?: {
+      saveAsPreferred?: boolean;
+    };
+  };
 }
 
 export interface PreparedClaim {

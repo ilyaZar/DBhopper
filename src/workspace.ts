@@ -15,10 +15,20 @@ import {
 } from "./claim-toml.js";
 import {
   configuredProfilesDir,
-  listProfileIdFiles,
+  listBuyingProfileIdFiles,
+  listClaimProfileIdFiles,
+  listPaymentProfileIdFiles,
   privateSettingsStatus,
-  resolveSelectedProfileFile,
+  resolveSelectedClaimProfileFile,
 } from "./private-settings.js";
+import {
+  parseBuyingProfileToml,
+  schemaValidationMessagesForBuyingProfile,
+} from "./buying-profile.js";
+import {
+  parsePaymentProfileToml,
+  schemaValidationMessagesForPaymentProfile,
+} from "./payment-profile.js";
 
 export interface FileInput {
   role: ClaimFileRole;
@@ -281,7 +291,7 @@ export async function validateWorkspaceTomlFiles(config: DBhopperConfig = {}) {
     messages.push(...settingsStatus.messages);
   }
 
-  const routedProfiles = await listProfileIdFiles(config);
+  const routedProfiles = await listClaimProfileIdFiles(config);
   for (const profileFile of routedProfiles.items) {
     try {
       const parsed = parsePrivateProfileToml(
@@ -294,6 +304,44 @@ export async function validateWorkspaceTomlFiles(config: DBhopperConfig = {}) {
     } catch (error) {
       messages.push({
         code: "invalid_profile_toml",
+        message: error instanceof Error ? error.message : String(error),
+        severity: "error" as const,
+      });
+    }
+  }
+
+  const routedBuyingProfiles = await listBuyingProfileIdFiles(config);
+  for (const profileFile of routedBuyingProfiles.items) {
+    try {
+      const parsed = parseBuyingProfileToml(
+        await fs.readFile(profileFile.filePath, "utf8"),
+        profileFile.filePath,
+      );
+      messages.push(
+        ...schemaValidationMessagesForBuyingProfile(parsed, profileFile.filePath),
+      );
+    } catch (error) {
+      messages.push({
+        code: "invalid_buying_profile_toml",
+        message: error instanceof Error ? error.message : String(error),
+        severity: "error" as const,
+      });
+    }
+  }
+
+  const routedPaymentProfiles = await listPaymentProfileIdFiles(config);
+  for (const profileFile of routedPaymentProfiles.items) {
+    try {
+      const parsed = parsePaymentProfileToml(
+        await fs.readFile(profileFile.filePath, "utf8"),
+        profileFile.filePath,
+      );
+      messages.push(
+        ...schemaValidationMessagesForPaymentProfile(parsed, profileFile.filePath),
+      );
+    } catch (error) {
+      messages.push({
+        code: "invalid_payment_profile_toml",
         message: error instanceof Error ? error.message : String(error),
         severity: "error" as const,
       });
@@ -385,7 +433,7 @@ interface ProfileSelection {
 }
 
 async function resolveProfileSelection(config: DBhopperConfig): Promise<ProfileSelection | undefined> {
-  const selected = await resolveSelectedProfileFile(config);
+  const selected = await resolveSelectedClaimProfileFile(config);
   if (!selected) {
     return undefined;
   }
@@ -451,6 +499,6 @@ function materializeClaim(
 }
 
 function stripProfileRoutingFields(profile: DBhopperClaim): DBhopperClaim {
-  const { ID_PRF: _ID_PRF, ...rest } = profile;
+  const { ID_CLM: _ID_CLM, ...rest } = profile;
   return rest;
 }

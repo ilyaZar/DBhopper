@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 import {
+  parsePrivateSettingsToml,
   privateSettingsStatus,
   writePrivateSettingsIds,
 } from "../dist/private-settings.js";
@@ -19,22 +20,30 @@ describe("dbhopper private settings", () => {
     await writeSettings(root, {
       credentialId: "02",
       profileId: "03",
+      paymentProfileId: "01",
       credentialsDir,
       profilesDir,
     });
     await writeCredential(credentialsDir, "01", "credentials-01.toml");
     await writeCredential(credentialsDir, "02", "credentials-02.toml");
+    await writePaymentProfile(credentialsDir, "01", "payment-profile-01.toml");
     await writeProfile(profilesDir, "01", "private-profile-01.toml", "First");
     await writeProfile(profilesDir, "03", "private-profile-03.toml", "Third");
+    await writeBuyingProfile(profilesDir, "01", "buying-profile-01.toml");
 
     const status = await privateSettingsStatus({ workspaceRoot: root });
     assert.equal(status.ok, true);
     assert.deepEqual(status.credentials.availableIds, ["01", "02"]);
-    assert.deepEqual(status.profiles.availableIds, ["01", "03"]);
+    assert.deepEqual(status.paymentProfiles.availableIds, ["01"]);
+    assert.deepEqual(status.claimProfiles.availableIds, ["01", "03"]);
+    assert.deepEqual(status.buyingProfiles.availableIds, ["01"]);
     assert.equal(status.credentials.selected.fileName, "credentials-02.toml");
-    assert.equal(status.profiles.selected.fileName, "private-profile-03.toml");
+    assert.equal(status.paymentProfiles.selected.fileName, "payment-profile-01.toml");
+    assert.equal(status.claimProfiles.selected.fileName, "private-profile-03.toml");
+    assert.equal(status.buyingProfiles.selected.fileName, "buying-profile-01.toml");
     assert.equal(status.settings.DELAY_PROVIDER, "bahn-web");
     assert.equal(status.settings.DELAY_FALLBACK, "none");
+    assert.equal(status.settings.TICKET_BUYING_MODE, "review");
 
     const credentials = await readSelectedCredentialsProfile({ workspaceRoot: root });
     assert.equal(credentials.credentialsId, "02");
@@ -66,6 +75,7 @@ describe("dbhopper private settings", () => {
     await writeSettings(root, {
       credentialId: "01",
       profileId: "01",
+      paymentProfileId: "01",
       credentialsDir,
       profilesDir,
     });
@@ -74,24 +84,26 @@ describe("dbhopper private settings", () => {
       apiKey: " key-with-space ",
       username: " maria@example.org ",
     });
+    await writePaymentProfile(credentialsDir, "01", "payment-profile-01.toml");
     await writeProfile(profilesDir, "01", "private-profile-01.toml", "First");
+    await writeBuyingProfile(profilesDir, "01", "buying-profile-01.toml");
 
     const status = await privateSettingsStatus({ workspaceRoot: root });
     assert.equal(status.ok, false);
     assert.equal(status.credentials.selected, undefined);
     assert.ok(
       status.messages.some((message) =>
-        /ID_CRED 01 does not exist/.test(message.message),
+        /ID_USR 01 does not exist/.test(message.message),
       ),
     );
     assert.ok(
       status.messages.some((message) =>
-        /ID_CRED is missing/.test(message.message),
+        /ID_USR is missing/.test(message.message),
       ),
     );
     await assert.rejects(
       () => readSelectedCredentialsProfile({ workspaceRoot: root }),
-      /ID_CRED 01 does not exist/,
+      /ID_USR 01 does not exist/,
     );
   });
 
@@ -102,16 +114,27 @@ describe("dbhopper private settings", () => {
     await writeSettings(root, {
       credentialId: "01",
       profileId: "01",
+      paymentProfileId: "01",
       credentialsDir,
       profilesDir,
     });
     await writeCredential(credentialsDir, "01", "credentials-01.toml");
     await writeCredential(credentialsDir, "02", "credentials-02.toml");
+    await writePaymentProfile(credentialsDir, "01", "payment-profile-01.toml");
+    await writePaymentProfile(credentialsDir, "02", "payment-profile-02.toml");
     await writeProfile(profilesDir, "01", "private-profile-01.toml", "First");
     await writeProfile(profilesDir, "03", "private-profile-03.toml", "Third");
+    await writeBuyingProfile(profilesDir, "01", "buying-profile-01.toml");
+    await writeBuyingProfile(profilesDir, "02", "buying-profile-02.toml");
 
     const status = await writePrivateSettingsIds(
-      { credentialId: "02", profileId: "03" },
+      {
+        userId: "02",
+        claimProfileId: "03",
+        buyingProfileId: "02",
+        paymentProfileId: "02",
+        ticketBuyingMode: "auto",
+      },
       { workspaceRoot: root },
     );
     const settings = await fs.readFile(
@@ -120,12 +143,48 @@ describe("dbhopper private settings", () => {
     );
 
     assert.equal(status.ok, true);
-    assert.match(settings, /ID_CRED = "02"/);
-    assert.match(settings, /ID_PRF = "03"/);
+    assert.match(settings, /ID_USR = "02"/);
+    assert.match(settings, /ID_CLM = "03"/);
+    assert.match(settings, /ID_BUY = "02"/);
+    assert.match(settings, /ID_PYM = "02"/);
+    assert.match(settings, /TICKET_BUYING_MODE = "auto"/);
     assert.match(settings, new RegExp(escapeRegExp(`PATH_CRED = "${credentialsDir}"`)));
     assert.match(settings, new RegExp(escapeRegExp(`PATH_PRF = "${profilesDir}"`)));
     assert.match(settings, /DELAY_PROVIDER = "bahn-web"/);
     assert.match(settings, /DELAY_FALLBACK = "none"/);
+  });
+
+  it("accepts ticket buying mode aliases and rejects disagreements", () => {
+    const parsed = parsePrivateSettingsToml([
+      'ID_USR = "01"',
+      'ID_CLM = "01"',
+      'ID_BUY = "01"',
+      'ID_PYM = "01"',
+      'buying_mode = "auto"',
+      'PATH_CRED = "assets/private/credentials"',
+      'PATH_PRF = "assets/private/profiles"',
+      'DELAY_PROVIDER = "bahn-web"',
+      'DELAY_FALLBACK = "none"',
+      "",
+    ].join("\n"));
+
+    assert.equal(parsed.TICKET_BUYING_MODE, "auto");
+    assert.throws(
+      () => parsePrivateSettingsToml([
+        'ID_USR = "01"',
+        'ID_CLM = "01"',
+        'ID_BUY = "01"',
+        'ID_PYM = "01"',
+        'TICKET_BUYING_MODE = "review"',
+        'ticket_buying_mode = "auto"',
+        'PATH_CRED = "assets/private/credentials"',
+        'PATH_PRF = "assets/private/profiles"',
+        'DELAY_PROVIDER = "bahn-web"',
+        'DELAY_FALLBACK = "none"',
+        "",
+      ].join("\n")),
+      /aliases must not disagree/,
+    );
   });
 
   it("uses PATH_PRF instead of the internal profile directory", async () => {
@@ -135,11 +194,14 @@ describe("dbhopper private settings", () => {
     await writeSettings(root, {
       credentialId: "01",
       profileId: "03",
+      paymentProfileId: "01",
       credentialsDir,
       profilesDir,
     });
     await writeCredential(credentialsDir, "01", "credentials-01.toml");
+    await writePaymentProfile(credentialsDir, "01", "payment-profile-01.toml");
     await writeProfile(profilesDir, "03", "private-profile-03.toml", "External");
+    await writeBuyingProfile(profilesDir, "01", "buying-profile-01.toml");
     await fs.mkdir(path.join(root, "assets", "private", "profiles"), { recursive: true });
     await writeProfile(
       path.join(root, "assets", "private", "profiles"),
@@ -172,12 +234,15 @@ describe("dbhopper private settings", () => {
     await writeSettings(root, {
       credentialId: "02",
       profileId: "01",
+      paymentProfileId: "01",
       credentialsDir,
       profilesDir,
     });
     await writeCredential(credentialsDir, "02", "credentials-02.toml", {
       clientId: "external-client",
     });
+    await writePaymentProfile(credentialsDir, "01", "payment-profile-01.toml");
+    await writeBuyingProfile(profilesDir, "01", "buying-profile-01.toml");
     await fs.mkdir(path.join(root, "assets", "private", "credentials"), {
       recursive: true,
     });
@@ -201,11 +266,13 @@ describe("dbhopper private settings", () => {
     await writeSettings(root, {
       credentialId: "01",
       profileId: "01",
+      paymentProfileId: "01",
       credentialsDir: credentialsFile,
       profilesDir,
     });
-    await fs.writeFile(credentialsFile, 'ID_CRED = "01"\n', "utf8");
+    await fs.writeFile(credentialsFile, 'ID_USR = "01"\n', "utf8");
     await writeProfile(profilesDir, "01", "private-profile-01.toml", "First");
+    await writeBuyingProfile(profilesDir, "01", "buying-profile-01.toml");
 
     const status = await privateSettingsStatus({ workspaceRoot: root });
 
@@ -217,7 +284,7 @@ describe("dbhopper private settings", () => {
     );
     assert.equal(
       status.messages.some((message) =>
-        /ID_CRED 01 does not exist/.test(message.message),
+        /ID_USR 01 does not exist/.test(message.message),
       ),
       false,
     );
@@ -234,23 +301,37 @@ describe("dbhopper private settings", () => {
     await writeSettings(root, {
       credentialId: "09",
       profileId: "03",
+      buyingProfileId: "04",
+      paymentProfileId: "05",
       credentialsDir,
       profilesDir,
     });
     await writeCredential(credentialsDir, "01", "credentials-01.toml");
+    await writePaymentProfile(credentialsDir, "01", "payment-profile-01.toml");
     await writeProfile(profilesDir, "01", "private-profile-01.toml", "First");
+    await writeBuyingProfile(profilesDir, "01", "buying-profile-01.toml");
 
     const status = await privateSettingsStatus({ workspaceRoot: root });
 
     assert.equal(status.ok, false);
     assert.ok(
       status.messages.some((message) =>
-        /ID_CRED 09 does not exist/.test(message.message),
+        /ID_USR 09 does not exist/.test(message.message),
       ),
     );
     assert.ok(
       status.messages.some((message) =>
-        /ID_PRF 03 does not exist/.test(message.message),
+        /ID_CLM 03 does not exist/.test(message.message),
+      ),
+    );
+    assert.ok(
+      status.messages.some((message) =>
+        /ID_BUY 04 does not exist/.test(message.message),
+      ),
+    );
+    assert.ok(
+      status.messages.some((message) =>
+        /ID_PYM 05 does not exist/.test(message.message),
       ),
     );
   });
@@ -258,18 +339,67 @@ describe("dbhopper private settings", () => {
 
 async function writeSettings(
   root,
-  { credentialId, profileId, credentialsDir, profilesDir },
+  {
+    credentialId,
+    profileId,
+    buyingProfileId = "01",
+    paymentProfileId = "01",
+    credentialsDir,
+    profilesDir,
+    ticketBuyingMode = "review",
+  },
 ) {
   await fs.mkdir(path.join(root, "assets", "private"), { recursive: true });
   await fs.writeFile(
     path.join(root, "assets", "private", "settings.toml"),
     [
-      `ID_CRED = "${credentialId}"`,
-      `ID_PRF = "${profileId}"`,
+      `ID_USR = "${credentialId}"`,
+      `ID_CLM = "${profileId}"`,
+      `ID_BUY = "${buyingProfileId}"`,
+      `ID_PYM = "${paymentProfileId}"`,
+      `TICKET_BUYING_MODE = "${ticketBuyingMode}"`,
       `PATH_CRED = "${credentialsDir}"`,
       `PATH_PRF = "${profilesDir}"`,
       'DELAY_PROVIDER = "bahn-web"',
       'DELAY_FALLBACK = "none"',
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+}
+
+async function writePaymentProfile(dir, id, fileName) {
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(
+    path.join(dir, fileName),
+    [
+      "version = 1",
+      `ID_PYM = "${id}"`,
+      'method = "sepa"',
+      "",
+      "[payment.sepa]",
+      'accountOwner = "Account Owner"',
+      'iban = "DE00000000000000000000"',
+      "mandateAccepted = true",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
+}
+
+async function writeBuyingProfile(dir, id, fileName) {
+  await fs.mkdir(dir, { recursive: true });
+  await fs.writeFile(
+    path.join(dir, fileName),
+    [
+      "version = 1",
+      `ID_BUY = "${id}"`,
+      'defaultFare = "super_sparpreis"',
+      'fallbackFares = ["sparpreis", "flexpreis"]',
+      'travelClass = "second"',
+      "continueToCustomerData = true",
+      'bookingFor = "self"',
+      "continueToPaymentBoundary = true",
       "",
     ].join("\n"),
     "utf8",
@@ -282,7 +412,7 @@ async function writeCredential(dir, id, fileName, overrides = {}) {
     path.join(dir, fileName),
     [
       "version = 1",
-      ...(id ? [`ID_CRED = "${id}"`] : []),
+      ...(id ? [`ID_USR = "${id}"`] : []),
       "",
       "[bahnAPI]",
       `clientId = "${overrides.clientId ?? `client-${id}`}"`,
@@ -303,7 +433,7 @@ async function writeProfile(dir, id, fileName, firstName) {
     path.join(dir, fileName),
     [
       "version = 1",
-      `ID_PRF = "${id}"`,
+      `ID_CLM = "${id}"`,
       "",
       "[claimant]",
       'salutation = "FAMILY"',
@@ -318,9 +448,9 @@ async function writeProfile(dir, id, fileName, firstName) {
       'city = "Koeln"',
       'country = "Deutschland"',
       "",
-      "[bank]",
+      "[claimant.bank]",
       'accountOwner = "Maria Mustermann"',
-      'iban = "DE89370400440532013000"',
+      'iban = "fill-iban"',
       "",
     ].join("\n"),
     "utf8",

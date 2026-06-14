@@ -20,10 +20,10 @@ export declare function claimSchemaReference(): {
                     city: string;
                     country: string;
                 };
-            };
-            bank: {
-                accountOwner: string;
-                iban: string;
+                bank: {
+                    accountOwner: string;
+                    iban: string;
+                };
             };
         };
         eligibility: string[];

@@ -29,6 +29,11 @@ export const TICKET_BUYING_TOOL_NAMES = [
 const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SETTINGS_FILE = "settings.yaml";
 const SETTINGS_KEYS = new Set(Object.keys(DEFAULT_FEATURE_SETTINGS));
+const TOOL_FEATURE_SETTINGS = new Map([
+    ...CLAIM_TOOL_NAMES.map((name) => [name, "use_claim_requests"]),
+    ...DELAY_RETRIEVAL_TOOL_NAMES.map((name) => [name, "use_delay_retrieval"]),
+    ...TICKET_BUYING_TOOL_NAMES.map((name) => [name, "use_ticket_buying"]),
+]);
 export function readTopLevelSettings(packageRoot = PACKAGE_ROOT) {
     const settingsPath = path.join(packageRoot, SETTINGS_FILE);
     if (!fs.existsSync(settingsPath)) {
@@ -78,6 +83,19 @@ export function enabledToolNames(settings) {
         }
     }
     return names;
+}
+export function featureSettingForToolName(toolName) {
+    return TOOL_FEATURE_SETTINGS.get(toolName);
+}
+export function featureSettingLabel(setting) {
+    switch (setting) {
+        case "use_claim_requests":
+            return "autonomous claims";
+        case "use_delay_retrieval":
+            return "delay retrieval";
+        case "use_ticket_buying":
+            return "autonomous ticket buying";
+    }
 }
 export function featureSettingsSummary(settings) {
     return {

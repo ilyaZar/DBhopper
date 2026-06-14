@@ -306,8 +306,8 @@ async function fillTicket(page: Page, claim: DBhopperClaim, claimDir: string) {
 }
 
 async function fillBank(page: Page, claim: DBhopperClaim) {
-  await fill(page, "#accountOwner", claim.bank?.accountOwner);
-  await fill(page, "#iban", claim.bank?.iban);
+  await fill(page, "#accountOwner", claim.claimant?.bank?.accountOwner);
+  await fill(page, "#iban", claim.claimant?.bank?.iban);
   await page.waitForTimeout(1500);
 }
 

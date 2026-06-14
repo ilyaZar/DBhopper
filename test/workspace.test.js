@@ -62,7 +62,7 @@ describe("dbhopper workspace", () => {
       path.join(root, "assets", "private", "profiles", "private-profile-01.toml"),
       [
         "version = 1",
-        'ID_PRF = "01"',
+        'ID_CLM = "01"',
         "",
         "[claimant]",
         'salutation = "FAMILY"',
@@ -77,9 +77,9 @@ describe("dbhopper workspace", () => {
         'city = "Koeln"',
         'country = "Deutschland"',
         "",
-        "[bank]",
+        "[claimant.bank]",
         'accountOwner = "Maria Mustermann"',
-        'iban = "DE89370400440532013000"',
+        'iban = "fill-iban"',
         "",
       ].join("\n"),
       "utf8",
@@ -101,7 +101,7 @@ describe("dbhopper workspace", () => {
     );
 
     assert.equal(prepared.claim.claimant.email, "maria@example.org");
-    assert.equal(prepared.claim.bank.iban, "DE89370400440532013000");
+    assert.equal(prepared.claim.claimant.bank.iban, "fill-iban");
     assert.equal(prepared.claim.journey.startStation, "Koeln Hbf");
     const stored = await fs.readFile(path.join(prepared.claimDir, "claim.toml"), "utf8");
     assert.doesNotMatch(stored, /private-profile-01/);
@@ -152,7 +152,7 @@ describe("dbhopper workspace", () => {
       path.join(root, "assets", "private", "profiles", "broken.toml"),
       [
         "version = 1",
-        'ID_PRF = "01"',
+        'ID_CLM = "01"',
         "",
         "[claimant]",
         'salutation = "FAMILY"',
@@ -167,9 +167,9 @@ describe("dbhopper workspace", () => {
         'city = "Koeln"',
         'country = "Deutschland"',
         "",
-        "[bank]",
+        "[claimant.bank]",
         'accountOwner = "Maria Mustermann"',
-        'iban = "DE89370400440532013000"',
+        'iban = "fill-iban"',
         "",
       ].join("\n"),
       "utf8",
@@ -189,7 +189,7 @@ describe("dbhopper workspace", () => {
       path.join(root, "assets", "private", "profiles", "private-profile-01.toml"),
       [
         "version = 1",
-        'ID_PRF = "01"',
+        'ID_CLM = "01"',
         "",
         "[claimant]",
         'salutation = "FAMILY"',
@@ -204,9 +204,9 @@ describe("dbhopper workspace", () => {
         'city = "Koeln"',
         'country = "Deutschland"',
         "",
-        "[bank]",
+        "[claimant.bank]",
         'accountOwner = "Maria Mustermann"',
-        'iban = "DE89370400440532013000"',
+        'iban = "fill-iban"',
         "",
       ].join("\n"),
       "utf8",
@@ -239,8 +239,10 @@ async function writeSettings(root) {
   await fs.writeFile(
     path.join(root, "assets", "private", "settings.toml"),
     [
-      'ID_CRED = "01"',
-      'ID_PRF = "01"',
+      'ID_USR = "01"',
+      'ID_CLM = "01"',
+      'ID_BUY = "01"',
+      'ID_PYM = "01"',
       'PATH_CRED = "assets/private/credentials"',
       'PATH_PRF = "assets/private/profiles"',
       'DELAY_PROVIDER = "bahn-web"',

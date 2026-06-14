@@ -1,5 +1,67 @@
 # DBhopper TODO
 
+## Publishing readiness
+
+Current release decision:
+
+- The checks in this section are currently resolved for a publish attempt,
+  subject to owner release approval, final package file-list inspection, and a
+  clean intentional git state.
+
+Resolved in this branch:
+
+- OpenClaw now registers the full public tool contract and enforces
+  `settings.yaml` feature gates at execution time. Disabled claim and
+  ticket-buying tools return `feature_disabled` instead of being omitted from
+  `openclaw.plugin.json`.
+- `package.json` declares ClawHub install metadata:
+  `clawhub:dbhopper`, default source `clawhub`, and host floor
+  `>=2026.6.2`.
+- The selected official DB Timetables technical credentials probed
+  successfully on 2026-06-13 with HTTP 200 and diagnosis `accepted`.
+- `npm run test:live:delay-backends` passed on 2026-06-13 with 50 web
+  successes, 47 official API successes, and 425 matched user-visible rows.
+- ClawHub validator passed with zero breakages and zero warnings, and the
+  ClawHub publish dry-run completed without publishing.
+- Ticket-buying tools remain feature-gated, testing-only, and dry-run bounded.
+
+Blocking issues found by the current checks:
+
+- None.
+
+Release cautions to keep visible:
+
+- Ticket buying is still intentionally non-purchase-capable. Keep it
+  feature-gated and documented as testing-only before broad publication.
+- `bahn-web` uses an unofficial passenger website endpoint. It remains the
+  default because it works without technical API credentials, but it may change
+  or block non-browser clients.
+
+Required local gates before a publish attempt:
+
+```bash
+npm test
+npm run package:check
+npm pack --dry-run --json --ignore-scripts
+npm run plugin:build
+npm run plugin:validate
+npm run clawhub:validate
+npm run clawhub:publish:dry-run
+```
+
+Also inspect the dry-run package file list manually. It must exclude real
+`claims/*`, `assets/private/*`, browser profiles, credentials, claim PDFs,
+runtime `tmp/*`, generated ClawHub reports, and this `TODO.md`.
+
+Security and release evidence to capture:
+
+- `npm audit --omit=dev --audit-level=high`
+- ClawHub validator output with zero hard breakages.
+- ClawHub security evidence via `oc-clawhub-security-capture` once an exact
+  version exists on ClawHub or when validating a published scanner result.
+- A clean git state containing only intentional source, manifest, dist, docs,
+  and test updates.
+
 ## Delay lookup live data source
 
 Current official-provider state:
@@ -55,21 +117,24 @@ Implemented passenger website alternative:
 
 Live verification notes:
 
-- bahn-web fallback worked via deterministic browser-context JSON fetch.
-- Ticket checkout dry-run reached a safe stop and did not buy anything.
-- 2026-06-12 direct Timetables API probe still returned
-  `401 Invalid client id or secret` with populated selected `[bahnAPI]`
-  fields. Browser Marketplace login remains separate from API-key validity.
-- API probe and query failures now classify this as
+- 2026-06-13 direct Timetables API probe returned HTTP 200 with populated
+  selected `[bahnAPI]` fields. Browser Marketplace login remains separate from
+  API-key validity.
+- 2026-06-13 live backend parity passed with 50 route probes, 47 official API
+  successes, 50 `bahn-web` successes, 425 matched user-visible rows, failed
+  API probe IDs `p035`, `p038`, and `p039`, and no failed web probes.
+- Invalid API probe and query failures still classify DB 401 responses as
   `invalid_client_id_or_secret` and return next checks for `[bahnAPI]`
   `clientId`, `[bahnAPI]` `apiKey`, selected settings ID, and the Timetables
   subscription on the same Marketplace application.
+- The configured default remains `DELAY_PROVIDER = "bahn-web"` with
+  `DELAY_FALLBACK = "none"` because the passenger website provider works
+  without technical API credentials and is the safer default for local use.
+- Ticket checkout dry-run reached a safe stop and did not buy anything.
 - Fixture parity now verifies that Timetables and `bahn-web` provider parsers
   feed the same normalized `Journey[]` data shape into the shared filters.
 - `runDbDelayProviderParityProbe` can run both providers for the same query and
-  compare cleaned `table_rows` once official API credentials work. It is not a
-  separate user-facing OpenClaw tool.
-- The current live parity probe reports `api_ready: false`, `web_ready: true`.
+  compare cleaned `table_rows`. It is not a separate user-facing OpenClaw tool.
 
 Follow-up work:
 
@@ -91,11 +156,6 @@ Follow-up work:
    - trains crossing midnight
 5. Re-check current DB docs before broad publication because these APIs and
    access rules are time-sensitive.
-6. Investigate the current official Timetables 401 result. The direct DB
-   Timetables API probe returned `401 Invalid client id or secret`, so official
-   API delay lookup remains blocked until valid Marketplace
-   credentials/subscription are configured.
-7. Do not publish/upload to ClawHub yet.
 
 DB Navigator app comparison:
 
@@ -126,10 +186,10 @@ Current storage:
 
 Current consumers:
 
-- `dbhopper_private_settings_status` lists available `ID_CRED` and `ID_PRF`
-  values and flags missing selected IDs.
-- `dbhopper_private_settings_select` updates only `ID_CRED` and `ID_PRF`; it
-  does not accept path fields.
+- `dbhopper_private_settings_status` lists available `ID_USR`, `ID_CLM`,
+  `ID_BUY`, and `ID_PYM` values and flags missing selected IDs.
+- `dbhopper_private_settings_select` updates only `ID_USR`, `ID_CLM`,
+  `ID_BUY`, and `ID_PYM`; it does not accept path fields.
 - `dbhopper_query_db_delay` can load `[bahnAPI]` for DB Timetables credentials.
 - `dbhopper_db_api_credential_probe` can probe `[bahnAPI]` without returning
   secrets.
@@ -193,9 +253,8 @@ Follow-up work:
 
 1. Add controlled offer selection for a replacement train after
    `dbhopper_query_db_delay` has found the ICE/IC/EC candidate.
-2. Investigate whether reaching the last pre-order screen requires entering
-   payment data; keep payment data out of DBhopper until a separate safety
-   design exists.
+2. Keep payment profile data private, redacted from tool output, and out of
+   browser-run artifacts after fields are filled.
 3. Add an explicit confirmation gate before any future purchase-capable step.
 
 ## Local claim files
