@@ -19,14 +19,14 @@ North Rhine-Westphalia.
 4. Route claim profiles, buying profiles, credentials, and payment profiles
    through `assets/private/settings.toml`. Use
    `dbhopper_private_settings_status` to list IDs and
-   `dbhopper_private_settings_select` to change only `ID_USR`, `ID_CLM`,
-   `ID_BUY`, `ID_PYM`, and `TICKET_BUYING_MODE`.
+   `dbhopper_private_settings_select` to change only `id_usr`, `id_clm`,
+   `id_buy`, `id_pym`, and `ticket_buying_mode`.
 5. Put reusable sensitive personal data in claim profile TOML files selected by
-   `ID_CLM`; do not read those files into the conversation.
+   `id_clm`; do not read those files into the conversation.
 6. Put DB API and DB website credentials in private credential TOML files
-   selected by `ID_USR`; do not read those files into the conversation.
+   selected by `id_usr`; do not read those files into the conversation.
 7. Put payment details in private payment profile TOML files selected by
-   `ID_PYM`; do not read those files into the conversation.
+   `id_pym`; do not read those files into the conversation.
 8. Browser-run artifacts are saved under the configured ignored artifact
    directory. Inspect screenshots there before asking for real submission.
 
@@ -58,7 +58,7 @@ North Rhine-Westphalia.
    `dbhopper_ticket_checkout_dry_run` to explore checkout boundaries. These
    tools must not buy a ticket. In default review mode, checkout runs stop on
    DB's Check page and return a sensitive screenshot artifact for user review.
-   If `TICKET_BUYING_MODE` is `auto`, expect `buying_not_enabled` until final
+   If `ticket_buying_mode` is `auto`, expect `buying_not_enabled` until final
    purchase-capable automation is deliberately implemented.
 
 ## Guardrails
@@ -77,7 +77,7 @@ North Rhine-Westphalia.
 - Do not inspect credential or payment TOML files unless the user explicitly
   asks. Use `dbhopper_credentials_validate` for shape checks without exposing
   secrets.
-- Do not change `PATH_CRED` or `PATH_PRF`; those paths are user-owned settings.
+- Do not change `path_cred` or `path_prf`; those paths are user-owned settings.
 - If the live site asks for unexpected manual confirmation, captcha, changed
   fields, or unavailable route choices, stop and report the saved artifact path.
 - Do not click final booking or payment controls in the ticket-buying flow.

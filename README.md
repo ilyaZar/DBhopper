@@ -59,29 +59,29 @@ use_delay_retrieval: true
 The default provider is controlled in `assets/private/settings.toml`:
 
 ```toml
-ID_USR = "01"
-ID_CLM = "01"
-ID_BUY = "01"
-ID_PYM = "01"
-TICKET_BUYING_MODE = "review"
-PATH_CRED = "assets/private/credentials"
-PATH_PRF = "assets/private/profiles"
-DELAY_PROVIDER = "bahn-web"
-DELAY_FALLBACK = "none"
+id_usr = "01"
+id_clm = "01"
+id_buy = "01"
+id_pym = "01"
+ticket_buying_mode = "review"
+path_cred = "assets/private/credentials"
+path_prf = "assets/private/profiles"
+delay_provider = "bahn-web"
+delay_fallback = "none"
 ```
 
 `bahn-web` uses Deutsche Bahn passenger website JSON retrieval and works without
 DB API Marketplace credentials. It is deterministic after retrieval, but the
 website endpoint is unofficial and may change.
 
-To change the default delay provider, edit `DELAY_PROVIDER` in
+To change the default delay provider, edit `delay_provider` in
 `assets/private/settings.toml`. Supported values are `"bahn-web"`,
-`"db-timetables"`, and `"auto"`. Keep `DELAY_FALLBACK = "none"` unless the
+`"db-timetables"`, and `"auto"`. Keep `delay_fallback = "none"` unless the
 agent should automatically retry with the other provider after a provider
 failure.
 
 For the official provider, create a DB API Marketplace application, subscribe
-it to the Timetables product, and put the technical credentials in `[bahnAPI]`
+it to the Timetables product, and put the technical credentials in `[bahn_api]`
 of the selected credential TOML file.
 
 1. Register and log in at
@@ -100,9 +100,9 @@ of the selected credential TOML file.
    "Client Secret (API KEY)" into the selected credentials file:
 
    ```toml
-   [bahnAPI]
-   clientId = "..."
-   apiKey = "..."
+   [bahn_api]
+   client_id = "..."
+   api_key = "..."
    ```
 
 5. Use "Produktsuche" or "Katalog auswählen", search for `Timetable`, choose
@@ -129,9 +129,9 @@ successful submit writes `claim_submitted_recipe.toml` next to the downloaded
 confirmation PDF as the joined audit recipe.
 
 Use `assets/private/settings.toml` to select the claim profile and credential
-IDs used for claim filing. `PATH_CRED` and `PATH_PRF` may be
-relative to the plugin directory or absolute paths in the user file system.
-Claim filing uses `ID_CLM` from the shared profiles directory.
+IDs used for claim filing. `path_cred` and `path_prf` may be relative to the
+plugin directory or absolute paths in the user file system. Claim filing uses
+`id_clm` from the shared profiles directory.
 The `assets/private/settings.toml` file itself always stays in that fixed
 location.
 
@@ -146,16 +146,17 @@ use_ticket_buying: true
 Ticket buying uses the selected private IDs from
 `assets/private/settings.toml`:
 
-- `ID_USR`: Bahn account credentials and browser profile.
-- `ID_BUY`: fare, class, and customer-data choices.
-- `ID_PYM`: payment method and fillable payment fields.
-- `TICKET_BUYING_MODE`: final Check-page behavior.
+- `id_usr`: Bahn account credentials and browser profile.
+- `id_buy`: fare, class, and customer-data choices.
+- `id_pym`: payment method and fillable payment fields.
+- `ticket_buying_mode`: final Check-page behavior.
 
-`TICKET_BUYING_MODE = "review"` is the default. Checkout may fill the configured
-forms and reach DB's final Check page, then it saves a sensitive screenshot
-artifact for user inspection and stops before any final order control.
+`ticket_buying_mode = "review"` is the default. Checkout may fill the
+configured forms and reach DB's final Check page, then it saves a sensitive
+screenshot artifact for user inspection and stops before any final order
+control.
 
-`TICKET_BUYING_MODE = "auto"` records that automatic buying was requested, but
+`ticket_buying_mode = "auto"` records that automatic buying was requested, but
 final buying is not enabled yet. The tool still stops with
 `buying_not_enabled` before the final order button.
 

@@ -65,9 +65,9 @@ in `docs/testing_ecosystem.md`.
 
 1. Decide the policy and user-confirmation shape for final purchase-capable
    automation.
-2. Implement final buying only after that policy exists; `TICKET_BUYING_MODE =
-   "auto"` currently records intent but still stops before final order
-   controls.
+2. Implement final buying only after that policy exists;
+   `ticket_buying_mode = "auto"` currently records intent but still stops
+   before final order controls.
 3. Keep payment profile data private, redacted from tool output, and out of
    browser-run text artifacts after fields are filled.
 
