@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseToml } from "./toml.js";
+import { normalizeTomlKeys, parseToml } from "./toml.js";
 import { validationError, validationErrorFromException, } from "./validation-messages.js";
 const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SETTINGS_RELATIVE_PATH = path.join("assets", "private", "settings.toml");
@@ -19,11 +19,25 @@ const SETTINGS_KEYS = new Set([
     "DELAY_PROVIDER",
     "DELAY_FALLBACK",
 ]);
-const SETTINGS_KEY_ALIASES = new Set([
-    ...SETTINGS_KEYS,
-    "ticket_buying_mode",
-    "buying_mode",
-]);
+const PRIVATE_ID_ALIASES = {
+    "": {
+        id_usr: "ID_USR",
+        id_clm: "ID_CLM",
+        id_buy: "ID_BUY",
+        id_pym: "ID_PYM",
+    },
+};
+const PRIVATE_SETTINGS_ALIASES = {
+    "": {
+        ...PRIVATE_ID_ALIASES[""],
+        ticket_buying_mode: "TICKET_BUYING_MODE",
+        buying_mode: "TICKET_BUYING_MODE",
+        path_cred: "PATH_CRED",
+        path_prf: "PATH_PRF",
+        delay_provider: "DELAY_PROVIDER",
+        delay_fallback: "DELAY_FALLBACK",
+    },
+};
 const DELAY_PROVIDER_VALUES = new Set(["auto", "db-timetables", "bahn-web"]);
 const DELAY_FALLBACK_VALUES = new Set(["none", "db-timetables", "bahn-web"]);
 const TICKET_BUYING_MODE_VALUES = new Set(["review", "auto"]);
@@ -72,15 +86,15 @@ export function parsePrivateSettingsToml(text, source = "settings.toml") {
 }
 export function stringifyPrivateSettingsToml(settings) {
     return [
-        `ID_USR = ${tomlString(settings.ID_USR)}`,
-        `ID_CLM = ${tomlString(settings.ID_CLM)}`,
-        `ID_BUY = ${tomlString(settings.ID_BUY)}`,
-        `ID_PYM = ${tomlString(settings.ID_PYM)}`,
-        `TICKET_BUYING_MODE = ${tomlString(settings.TICKET_BUYING_MODE)}`,
-        `PATH_CRED = ${tomlString(settings.PATH_CRED)}`,
-        `PATH_PRF = ${tomlString(settings.PATH_PRF)}`,
-        `DELAY_PROVIDER = ${tomlString(settings.DELAY_PROVIDER)}`,
-        `DELAY_FALLBACK = ${tomlString(settings.DELAY_FALLBACK)}`,
+        `id_usr = ${tomlString(settings.ID_USR)}`,
+        `id_clm = ${tomlString(settings.ID_CLM)}`,
+        `id_buy = ${tomlString(settings.ID_BUY)}`,
+        `id_pym = ${tomlString(settings.ID_PYM)}`,
+        `ticket_buying_mode = ${tomlString(settings.TICKET_BUYING_MODE)}`,
+        `path_cred = ${tomlString(settings.PATH_CRED)}`,
+        `path_prf = ${tomlString(settings.PATH_PRF)}`,
+        `delay_provider = ${tomlString(settings.DELAY_PROVIDER)}`,
+        `delay_fallback = ${tomlString(settings.DELAY_FALLBACK)}`,
         "",
     ].join("\n");
 }
@@ -278,20 +292,18 @@ function resolveConfiguredPath(config, value) {
         : path.resolve(workspaceRoot(config), value);
 }
 function normalizePrivateSettings(value, source) {
-    assertTable(value, source);
-    const table = value;
+    const normalizedValue = normalizeTomlKeys(value, source, PRIVATE_SETTINGS_ALIASES);
+    assertTable(normalizedValue, source);
+    const table = normalizedValue;
     for (const key of Object.keys(table)) {
-        if (!SETTINGS_KEY_ALIASES.has(key)) {
+        if (!SETTINGS_KEYS.has(key)) {
             throw new Error(`${source}.${key} is not a supported field`);
         }
     }
-    const ticketBuyingMode = ticketBuyingModeFromSettings(table, source);
     const normalized = {
         ...table,
-        TICKET_BUYING_MODE: ticketBuyingMode,
+        TICKET_BUYING_MODE: table.TICKET_BUYING_MODE ?? "review",
     };
-    delete normalized.ticket_buying_mode;
-    delete normalized.buying_mode;
     assertPrivateSettingsShape(normalized, source);
     return normalized;
 }
@@ -321,26 +333,6 @@ function assertPrivateSettingsShape(value, source) {
     assertOneOf(value.TICKET_BUYING_MODE, TICKET_BUYING_MODE_VALUES, `${source}.TICKET_BUYING_MODE`);
     assertOneOf(value.DELAY_PROVIDER, DELAY_PROVIDER_VALUES, `${source}.DELAY_PROVIDER`);
     assertOneOf(value.DELAY_FALLBACK, DELAY_FALLBACK_VALUES, `${source}.DELAY_FALLBACK`);
-}
-function ticketBuyingModeFromSettings(value, source) {
-    const entries = [
-        ["TICKET_BUYING_MODE", value.TICKET_BUYING_MODE],
-        ["ticket_buying_mode", value.ticket_buying_mode],
-        ["buying_mode", value.buying_mode],
-    ].filter((entry) => entry[1] !== undefined);
-    if (entries.length === 0) {
-        return "review";
-    }
-    for (const [key, entry] of entries) {
-        assertString(entry, `${source}.${key}`);
-        normalizeTicketBuyingMode(entry, `${source}.${key}`);
-    }
-    const normalized = entries.map(([, entry]) => entry);
-    const first = normalized[0];
-    if (normalized.some((entry) => entry !== first)) {
-        throw new Error(`${source}.TICKET_BUYING_MODE aliases must not disagree`);
-    }
-    return first;
 }
 function normalizeTicketBuyingMode(value, source) {
     assertOneOf(value, TICKET_BUYING_MODE_VALUES, source);
@@ -429,7 +421,7 @@ function duplicateIds(items) {
     return [...duplicates.values()];
 }
 function parseIdDocument(text, source) {
-    const parsed = parseToml(text, source);
+    const parsed = normalizeTomlKeys(parseToml(text, source), source, PRIVATE_ID_ALIASES);
     assertTable(parsed, source);
     return parsed;
 }
