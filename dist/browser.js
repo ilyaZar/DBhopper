@@ -250,8 +250,8 @@ async function fillTicket(page, claim, claimDir) {
     }
 }
 async function fillBank(page, claim) {
-    await fill(page, "#accountOwner", claim.bank?.accountOwner);
-    await fill(page, "#iban", claim.bank?.iban);
+    await fill(page, "#accountOwner", claim.claimant?.bank?.accountOwner);
+    await fill(page, "#iban", claim.claimant?.bank?.iban);
     await page.waitForTimeout(1500);
 }
 async function submitAndDownload(page, claimDir) {

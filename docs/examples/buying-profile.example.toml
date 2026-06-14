@@ -1,0 +1,9 @@
+version = 1
+ID_BUY = "01"
+
+defaultFare = "super_sparpreis"
+fallbackFares = ["sparpreis", "flexpreis", "cheapest_available"]
+travelClass = "second"
+continueToCustomerData = true
+bookingFor = "self"
+continueToPaymentBoundary = true

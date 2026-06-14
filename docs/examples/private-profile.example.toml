@@ -1,5 +1,5 @@
 version = 1
-ID_PRF = "01"
+ID_CLM = "01"
 
 [claimant]
 salutation = "FAMILY"
@@ -14,6 +14,6 @@ zip = "50667"
 city = "Koeln"
 country = "Deutschland"
 
-[bank]
+[claimant.bank]
 accountOwner = "Maria Mustermann"
-iban = "DE89370400440532013000"
+iban = "fill-iban"

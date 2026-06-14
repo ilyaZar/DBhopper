@@ -21,7 +21,7 @@ describe("dbhopper credentials", () => {
       path.join(credentialsDir, "credentials-01.toml"),
       [
         "version = 1",
-        'ID_CRED = "01"',
+        'ID_USR = "01"',
         "",
         "[bahnAPI]",
         'clientId = "client-secret-value"',
@@ -87,7 +87,7 @@ describe("dbhopper credentials", () => {
   it("flags PATH_CRED when credentials validation sees a file", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-creds-path-"));
     const credentialsFile = path.join(root, "credentials-as-file.toml");
-    await fs.writeFile(credentialsFile, 'ID_CRED = "01"\n', "utf8");
+    await fs.writeFile(credentialsFile, 'ID_USR = "01"\n', "utf8");
     await writeSettings(root, credentialsFile);
 
     const result = await validateCredentialsFiles({ workspaceRoot: root });
@@ -106,8 +106,10 @@ async function writeSettings(root, credentialsPath = "assets/private/credentials
   await fs.writeFile(
     path.join(root, "assets", "private", "settings.toml"),
     [
-      'ID_CRED = "01"',
-      'ID_PRF = "01"',
+      'ID_USR = "01"',
+      'ID_CLM = "01"',
+      'ID_BUY = "01"',
+      'ID_PYM = "01"',
       `PATH_CRED = "${credentialsPath}"`,
       'PATH_PRF = "assets/private/profiles"',
       'DELAY_PROVIDER = "bahn-web"',

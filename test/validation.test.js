@@ -17,6 +17,10 @@ function validClaim() {
         city: "Koeln",
         country: "Deutschland",
       },
+      bank: {
+        accountOwner: "Maria Mustermann",
+        iban: "fill-iban",
+      },
     },
     journey: {
       date: "2026-06-06",
@@ -37,10 +41,6 @@ function validClaim() {
       tariffArea: "NRW-Tarif",
       substituteType: "long_distance",
       substituteCost: 12.5,
-    },
-    bank: {
-      accountOwner: "Maria Mustermann",
-      iban: "DE89370400440532013000",
     },
     files: [
       { role: "base_ticket", path: "ticket.pdf" },

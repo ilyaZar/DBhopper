@@ -2,7 +2,9 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertClaimTomlShape, mergeClaims, parseClaimToml, parsePrivateProfileToml, profileFieldsInClaim, schemaValidationMessages, stringifyClaimToml, stringifySubmittedRecipeToml, } from "./claim-toml.js";
-import { configuredProfilesDir, listProfileIdFiles, privateSettingsStatus, resolveSelectedProfileFile, } from "./private-settings.js";
+import { configuredProfilesDir, listBuyingProfileIdFiles, listClaimProfileIdFiles, listPaymentProfileIdFiles, privateSettingsStatus, resolveSelectedClaimProfileFile, } from "./private-settings.js";
+import { parseBuyingProfileToml, schemaValidationMessagesForBuyingProfile, } from "./buying-profile.js";
+import { parsePaymentProfileToml, schemaValidationMessagesForPaymentProfile, } from "./payment-profile.js";
 const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CLAIM_ID_MAX = 80;
 export function resolveWorkspace(config = {}) {
@@ -194,7 +196,7 @@ export async function validateWorkspaceTomlFiles(config = {}) {
     if (settingsStatus.settings.exists) {
         messages.push(...settingsStatus.messages);
     }
-    const routedProfiles = await listProfileIdFiles(config);
+    const routedProfiles = await listClaimProfileIdFiles(config);
     for (const profileFile of routedProfiles.items) {
         try {
             const parsed = parsePrivateProfileToml(await fs.readFile(profileFile.filePath, "utf8"), profileFile.filePath);
@@ -203,6 +205,34 @@ export async function validateWorkspaceTomlFiles(config = {}) {
         catch (error) {
             messages.push({
                 code: "invalid_profile_toml",
+                message: error instanceof Error ? error.message : String(error),
+                severity: "error",
+            });
+        }
+    }
+    const routedBuyingProfiles = await listBuyingProfileIdFiles(config);
+    for (const profileFile of routedBuyingProfiles.items) {
+        try {
+            const parsed = parseBuyingProfileToml(await fs.readFile(profileFile.filePath, "utf8"), profileFile.filePath);
+            messages.push(...schemaValidationMessagesForBuyingProfile(parsed, profileFile.filePath));
+        }
+        catch (error) {
+            messages.push({
+                code: "invalid_buying_profile_toml",
+                message: error instanceof Error ? error.message : String(error),
+                severity: "error",
+            });
+        }
+    }
+    const routedPaymentProfiles = await listPaymentProfileIdFiles(config);
+    for (const profileFile of routedPaymentProfiles.items) {
+        try {
+            const parsed = parsePaymentProfileToml(await fs.readFile(profileFile.filePath, "utf8"), profileFile.filePath);
+            messages.push(...schemaValidationMessagesForPaymentProfile(parsed, profileFile.filePath));
+        }
+        catch (error) {
+            messages.push({
+                code: "invalid_payment_profile_toml",
                 message: error instanceof Error ? error.message : String(error),
                 severity: "error",
             });
@@ -276,7 +306,7 @@ function safeFileName(value) {
     return normalized;
 }
 async function resolveProfileSelection(config) {
-    const selected = await resolveSelectedProfileFile(config);
+    const selected = await resolveSelectedClaimProfileFile(config);
     if (!selected) {
         return undefined;
     }
@@ -332,6 +362,6 @@ function materializeClaim(privateProfile, storedClaim, claimId) {
     });
 }
 function stripProfileRoutingFields(profile) {
-    const { ID_PRF: _ID_PRF, ...rest } = profile;
+    const { ID_CLM: _ID_CLM, ...rest } = profile;
     return rest;
 }

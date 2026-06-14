@@ -15,6 +15,10 @@ const FILE_ROLES = [
     "screenshot",
     "other",
 ];
+const bankSchema = object({
+    accountOwner: string(),
+    iban: string(),
+}, ["accountOwner", "iban"]);
 const claimantSchema = object({
     salutation: stringEnum(SALUTATIONS),
     firstName: string(),
@@ -27,11 +31,8 @@ const claimantSchema = object({
         city: string(),
         country: string(),
     }, ["streetNumber", "zip", "city", "country"]),
-}, ["salutation", "firstName", "lastName", "email", "phone", "address"]);
-const bankSchema = object({
-    accountOwner: string(),
-    iban: string(),
-}, ["accountOwner", "iban"]);
+    bank: bankSchema,
+}, ["salutation", "firstName", "lastName", "email", "phone", "address", "bank"]);
 const journeySchema = object({
     date: string(),
     scheduledDepartureTime: string(),
@@ -72,18 +73,17 @@ const baseClaimFields = {
 };
 const claimFileSchema = object(baseClaimFields);
 const privateProfileSchema = object({
-    ID_PRF: string(),
+    ID_CLM: string(),
     version: constant(1),
     claimant: claimantSchema,
-    bank: bankSchema,
-}, ["ID_PRF", "claimant", "bank"]);
+}, ["ID_CLM", "claimant"]);
 export function parseClaimToml(text, source = "claim.toml") {
     return parseTomlDocument(text, claimFileSchema, source);
 }
 export function parsePrivateProfileToml(text, source = "profile.toml") {
     const parsed = parseTomlDocument(text, privateProfileSchema, source);
-    if (parsed.ID_PRF && !/^\d{2,}$/.test(parsed.ID_PRF)) {
-        throw new Error(`${source}.ID_PRF must be a quoted numeric ID like "01"`);
+    if (parsed.ID_CLM && !/^\d{2,}$/.test(parsed.ID_CLM)) {
+        throw new Error(`${source}.ID_CLM must be a quoted numeric ID like "01"`);
     }
     return parsed;
 }
@@ -97,14 +97,14 @@ export function assertClaimTomlShape(claim, source = "claim.toml") {
     assertSchema(claim, claimFileSchema, source);
 }
 function stripPrivateClaimFields(claim) {
-    const { claimant: _claimant, bank: _bank, ...rest } = claim;
+    const { claimant: _claimant, ...rest } = claim;
     return rest;
 }
 export function mergeClaims(base, override) {
     return mergeObjects(base, override);
 }
 export function profileFieldsInClaim(claim) {
-    return ["claimant", "bank"].filter((field) => field in claim);
+    return ["claimant"].filter((field) => field in claim);
 }
 export function schemaValidationMessages(value, kind, source) {
     const schema = kind === "profile" ? privateProfileSchema : claimFileSchema;

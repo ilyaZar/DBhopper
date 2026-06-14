@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { parse } from "smol-toml";
 import { readPrivateSettings, resolveSelectedCredentialFile, } from "./private-settings.js";
+import { parsePaymentProfileToml } from "./payment-profile.js";
 import { resolveWorkspace } from "./workspace.js";
 const CREDENTIALS_DIR = path.join("assets", "private", "credentials");
 export function credentialsDir(config = {}) {
@@ -60,7 +61,13 @@ export async function validateCredentialsFiles(config = {}) {
         }
         const filePath = path.join(dir, entry.name);
         try {
-            parseCredentialsToml(await fs.readFile(filePath, "utf8"), filePath);
+            const raw = await fs.readFile(filePath, "utf8");
+            if (isPaymentProfileToml(raw)) {
+                parsePaymentProfileToml(raw, filePath);
+            }
+            else {
+                parseCredentialsToml(raw, filePath);
+            }
         }
         catch (error) {
             messages.push({
@@ -74,6 +81,18 @@ export async function validateCredentialsFiles(config = {}) {
         ok: messages.every((message) => message.severity !== "error"),
         messages,
     };
+}
+function isPaymentProfileToml(text) {
+    try {
+        const parsed = parse(text);
+        return Boolean(parsed &&
+            typeof parsed === "object" &&
+            !Array.isArray(parsed) &&
+            "ID_PYM" in parsed);
+    }
+    catch {
+        return false;
+    }
 }
 export function applyCredentialsToConfig(config, loaded) {
     const { dbClientId: _dbClientId, dbApiKey: _dbApiKey, ...baseConfig } = config;
@@ -123,7 +142,7 @@ export function parseCredentialsToml(text, source = "credentials.toml") {
 function normalizeCredentials(credentials) {
     return {
         ...credentials,
-        ...(credentials.ID_CRED ? { ID_CRED: credentials.ID_CRED.trim() } : {}),
+        ...(credentials.ID_USR ? { ID_USR: credentials.ID_USR.trim() } : {}),
         ...(credentials.bahnAPI
             ? {
                 bahnAPI: {
@@ -160,7 +179,7 @@ function normalizeCredentials(credentials) {
 function assertCredentialsShape(value, source) {
     assertTable(value, source);
     const allowed = new Set([
-        "ID_CRED",
+        "ID_USR",
         "version",
         "bahnAPI",
         "bahnAccount",
@@ -168,13 +187,13 @@ function assertCredentialsShape(value, source) {
         "browser",
     ]);
     assertKnownKeys(value, allowed, source);
-    if (!("ID_CRED" in value)) {
-        throw new Error(`${source}.ID_CRED is required`);
+    if (!("ID_USR" in value)) {
+        throw new Error(`${source}.ID_USR is required`);
     }
-    const id = value.ID_CRED;
-    assertString(id, `${source}.ID_CRED`);
+    const id = value.ID_USR;
+    assertString(id, `${source}.ID_USR`);
     if (!/^\d{2,}$/.test(id)) {
-        throw new Error(`${source}.ID_CRED must be a quoted numeric ID like "01"`);
+        throw new Error(`${source}.ID_USR must be a quoted numeric ID like "01"`);
     }
     if ("version" in value && value.version !== 1) {
         throw new Error(`${source}.version must be 1`);

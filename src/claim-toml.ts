@@ -41,6 +41,14 @@ const FILE_ROLES = [
   "other",
 ] as const;
 
+const bankSchema: TomlSchema = object(
+  {
+    accountOwner: string(),
+    iban: string(),
+  },
+  ["accountOwner", "iban"],
+);
+
 const claimantSchema: TomlSchema = object(
   {
     salutation: stringEnum(SALUTATIONS),
@@ -57,16 +65,9 @@ const claimantSchema: TomlSchema = object(
       },
       ["streetNumber", "zip", "city", "country"],
     ),
+    bank: bankSchema,
   },
-  ["salutation", "firstName", "lastName", "email", "phone", "address"],
-);
-
-const bankSchema: TomlSchema = object(
-  {
-    accountOwner: string(),
-    iban: string(),
-  },
-  ["accountOwner", "iban"],
+  ["salutation", "firstName", "lastName", "email", "phone", "address", "bank"],
 );
 
 const journeySchema: TomlSchema = object({
@@ -118,12 +119,11 @@ const claimFileSchema = object(baseClaimFields);
 
 const privateProfileSchema = object(
   {
-    ID_PRF: string(),
+    ID_CLM: string(),
     version: constant(1),
     claimant: claimantSchema,
-    bank: bankSchema,
   },
-  ["ID_PRF", "claimant", "bank"],
+  ["ID_CLM", "claimant"],
 );
 
 export function parseClaimToml(text: string, source = "claim.toml") {
@@ -132,8 +132,8 @@ export function parseClaimToml(text: string, source = "claim.toml") {
 
 export function parsePrivateProfileToml(text: string, source = "profile.toml") {
   const parsed = parseTomlDocument(text, privateProfileSchema, source) as DBhopperClaim;
-  if (parsed.ID_PRF && !/^\d{2,}$/.test(parsed.ID_PRF)) {
-    throw new Error(`${source}.ID_PRF must be a quoted numeric ID like "01"`);
+  if (parsed.ID_CLM && !/^\d{2,}$/.test(parsed.ID_CLM)) {
+    throw new Error(`${source}.ID_CLM must be a quoted numeric ID like "01"`);
   }
   return parsed;
 }
@@ -151,7 +151,7 @@ export function assertClaimTomlShape(claim: DBhopperClaim, source = "claim.toml"
 }
 
 function stripPrivateClaimFields(claim: DBhopperClaim): DBhopperClaim {
-  const { claimant: _claimant, bank: _bank, ...rest } = claim;
+  const { claimant: _claimant, ...rest } = claim;
   return rest;
 }
 
@@ -160,7 +160,7 @@ export function mergeClaims(base: DBhopperClaim, override: DBhopperClaim): DBhop
 }
 
 export function profileFieldsInClaim(claim: DBhopperClaim) {
-  return ["claimant", "bank"].filter((field) => field in claim);
+  return ["claimant"].filter((field) => field in claim);
 }
 
 export function schemaValidationMessages(
