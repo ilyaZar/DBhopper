@@ -31,6 +31,7 @@ import {
   normalizeUiDateComparable,
   normalizeUiText,
 } from "./normalization.js";
+import { errorMessage } from "./errors.js";
 import {
   readPrivateSettings,
   type DBhopperTicketBuyingMode,
@@ -319,7 +320,7 @@ export async function runTicketBuyingDryRun(
       stage,
       purchaseSubmitted: false,
       needsUserAction: true,
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
       credentials: credentialsSummary(loadedCredentials),
       research: TICKET_BUYING_RESEARCH_SUMMARY,
     };
@@ -392,7 +393,7 @@ export async function runTicketCheckoutDryRun(
       purchaseSubmitted: false,
       finalSafetyStop: "blocked",
       needsUserAction: true,
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
       credentials: credentialsSummary(loadedCredentials),
       buyingProfile: buyingProfileSummary(loadedBuyingProfile),
       paymentProfile: paymentProfileSummary(loadedPaymentProfile),
@@ -558,7 +559,6 @@ async function runBrowserTicketSearch(
   let context: BrowserContext | undefined;
   let page: Page | undefined;
   let stage = "open_home";
-  let paymentProfileTouched = false;
 
   try {
     const browserSession = await openTicketBrowserSession(
@@ -647,7 +647,7 @@ async function runBrowserTicketSearch(
       stage,
       purchaseSubmitted: false,
       needsUserAction: true,
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
       credentials: credentialsSummary(loadedCredentials),
       plan,
       browserResult: {
@@ -866,7 +866,7 @@ async function runBrowserTicketCheckout(
       purchaseSubmitted: false,
       finalSafetyStop: "blocked",
       needsUserAction: true,
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
       credentials: credentialsSummary(loadedCredentials),
       buyingProfile: buyingProfileSummary(loadedBuyingProfile),
       paymentProfile: paymentProfileSummary(loadedPaymentProfile),
@@ -1684,6 +1684,20 @@ async function fillPaymentProfileAtBoundary(
   const matchedFields: string[] = [];
   const mismatchedFields: string[] = [];
   const missingFields: string[] = [];
+  const recordPaymentField = (
+    fieldName: string,
+    result: PaymentFieldResult,
+  ) => {
+    if (result === "filled") {
+      filledFields.push(fieldName);
+    } else if (result === "matched") {
+      matchedFields.push(fieldName);
+    } else if (result === "mismatched") {
+      mismatchedFields.push(fieldName);
+    } else {
+      missingFields.push(fieldName);
+    }
+  };
 
   if (paymentProfile.method === "sepa") {
     const sepa = paymentProfile.payment?.sepa;
@@ -1692,13 +1706,9 @@ async function fillPaymentProfileAtBoundary(
       !(await sepaPaymentFormVisible(page));
 
     if (useSavedSepa) {
-      recordPaymentFieldResult(
+      recordPaymentField(
         "sepa.savedPaymentMethod",
         savedSepaResult === "matched" ? "matched" : "missing",
-        filledFields,
-        matchedFields,
-        mismatchedFields,
-        missingFields,
       );
     } else if (sepa?.accountOwner) {
       const result = await verifyPaymentInput(
@@ -1720,14 +1730,7 @@ async function fillPaymentProfileAtBoundary(
         ],
         sepa.accountOwner,
       );
-      recordPaymentFieldResult(
-        "sepa.accountOwner",
-        result,
-        filledFields,
-        matchedFields,
-        mismatchedFields,
-        missingFields,
-      );
+      recordPaymentField("sepa.accountOwner", result);
     } else {
       missingFields.push("sepa.accountOwner");
     }
@@ -1743,14 +1746,7 @@ async function fillPaymentProfileAtBoundary(
         sepa.iban,
         { normalize: normalizeIban },
       );
-      recordPaymentFieldResult(
-        "sepa.iban",
-        result,
-        filledFields,
-        matchedFields,
-        mismatchedFields,
-        missingFields,
-      );
+      recordPaymentField("sepa.iban", result);
     } else if (!useSavedSepa) {
       missingFields.push("sepa.iban");
     }
@@ -1767,14 +1763,7 @@ async function fillPaymentProfileAtBoundary(
         formatPaymentBirthdateForDbUi(sepa.birthdate),
         { normalize: normalizeUiDateComparable },
       );
-      recordPaymentFieldResult(
-        "sepa.birthdate",
-        result,
-        filledFields,
-        matchedFields,
-        mismatchedFields,
-        missingFields,
-      );
+      recordPaymentField("sepa.birthdate", result);
     }
     if (!useSavedSepa && sepa?.address?.streetNumber) {
       const result = await fillPaymentInput(
@@ -1795,14 +1784,7 @@ async function fillPaymentProfileAtBoundary(
         ],
         sepa.address.streetNumber,
       );
-      recordPaymentFieldResult(
-        "sepa.address.streetNumber",
-        result,
-        filledFields,
-        matchedFields,
-        mismatchedFields,
-        missingFields,
-      );
+      recordPaymentField("sepa.address.streetNumber", result);
     }
     if (!useSavedSepa && sepa?.address?.additionalInfo) {
       const result = await fillPaymentInput(
@@ -1823,14 +1805,7 @@ async function fillPaymentProfileAtBoundary(
         ],
         sepa.address.additionalInfo,
       );
-      recordPaymentFieldResult(
-        "sepa.address.additionalInfo",
-        result,
-        filledFields,
-        matchedFields,
-        mismatchedFields,
-        missingFields,
-      );
+      recordPaymentField("sepa.address.additionalInfo", result);
     }
     if (!useSavedSepa && sepa?.address?.zip) {
       const result = await fillPaymentInput(
@@ -1846,14 +1821,7 @@ async function fillPaymentProfileAtBoundary(
         ],
         sepa.address.zip,
       );
-      recordPaymentFieldResult(
-        "sepa.address.zip",
-        result,
-        filledFields,
-        matchedFields,
-        mismatchedFields,
-        missingFields,
-      );
+      recordPaymentField("sepa.address.zip", result);
     }
     if (!useSavedSepa && sepa?.address?.city) {
       const result = await fillPaymentInput(
@@ -1871,14 +1839,7 @@ async function fillPaymentProfileAtBoundary(
         ],
         sepa.address.city,
       );
-      recordPaymentFieldResult(
-        "sepa.address.city",
-        result,
-        filledFields,
-        matchedFields,
-        mismatchedFields,
-        missingFields,
-      );
+      recordPaymentField("sepa.address.city", result);
     }
     if (!useSavedSepa && sepa?.address?.country) {
       const result = await fillPaymentInput(
@@ -1897,14 +1858,7 @@ async function fillPaymentProfileAtBoundary(
         sepa.address.country,
         { normalize: normalizeCountry },
       );
-      recordPaymentFieldResult(
-        "sepa.address.country",
-        result,
-        filledFields,
-        matchedFields,
-        mismatchedFields,
-        missingFields,
-      );
+      recordPaymentField("sepa.address.country", result);
     }
     if (!useSavedSepa && sepa?.mandateAccepted === true) {
       const result = await clickPaymentCheckbox(page, [
@@ -1916,14 +1870,7 @@ async function fillPaymentProfileAtBoundary(
         /einzugsermaechtigung/i,
         /einzugsermächtigung/i,
       ]);
-      recordPaymentFieldResult(
-        "sepa.mandateAccepted",
-        result,
-        filledFields,
-        matchedFields,
-        mismatchedFields,
-        missingFields,
-      );
+      recordPaymentField("sepa.mandateAccepted", result);
     }
     if (!useSavedSepa && sepa?.saveAsPreferred === true) {
       const result = await clickPaymentCheckbox(page, [
@@ -1931,14 +1878,7 @@ async function fillPaymentProfileAtBoundary(
         /preferred\s+payment/i,
         /bevorzugte.*zahlung/i,
       ]);
-      recordPaymentFieldResult(
-        "sepa.saveAsPreferred",
-        result,
-        filledFields,
-        matchedFields,
-        mismatchedFields,
-        missingFields,
-      );
+      recordPaymentField("sepa.saveAsPreferred", result);
     }
   }
 
@@ -1956,14 +1896,7 @@ async function fillPaymentProfileAtBoundary(
         ],
         card.cardholderName,
       );
-      recordPaymentFieldResult(
-        "card.cardholderName",
-        result,
-        filledFields,
-        matchedFields,
-        mismatchedFields,
-        missingFields,
-      );
+      recordPaymentField("card.cardholderName", result);
     } else {
       missingFields.push("card.cardholderName");
     }
@@ -1980,14 +1913,7 @@ async function fillPaymentProfileAtBoundary(
         card.cardNumber,
         { normalize: normalizeCardNumber },
       );
-      recordPaymentFieldResult(
-        "card.cardNumber",
-        result,
-        filledFields,
-        matchedFields,
-        mismatchedFields,
-        missingFields,
-      );
+      recordPaymentField("card.cardNumber", result);
     } else {
       missingFields.push("card.cardNumber");
     }
@@ -1998,14 +1924,7 @@ async function fillPaymentProfileAtBoundary(
         ['input[name*="expir" i]', 'input[id*="expir" i]'],
         card.expiryMonth,
       );
-      recordPaymentFieldResult(
-        "card.expiryMonth",
-        result,
-        filledFields,
-        matchedFields,
-        mismatchedFields,
-        missingFields,
-      );
+      recordPaymentField("card.expiryMonth", result);
     }
     if (card?.expiryYear) {
       const result = await fillPaymentInput(
@@ -2014,14 +1933,7 @@ async function fillPaymentProfileAtBoundary(
         ['input[name*="expir" i]', 'input[id*="expir" i]'],
         card.expiryYear,
       );
-      recordPaymentFieldResult(
-        "card.expiryYear",
-        result,
-        filledFields,
-        matchedFields,
-        mismatchedFields,
-        missingFields,
-      );
+      recordPaymentField("card.expiryYear", result);
     }
   }
 
@@ -2547,25 +2459,6 @@ interface PaymentFillOptions {
   normalize?: (value: string) => string;
 }
 
-function recordPaymentFieldResult(
-  fieldName: string,
-  result: PaymentFieldResult,
-  filledFields: string[],
-  matchedFields: string[],
-  mismatchedFields: string[],
-  missingFields: string[],
-) {
-  if (result === "filled") {
-    filledFields.push(fieldName);
-  } else if (result === "matched") {
-    matchedFields.push(fieldName);
-  } else if (result === "mismatched") {
-    mismatchedFields.push(fieldName);
-  } else {
-    missingFields.push(fieldName);
-  }
-}
-
 function paymentFieldWarnings(mismatchedFields: string[]): PaymentFieldWarning[] {
   return mismatchedFields.map((field) => ({
     code: "db_account_identity_mismatch",
@@ -2770,27 +2663,22 @@ async function stopAfterFareSelection(
   },
 ) {
   const boundary = await detectCheckoutBoundary(page);
+  const resultState = checkoutResultState(
+    boundary,
+    selectedJourney,
+    selectedFare,
+    offerContinue,
+    customerDataContinue,
+    paymentFill,
+    paymentContinue,
+  );
   if (boundary.stage === "check_page") {
     return {
       stage: "check_page_review",
       finalSafetyStop: "check_page_review",
       needsUserAction: false,
       message: "stopped on DB check page before any final order action",
-      steps: checkoutSteps(
-        selectedJourney,
-        selectedFare,
-        offerContinue,
-        customerDataContinue,
-        paymentFill,
-        paymentContinue,
-      ),
-      boundary,
-      selectedJourney,
-      selectedFare,
-      offerContinue,
-      customerDataContinue,
-      paymentFill,
-      paymentContinue,
+      ...resultState,
     };
   }
   if (boundary.finalOrderButtonVisible) {
@@ -2799,21 +2687,7 @@ async function stopAfterFareSelection(
       finalSafetyStop: "final_order_boundary",
       needsUserAction: false,
       message: "stopped before a legally binding final order button",
-      steps: checkoutSteps(
-        selectedJourney,
-        selectedFare,
-        offerContinue,
-        customerDataContinue,
-        paymentFill,
-        paymentContinue,
-      ),
-      boundary,
-      selectedJourney,
-      selectedFare,
-      offerContinue,
-      customerDataContinue,
-      paymentFill,
-      paymentContinue,
+      ...resultState,
     };
   }
   if (boundary.paymentBoundaryVisible) {
@@ -2824,21 +2698,7 @@ async function stopAfterFareSelection(
       message: paymentFill
         ? "stopped after payment-profile field handling before payment continuation"
         : "stopped at payment boundary before payment continuation",
-      steps: checkoutSteps(
-        selectedJourney,
-        selectedFare,
-        offerContinue,
-        customerDataContinue,
-        paymentFill,
-        paymentContinue,
-      ),
-      boundary,
-      selectedJourney,
-      selectedFare,
-      offerContinue,
-      customerDataContinue,
-      paymentFill,
-      paymentContinue,
+      ...resultState,
     };
   }
   if (boundary.stage === "customer_data") {
@@ -2848,21 +2708,7 @@ async function stopAfterFareSelection(
       needsUserAction: false,
       message:
         "selected the configured journey and fare offer; stopped on customer data before payment",
-      steps: checkoutSteps(
-        selectedJourney,
-        selectedFare,
-        offerContinue,
-        customerDataContinue,
-        paymentFill,
-        paymentContinue,
-      ),
-      boundary,
-      selectedJourney,
-      selectedFare,
-      offerContinue,
-      customerDataContinue,
-      paymentFill,
-      paymentContinue,
+      ...resultState,
     };
   }
   return {
@@ -2872,14 +2718,24 @@ async function stopAfterFareSelection(
     message: selectedFare.alreadySelected
       ? "configured fare was already selected; stopped before passenger details"
       : "selected the configured journey and fare offer; stopped before passenger details",
-    steps: checkoutSteps(
-      selectedJourney,
-      selectedFare,
-      offerContinue,
-      customerDataContinue,
-      paymentFill,
-      paymentContinue,
-    ),
+    ...resultState,
+  };
+}
+
+function checkoutResultState(
+  boundary: Awaited<ReturnType<typeof detectCheckoutBoundary>>,
+  ...args: Parameters<typeof checkoutSteps>
+) {
+  const [
+    selectedJourney,
+    selectedFare,
+    offerContinue,
+    customerDataContinue,
+    paymentFill,
+    paymentContinue,
+  ] = args;
+  return {
+    steps: checkoutSteps(...args),
     boundary,
     selectedJourney,
     selectedFare,

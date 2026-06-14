@@ -1,4 +1,3 @@
-import type { Page } from "playwright-core";
 import { type BuyingFarePreference } from "./buying-profile.js";
 import { type DBhopperTicketBuyingMode } from "./private-settings.js";
 import type { DBhopperBookingFor, DBhopperConfig, DBhopperFareProduct, DBhopperPaymentProfile } from "./types.js";
@@ -525,7 +524,6 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
                 selectedIndex: number;
                 trainLabels: string[];
                 price?: string;
-                summary: string;
                 alreadySelected?: boolean;
             };
             selectedFare: {
@@ -543,7 +541,6 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
                 stage: string;
                 action: string;
                 clickedText?: string;
-                boundaryBefore: Awaited<ReturnType<typeof detectCheckoutBoundary>>;
             } | undefined;
             customerDataContinue: {
                 stage: string;
@@ -551,8 +548,6 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
                 clickedText?: string;
                 bookingFor: DBhopperBookingFor;
                 bookingForAction?: string;
-                boundaryBefore: Awaited<ReturnType<typeof detectCheckoutBoundary>>;
-                boundaryAfter: Awaited<ReturnType<typeof detectCheckoutBoundary>>;
             } | undefined;
             paymentFill: {
                 stage: string;
@@ -570,8 +565,6 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
                 stage: string;
                 action: string;
                 clickedText?: string;
-                boundaryBefore: Awaited<ReturnType<typeof detectCheckoutBoundary>>;
-                boundaryAfter: Awaited<ReturnType<typeof detectCheckoutBoundary>>;
             } | undefined;
         };
         controls: {
@@ -1030,12 +1023,6 @@ interface PaymentFieldWarning {
     field: string;
     message: string;
 }
-declare function detectCheckoutBoundary(page: Page): Promise<{
-    stage: string;
-    paymentBoundaryVisible: boolean;
-    finalOrderButtonVisible: boolean;
-    finalOrderButtonText: string | undefined;
-}>;
 export declare function isFinalOrderText(value: string): boolean;
 export declare function defaultCheckoutServiceDate(now?: Date): string;
 export {};
