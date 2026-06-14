@@ -8,6 +8,8 @@ export interface DBhopperFeatureSettings {
   use_ticket_buying: boolean;
 }
 
+export type DBhopperFeatureSettingName = keyof DBhopperFeatureSettings;
+
 export const DEFAULT_FEATURE_SETTINGS: DBhopperFeatureSettings = {
   use_delay_retrieval: true,
   use_claim_requests: false,
@@ -40,6 +42,15 @@ export const TICKET_BUYING_TOOL_NAMES = [
 const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SETTINGS_FILE = "settings.yaml";
 const SETTINGS_KEYS = new Set(Object.keys(DEFAULT_FEATURE_SETTINGS));
+const TOOL_FEATURE_SETTINGS = new Map<string, DBhopperFeatureSettingName>([
+  ...CLAIM_TOOL_NAMES.map((name) => [name, "use_claim_requests"] as const),
+  ...DELAY_RETRIEVAL_TOOL_NAMES.map(
+    (name) => [name, "use_delay_retrieval"] as const,
+  ),
+  ...TICKET_BUYING_TOOL_NAMES.map(
+    (name) => [name, "use_ticket_buying"] as const,
+  ),
+]);
 
 export function readTopLevelSettings(
   packageRoot = PACKAGE_ROOT,
@@ -103,6 +114,21 @@ export function enabledToolNames(settings: DBhopperFeatureSettings) {
   }
 
   return names;
+}
+
+export function featureSettingForToolName(toolName: string) {
+  return TOOL_FEATURE_SETTINGS.get(toolName);
+}
+
+export function featureSettingLabel(setting: DBhopperFeatureSettingName) {
+  switch (setting) {
+    case "use_claim_requests":
+      return "autonomous claims";
+    case "use_delay_retrieval":
+      return "delay retrieval";
+    case "use_ticket_buying":
+      return "autonomous ticket buying";
+  }
 }
 
 export function featureSettingsSummary(settings: DBhopperFeatureSettings) {

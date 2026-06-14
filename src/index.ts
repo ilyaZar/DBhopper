@@ -8,7 +8,10 @@ import { createPrivateSettingsToolDefinitions } from "./private-settings-tools.j
 import { createTicketBuyingToolDefinitions } from "./ticket-buying.js";
 import {
   type DBhopperFeatureSettings,
-  enabledToolNames,
+  type DBhopperFeatureSettingName,
+  featureSettingForToolName,
+  featureSettingLabel,
+  featureSettingsSummary,
   readTopLevelSettings,
 } from "./plugin-settings.js";
 import {
@@ -135,19 +138,118 @@ plugin.register = (api: any) => {
 
 export default plugin;
 
+type FeatureSettingsReader = () => DBhopperFeatureSettings;
+
+interface ToolDefinition {
+  name: string;
+  label?: string;
+  description?: string;
+  parameters?: unknown;
+  optional?: boolean;
+  execute?: (...args: any[]) => unknown;
+  factory?: (...args: any[]) => unknown;
+  [key: string]: unknown;
+}
+
 export function createDBhopperToolDefinitions(
   tool: any,
-  settings: DBhopperFeatureSettings = readTopLevelSettings(),
+  settings?: DBhopperFeatureSettings,
 ) {
-  const enabled = enabledToolNames(settings);
+  const readFeatureSettings = settings
+    ? () => settings
+    : () => readTopLevelSettings();
+  const gatedTool = featureGatedTool(tool, readFeatureSettings);
+
   return [
-    ...createClaimToolDefinitions(tool),
-    ...createPrivateSettingsToolDefinitions(tool),
-    ...createCredentialsToolDefinitions(tool),
-    ...createAccessToolDefinitions(tool),
-    ...createDbDelayToolDefinitions(tool),
-    ...createTicketBuyingToolDefinitions(tool),
-  ].filter((definition: any) => enabled.has(definition.name));
+    ...createClaimToolDefinitions(gatedTool),
+    ...createPrivateSettingsToolDefinitions(gatedTool),
+    ...createCredentialsToolDefinitions(gatedTool),
+    ...createAccessToolDefinitions(gatedTool),
+    ...createDbDelayToolDefinitions(gatedTool),
+    ...createTicketBuyingToolDefinitions(gatedTool),
+  ];
+}
+
+function featureGatedTool(
+  tool: (definition: ToolDefinition) => unknown,
+  readFeatureSettings: FeatureSettingsReader,
+) {
+  return (definition: ToolDefinition) => {
+    const setting = featureSettingForToolName(definition.name);
+    if (!setting) {
+      return tool(definition);
+    }
+
+    return tool(withFeatureGate(definition, setting, readFeatureSettings));
+  };
+}
+
+function withFeatureGate(
+  definition: ToolDefinition,
+  setting: DBhopperFeatureSettingName,
+  readFeatureSettings: FeatureSettingsReader,
+) {
+  const gated: ToolDefinition = { ...definition };
+  const originalExecute = definition.execute;
+  const originalFactory = definition.factory;
+
+  if (typeof originalExecute === "function") {
+    gated.execute = function (this: unknown, ...args: any[]) {
+      const currentSettings = readFeatureSettings();
+      if (!currentSettings[setting]) {
+        return featureDisabledResult(definition.name, setting, currentSettings);
+      }
+      return originalExecute.apply(this, args);
+    };
+  }
+
+  if (typeof originalFactory === "function") {
+    gated.factory = function (this: unknown, ...args: any[]) {
+      const currentSettings = readFeatureSettings();
+      if (!currentSettings[setting]) {
+        return disabledFactoryTool(definition, setting, currentSettings);
+      }
+      return originalFactory.apply(this, args);
+    };
+  }
+
+  return gated;
+}
+
+function disabledFactoryTool(
+  definition: ToolDefinition,
+  setting: DBhopperFeatureSettingName,
+  settings: DBhopperFeatureSettings,
+) {
+  return {
+    name: definition.name,
+    label: definition.label,
+    description: definition.description,
+    parameters: definition.parameters,
+    async execute() {
+      return featureDisabledResult(definition.name, setting, settings);
+    },
+  };
+}
+
+function featureDisabledResult(
+  toolName: string,
+  setting: DBhopperFeatureSettingName,
+  settings: DBhopperFeatureSettings,
+) {
+  return {
+    ok: false,
+    operation: "feature_disabled",
+    toolName,
+    disabledFeature: featureSettingLabel(setting),
+    requiredSetting: setting,
+    needs_configuration: true,
+    settings: featureSettingsSummary(settings),
+    message: [
+      `${featureSettingLabel(setting)} is disabled in settings.yaml.`,
+      `Set ${setting}: true to enable ${toolName}.`,
+    ].join(" "),
+  };
 }
 
 function createClaimToolDefinitions(tool: any) {
@@ -255,6 +357,10 @@ function registerClaimApprovalHook(api: any) {
     "before_tool_call",
     (event: any) => {
       if (!approvalToolNames.has(event.toolName)) {
+        return;
+      }
+      const featureSetting = featureSettingForToolName(event.toolName);
+      if (featureSetting && !readTopLevelSettings()[featureSetting]) {
         return;
       }
 

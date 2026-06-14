@@ -5,6 +5,7 @@ import fs from "node:fs/promises";
 import {
   DEFAULT_FEATURE_SETTINGS,
   enabledToolNames,
+  featureSettingForToolName,
   parseTopLevelSettings,
 } from "../dist/plugin-settings.js";
 
@@ -42,6 +43,25 @@ describe("dbhopper top-level settings", () => {
     assert.throws(
       () => parseTopLevelSettings("use_ticket_buying_now: true\n"),
       /unknown setting use_ticket_buying_now/,
+    );
+  });
+
+  it("maps public tool names to workflow gates", () => {
+    assert.equal(
+      featureSettingForToolName("dbhopper_query_db_delay"),
+      "use_delay_retrieval",
+    );
+    assert.equal(
+      featureSettingForToolName("dbhopper_prepare_claim"),
+      "use_claim_requests",
+    );
+    assert.equal(
+      featureSettingForToolName("dbhopper_ticket_checkout_dry_run"),
+      "use_ticket_buying",
+    );
+    assert.equal(
+      featureSettingForToolName("dbhopper_private_settings_status"),
+      undefined,
     );
   });
 });

@@ -5,7 +5,7 @@ import { createCredentialsToolDefinitions } from "./credentials-tools.js";
 import { createDbDelayToolDefinitions } from "./db-delay-tools.js";
 import { createPrivateSettingsToolDefinitions } from "./private-settings-tools.js";
 import { createTicketBuyingToolDefinitions } from "./ticket-buying.js";
-import { enabledToolNames, readTopLevelSettings, } from "./plugin-settings.js";
+import { featureSettingForToolName, featureSettingLabel, featureSettingsSummary, readTopLevelSettings, } from "./plugin-settings.js";
 import { buildDBhopperApprovalDescription, createDBhopperTools, resolveApprovalToolNames, } from "./tools.js";
 const configSchema = Type.Object({
     workspaceRoot: Type.Optional(Type.String({
@@ -83,16 +83,78 @@ plugin.register = (api) => {
     registerClaimApprovalHook(api);
 };
 export default plugin;
-export function createDBhopperToolDefinitions(tool, settings = readTopLevelSettings()) {
-    const enabled = enabledToolNames(settings);
+export function createDBhopperToolDefinitions(tool, settings) {
+    const readFeatureSettings = settings
+        ? () => settings
+        : () => readTopLevelSettings();
+    const gatedTool = featureGatedTool(tool, readFeatureSettings);
     return [
-        ...createClaimToolDefinitions(tool),
-        ...createPrivateSettingsToolDefinitions(tool),
-        ...createCredentialsToolDefinitions(tool),
-        ...createAccessToolDefinitions(tool),
-        ...createDbDelayToolDefinitions(tool),
-        ...createTicketBuyingToolDefinitions(tool),
-    ].filter((definition) => enabled.has(definition.name));
+        ...createClaimToolDefinitions(gatedTool),
+        ...createPrivateSettingsToolDefinitions(gatedTool),
+        ...createCredentialsToolDefinitions(gatedTool),
+        ...createAccessToolDefinitions(gatedTool),
+        ...createDbDelayToolDefinitions(gatedTool),
+        ...createTicketBuyingToolDefinitions(gatedTool),
+    ];
+}
+function featureGatedTool(tool, readFeatureSettings) {
+    return (definition) => {
+        const setting = featureSettingForToolName(definition.name);
+        if (!setting) {
+            return tool(definition);
+        }
+        return tool(withFeatureGate(definition, setting, readFeatureSettings));
+    };
+}
+function withFeatureGate(definition, setting, readFeatureSettings) {
+    const gated = { ...definition };
+    const originalExecute = definition.execute;
+    const originalFactory = definition.factory;
+    if (typeof originalExecute === "function") {
+        gated.execute = function (...args) {
+            const currentSettings = readFeatureSettings();
+            if (!currentSettings[setting]) {
+                return featureDisabledResult(definition.name, setting, currentSettings);
+            }
+            return originalExecute.apply(this, args);
+        };
+    }
+    if (typeof originalFactory === "function") {
+        gated.factory = function (...args) {
+            const currentSettings = readFeatureSettings();
+            if (!currentSettings[setting]) {
+                return disabledFactoryTool(definition, setting, currentSettings);
+            }
+            return originalFactory.apply(this, args);
+        };
+    }
+    return gated;
+}
+function disabledFactoryTool(definition, setting, settings) {
+    return {
+        name: definition.name,
+        label: definition.label,
+        description: definition.description,
+        parameters: definition.parameters,
+        async execute() {
+            return featureDisabledResult(definition.name, setting, settings);
+        },
+    };
+}
+function featureDisabledResult(toolName, setting, settings) {
+    return {
+        ok: false,
+        operation: "feature_disabled",
+        toolName,
+        disabledFeature: featureSettingLabel(setting),
+        requiredSetting: setting,
+        needs_configuration: true,
+        settings: featureSettingsSummary(settings),
+        message: [
+            `${featureSettingLabel(setting)} is disabled in settings.yaml.`,
+            `Set ${setting}: true to enable ${toolName}.`,
+        ].join(" "),
+    };
 }
 function createClaimToolDefinitions(tool) {
     return [
@@ -166,6 +228,10 @@ function registerClaimApprovalHook(api) {
     const approvalToolNames = resolveApprovalToolNames(api.pluginConfig ?? {});
     api.on?.("before_tool_call", (event) => {
         if (!approvalToolNames.has(event.toolName)) {
+            return;
+        }
+        const featureSetting = featureSettingForToolName(event.toolName);
+        if (featureSetting && !readTopLevelSettings()[featureSetting]) {
             return;
         }
         return {
