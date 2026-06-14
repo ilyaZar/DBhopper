@@ -9,55 +9,40 @@ import {
 
 describe("dbhopper db login helpers", () => {
   it("recognizes stay-logged-in labels in english and german", () => {
-    assert.equal(isStayLoggedInLabel("Stay logged in"), true);
-    assert.equal(isStayLoggedInLabel("Stay signed in"), true);
-    assert.equal(isStayLoggedInLabel("Remember me"), true);
-    assert.equal(isStayLoggedInLabel("Angemeldet bleiben"), true);
-    assert.equal(isStayLoggedInLabel("Eingeloggt bleiben"), true);
-    assert.equal(isStayLoggedInLabel("Log in"), false);
-    assert.equal(isStayLoggedInLabel("Privacy policy"), false);
+    assertClassifications(isStayLoggedInLabel, [
+      ["Stay logged in", true],
+      ["Stay signed in", true],
+      ["Remember me", true],
+      ["Angemeldet bleiben", true],
+      ["Eingeloggt bleiben", true],
+      ["Log in", false],
+      ["Privacy policy", false],
+    ]);
   });
 
   it("classifies DB username validation errors", () => {
-    assert.equal(
-      classifyDbUsernameRejectionText("Please enter a valid email address."),
-      "invalid_format",
-    );
-    assert.equal(
-      classifyDbUsernameRejectionText("Bitte geben Sie eine gueltige E-Mail-Adresse ein."),
-      "invalid_format",
-    );
-    assert.equal(
-      classifyDbUsernameRejectionText("No account was found for this e-mail."),
-      "unknown_username",
-    );
-    assert.equal(
-      classifyDbUsernameRejectionText("Das Konto wurde nicht gefunden."),
-      "unknown_username",
-    );
-    assert.equal(classifyDbUsernameRejectionText("Log in or register"), undefined);
+    assertClassifications(classifyDbUsernameRejectionText, [
+      ["Please enter a valid email address.", "invalid_format"],
+      ["Bitte geben Sie eine gueltige E-Mail-Adresse ein.", "invalid_format"],
+      ["No account was found for this e-mail.", "unknown_username"],
+      ["Das Konto wurde nicht gefunden.", "unknown_username"],
+      ["Log in or register", undefined],
+    ]);
   });
 
   it("classifies DB password validation errors", () => {
-    assert.equal(
-      classifyDbPasswordRejectionText("The password entered is incorrect."),
-      "incorrect_password",
-    );
-    assert.equal(
-      classifyDbPasswordRejectionText("Das Passwort ist falsch."),
-      "incorrect_password",
-    );
-    assert.equal(
-      classifyDbPasswordRejectionText("The username or password is incorrect."),
-      "username_password_mismatch",
-    );
-    assert.equal(
-      classifyDbPasswordRejectionText("Die Anmeldedaten sind falsch."),
-      "username_password_mismatch",
-    );
-    assert.equal(
-      classifyDbPasswordRejectionText("Log in with passkey"),
-      undefined,
-    );
+    assertClassifications(classifyDbPasswordRejectionText, [
+      ["The password entered is incorrect.", "incorrect_password"],
+      ["Das Passwort ist falsch.", "incorrect_password"],
+      ["The username or password is incorrect.", "username_password_mismatch"],
+      ["Die Anmeldedaten sind falsch.", "username_password_mismatch"],
+      ["Log in with passkey", undefined],
+    ]);
   });
 });
+
+function assertClassifications(classifier, cases) {
+  for (const [text, expected] of cases) {
+    assert.equal(classifier(text), expected);
+  }
+}
