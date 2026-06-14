@@ -32,13 +32,14 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "plugin:build": "npm run build && openclaw plugins build --entry ./dist/index.js",
-    "plugin:validate": "npm run build && openclaw plugins validate --root . --entry ./dist/index.js",
+    "plugin:build": "npm run build && openclaw plugins build --root \"$PWD\" --entry ./dist/index.js",
+    "plugin:validate": "npm run build && openclaw plugins validate --root \"$PWD\" --entry ./dist/index.js",
     "clawhub:validate": "clawhub package validate .",
     "clawhub:publish:dry-run": "clawhub package publish . --family code-plugin --dry-run",
     "package:check": "node --test test/package.test.js",
     "pretest": "npm run build",
-    "test": "node --test"
+    "test": "node --test",
+    "test:live:delay-backends": "npm run build && DBHOPPER_LIVE_DELAY_BACKENDS=1 node --test test/live-delay-backends.test.js"
   },
   "dependencies": {
     "fast-xml-parser": "^5.8.0",
@@ -62,6 +63,11 @@
     "extensions": [
       "./dist/index.js"
     ],
+    "install": {
+      "clawhubSpec": "clawhub:dbhopper",
+      "defaultChoice": "clawhub",
+      "minHostVersion": ">=2026.6.2"
+    },
     "compat": {
       "pluginApi": ">=2026.5.17",
       "minGatewayVersion": "2026.5.17"

@@ -16,6 +16,11 @@ describe("dbhopper package metadata", () => {
     assert.equal(pkg.name, "dbhopper");
     assert.equal(pkg.repository.url, "git+https://github.com/ilyaZar/dbhopper.git");
     assert.deepEqual(pkg.openclaw.extensions, ["./dist/index.js"]);
+    assert.deepEqual(pkg.openclaw.install, {
+      clawhubSpec: "clawhub:dbhopper",
+      defaultChoice: "clawhub",
+      minHostVersion: ">=2026.6.2",
+    });
     assert.deepEqual(manifest.skills, ["./skills"]);
     assert.ok(pkg.files.includes("settings.yaml"));
     assert.deepEqual(manifest.contracts.tools, [
@@ -62,13 +67,42 @@ describe("dbhopper package metadata", () => {
     assert.equal(pkg.files.includes("tmp/"), false);
   });
 
-  it("keeps tmp out of gitignore exceptions and package output", async () => {
+  it("keeps private runtime paths ignored and out of package output", async () => {
     const gitignore = await fs.readFile(".gitignore", "utf8");
     const clawhubignore = await fs.readFile(".clawhubignore", "utf8");
 
-    assert.match(gitignore, /^tmp\/$/m);
+    assert.match(gitignore, /^tmp\/\*\*$/m);
+    assert.match(gitignore, /^claims\/\*\*$/m);
+    assert.match(gitignore, /^assets\/private\/\*\*$/m);
+    assert.match(gitignore, /^assets\/psc\/\*\*$/m);
     assert.doesNotMatch(gitignore, /!tmp\//);
-    assert.match(clawhubignore, /^tmp\/$/m);
+    assert.match(clawhubignore, /^tmp\/\*\*$/m);
+    assert.match(clawhubignore, /^claims\/\*\*$/m);
+    assert.match(clawhubignore, /^assets\/private\/\*\*$/m);
+    assert.match(clawhubignore, /^assets\/psc\/\*\*$/m);
+
+    const ignoredPaths = [
+      "assets/private/settings.toml",
+      "assets/private/credentials/credentials-01.toml",
+      "assets/private/credentials/payment-01.toml",
+      "assets/private/profiles/private-profile-01.toml",
+      "assets/private/profiles/buying-profile-01.toml",
+      "claims/real-claim/claim.toml",
+      "tmp/browser/db-ticket-buying/Default/Cookies",
+      "tmp/ticket-buying-dry-run/review.png",
+      "assets/psc/scan-report.zip",
+      ".env",
+      "local.pem",
+      "secrets.sqlite",
+    ];
+    const { stdout: ignoredStdout } = await execFileAsync(
+      "git",
+      ["check-ignore", ...ignoredPaths],
+    );
+    assert.deepEqual(
+      ignoredStdout.trim().split("\n").sort(),
+      ignoredPaths.sort(),
+    );
 
     const { stdout } = await execFileAsync(
       "npm",
@@ -79,6 +113,7 @@ describe("dbhopper package metadata", () => {
     const paths = files.map((file) => file.path);
 
     assert.equal(paths.some((filePath) => filePath.startsWith("tmp/")), false);
+    assert.equal(paths.some((filePath) => filePath.startsWith("assets/psc/")), false);
     assert.equal(paths.includes("tmp/.gitkeep"), false);
   });
 });

@@ -2,20 +2,30 @@ node_modules/
 coverage/
 lcov.info
 *.tgz
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+*.kdbx
+*.sqlite
+*.sqlite3
 
 # This repo keeps public design notes under specs/.
 !specs/
 !specs/**
 
 # User-managed runtime data. Keep the folders, not private contents.
-claims/*
+claims/**
+!claims/
 !claims/.gitkeep
-assets/private/*
+assets/private/**
+!assets/private/
 !assets/private/.gitkeep
 !assets/private/profiles/
-assets/private/profiles/*
 !assets/private/profiles/.gitkeep
 !assets/private/credentials/
-assets/private/credentials/*
 !assets/private/credentials/.gitkeep
-tmp/
+assets/psc/**
+tmp/**
