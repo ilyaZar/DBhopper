@@ -99,77 +99,50 @@ export function stringifyPrivateSettingsToml(settings) {
     ].join("\n");
 }
 export async function listCredentialIdFiles(config = {}) {
-    const loaded = await readPrivateSettings(config);
-    return {
-        settings: loaded,
-        ...(await listIdFiles(loaded.credentialsDir, "ID_USR")),
-    };
+    return listConfiguredIdFiles(config, "credentialsDir", "ID_USR");
 }
 export async function listPaymentProfileIdFiles(config = {}) {
-    const loaded = await readPrivateSettings(config);
-    return {
-        settings: loaded,
-        ...(await listIdFiles(loaded.credentialsDir, "ID_PYM")),
-    };
+    return listConfiguredIdFiles(config, "credentialsDir", "ID_PYM");
 }
 export async function listProfileIdFiles(config = {}) {
     return listClaimProfileIdFiles(config);
 }
 export async function listClaimProfileIdFiles(config = {}) {
-    const loaded = await readPrivateSettings(config);
-    return {
-        settings: loaded,
-        ...(await listIdFiles(loaded.profilesDir, "ID_CLM")),
-    };
+    return listConfiguredIdFiles(config, "profilesDir", "ID_CLM");
 }
 export async function listBuyingProfileIdFiles(config = {}) {
-    const loaded = await readPrivateSettings(config);
-    return {
-        settings: loaded,
-        ...(await listIdFiles(loaded.profilesDir, "ID_BUY")),
-    };
+    return listConfiguredIdFiles(config, "profilesDir", "ID_BUY");
 }
 export async function resolveSelectedCredentialFile(config = {}) {
-    const loaded = await readPrivateSettings(config);
-    if (!loaded.exists) {
-        return undefined;
-    }
-    return {
-        settings: loaded,
-        file: await resolveIdFile(loaded.credentialsDir, "ID_USR", loaded.settings.ID_USR),
-    };
+    return resolveConfiguredIdFile(config, "credentialsDir", "ID_USR");
 }
 export async function resolveSelectedPaymentProfileFile(config = {}) {
-    const loaded = await readPrivateSettings(config);
-    if (!loaded.exists) {
-        return undefined;
-    }
-    return {
-        settings: loaded,
-        file: await resolveIdFile(loaded.credentialsDir, "ID_PYM", loaded.settings.ID_PYM),
-    };
+    return resolveConfiguredIdFile(config, "credentialsDir", "ID_PYM");
 }
 export async function resolveSelectedProfileFile(config = {}) {
     return resolveSelectedClaimProfileFile(config);
 }
 export async function resolveSelectedClaimProfileFile(config = {}) {
-    const loaded = await readPrivateSettings(config);
-    if (!loaded.exists) {
-        return undefined;
-    }
-    return {
-        settings: loaded,
-        file: await resolveIdFile(loaded.profilesDir, "ID_CLM", loaded.settings.ID_CLM),
-    };
+    return resolveConfiguredIdFile(config, "profilesDir", "ID_CLM");
 }
 export async function resolveSelectedBuyingProfileFile(config = {}) {
+    return resolveConfiguredIdFile(config, "profilesDir", "ID_BUY");
+}
+async function listConfiguredIdFiles(config, directoryField, idField) {
+    const loaded = await readPrivateSettings(config);
+    return {
+        settings: loaded,
+        ...(await listIdFiles(loaded[directoryField], idField)),
+    };
+}
+async function resolveConfiguredIdFile(config, directoryField, idField) {
     const loaded = await readPrivateSettings(config);
     if (!loaded.exists) {
         return undefined;
     }
     return {
         settings: loaded,
-        file: await resolveIdFile(loaded.profilesDir, "ID_BUY", loaded.settings.ID_BUY),
+        file: await resolveIdFile(loaded[directoryField], idField, loaded.settings[idField]),
     };
 }
 export async function configuredCredentialsDir(config = {}) {

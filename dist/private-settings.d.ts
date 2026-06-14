@@ -25,6 +25,7 @@ export interface PrivateIdFile {
     fileName: string;
     filePath: string;
 }
+type PrivateIdField = "ID_USR" | "ID_CLM" | "ID_BUY" | "ID_PYM";
 export declare function privateSettingsPath(config?: DBhopperConfig): string;
 export declare function defaultPrivateSettings(): DBhopperPrivateSettings;
 export declare function readPrivateSettings(config?: DBhopperConfig): Promise<LoadedPrivateSettings>;
@@ -175,4 +176,5 @@ export declare function writePrivateSettingsIds(updates: {
     };
     messages: ValidationMessage[];
 }>;
-export declare function normalizePrivateId(value: string, field: "ID_USR" | "ID_CLM" | "ID_BUY" | "ID_PYM"): string;
+export declare function normalizePrivateId(value: string, field: PrivateIdField): string;
+export {};

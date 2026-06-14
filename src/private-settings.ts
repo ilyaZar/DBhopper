@@ -39,6 +39,9 @@ export interface PrivateIdFile {
   filePath: string;
 }
 
+type PrivateIdField = "ID_USR" | "ID_CLM" | "ID_BUY" | "ID_PYM";
+type PrivateDirectoryField = "credentialsDir" | "profilesDir";
+
 const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SETTINGS_RELATIVE_PATH = path.join("assets", "private", "settings.toml");
 const DEFAULT_CREDENTIALS_PATH = path.join("assets", "private", "credentials");
@@ -146,19 +149,11 @@ export function stringifyPrivateSettingsToml(settings: DBhopperPrivateSettings) 
 }
 
 export async function listCredentialIdFiles(config: DBhopperConfig = {}) {
-  const loaded = await readPrivateSettings(config);
-  return {
-    settings: loaded,
-    ...(await listIdFiles(loaded.credentialsDir, "ID_USR")),
-  };
+  return listConfiguredIdFiles(config, "credentialsDir", "ID_USR");
 }
 
 export async function listPaymentProfileIdFiles(config: DBhopperConfig = {}) {
-  const loaded = await readPrivateSettings(config);
-  return {
-    settings: loaded,
-    ...(await listIdFiles(loaded.credentialsDir, "ID_PYM")),
-  };
+  return listConfiguredIdFiles(config, "credentialsDir", "ID_PYM");
 }
 
 export async function listProfileIdFiles(config: DBhopperConfig = {}) {
@@ -166,41 +161,19 @@ export async function listProfileIdFiles(config: DBhopperConfig = {}) {
 }
 
 export async function listClaimProfileIdFiles(config: DBhopperConfig = {}) {
-  const loaded = await readPrivateSettings(config);
-  return {
-    settings: loaded,
-    ...(await listIdFiles(loaded.profilesDir, "ID_CLM")),
-  };
+  return listConfiguredIdFiles(config, "profilesDir", "ID_CLM");
 }
 
 export async function listBuyingProfileIdFiles(config: DBhopperConfig = {}) {
-  const loaded = await readPrivateSettings(config);
-  return {
-    settings: loaded,
-    ...(await listIdFiles(loaded.profilesDir, "ID_BUY")),
-  };
+  return listConfiguredIdFiles(config, "profilesDir", "ID_BUY");
 }
 
 export async function resolveSelectedCredentialFile(config: DBhopperConfig = {}) {
-  const loaded = await readPrivateSettings(config);
-  if (!loaded.exists) {
-    return undefined;
-  }
-  return {
-    settings: loaded,
-    file: await resolveIdFile(loaded.credentialsDir, "ID_USR", loaded.settings.ID_USR),
-  };
+  return resolveConfiguredIdFile(config, "credentialsDir", "ID_USR");
 }
 
 export async function resolveSelectedPaymentProfileFile(config: DBhopperConfig = {}) {
-  const loaded = await readPrivateSettings(config);
-  if (!loaded.exists) {
-    return undefined;
-  }
-  return {
-    settings: loaded,
-    file: await resolveIdFile(loaded.credentialsDir, "ID_PYM", loaded.settings.ID_PYM),
-  };
+  return resolveConfiguredIdFile(config, "credentialsDir", "ID_PYM");
 }
 
 export async function resolveSelectedProfileFile(config: DBhopperConfig = {}) {
@@ -208,24 +181,41 @@ export async function resolveSelectedProfileFile(config: DBhopperConfig = {}) {
 }
 
 export async function resolveSelectedClaimProfileFile(config: DBhopperConfig = {}) {
-  const loaded = await readPrivateSettings(config);
-  if (!loaded.exists) {
-    return undefined;
-  }
-  return {
-    settings: loaded,
-    file: await resolveIdFile(loaded.profilesDir, "ID_CLM", loaded.settings.ID_CLM),
-  };
+  return resolveConfiguredIdFile(config, "profilesDir", "ID_CLM");
 }
 
 export async function resolveSelectedBuyingProfileFile(config: DBhopperConfig = {}) {
+  return resolveConfiguredIdFile(config, "profilesDir", "ID_BUY");
+}
+
+async function listConfiguredIdFiles(
+  config: DBhopperConfig,
+  directoryField: PrivateDirectoryField,
+  idField: PrivateIdField,
+) {
+  const loaded = await readPrivateSettings(config);
+  return {
+    settings: loaded,
+    ...(await listIdFiles(loaded[directoryField], idField)),
+  };
+}
+
+async function resolveConfiguredIdFile(
+  config: DBhopperConfig,
+  directoryField: PrivateDirectoryField,
+  idField: PrivateIdField,
+) {
   const loaded = await readPrivateSettings(config);
   if (!loaded.exists) {
     return undefined;
   }
   return {
     settings: loaded,
-    file: await resolveIdFile(loaded.profilesDir, "ID_BUY", loaded.settings.ID_BUY),
+    file: await resolveIdFile(
+      loaded[directoryField],
+      idField,
+      loaded.settings[idField],
+    ),
   };
 }
 
@@ -378,7 +368,7 @@ export async function writePrivateSettingsIds(
 
 export function normalizePrivateId(
   value: string,
-  field: "ID_USR" | "ID_CLM" | "ID_BUY" | "ID_PYM",
+  field: PrivateIdField,
 ) {
   const trimmed = value.trim();
   if (!/^\d{2,}$/.test(trimmed)) {
@@ -474,7 +464,7 @@ function normalizeTicketBuyingMode(
 
 async function listIdFiles(
   dir: string,
-  idField: "ID_USR" | "ID_CLM" | "ID_BUY" | "ID_PYM",
+  idField: PrivateIdField,
 ) {
   const messages: ValidationMessage[] = [];
   const items: PrivateIdFile[] = [];
@@ -541,7 +531,7 @@ async function listIdFiles(
 
 async function resolveIdFile(
   dir: string,
-  idField: "ID_USR" | "ID_CLM" | "ID_BUY" | "ID_PYM",
+  idField: PrivateIdField,
   id: string,
 ) {
   const normalizedId = normalizePrivateId(id, idField);
@@ -559,7 +549,7 @@ async function resolveIdFile(
 
 function resolveIdFromList(
   items: PrivateIdFile[],
-  idField: "ID_USR" | "ID_CLM" | "ID_BUY" | "ID_PYM",
+  idField: PrivateIdField,
   id: string,
   messages: ValidationMessage[],
 ) {
@@ -594,7 +584,7 @@ function parseIdDocument(text: string, source: string) {
 
 function isSiblingProfileFile(
   parsed: Record<string, unknown>,
-  idField: "ID_USR" | "ID_CLM" | "ID_BUY" | "ID_PYM",
+  idField: PrivateIdField,
 ) {
   if (idField === "ID_USR") {
     return "ID_PYM" in parsed;
