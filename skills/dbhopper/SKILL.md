@@ -19,14 +19,14 @@ North Rhine-Westphalia.
 4. Route claim profiles, buying profiles, credentials, and payment profiles
    through `assets/private/settings.toml`. Use
    `dbhopper_private_settings_status` to list IDs and
-   `dbhopper_private_settings_select` to change only `id_usr`, `id_clm`,
-   `id_buy`, `id_pym`, and `ticket_buying_mode`.
+   `dbhopper_private_settings_select` to change only `ID_USR`, `ID_CLM`,
+   `ID_BUY`, `ID_PYM`, and `ticket_buying_mode`.
 5. Put reusable sensitive personal data in claim profile TOML files selected by
-   `id_clm`; do not read those files into the conversation.
+   `ID_CLM`; do not read those files into the conversation.
 6. Put DB API and DB website credentials in private credential TOML files
-   selected by `id_usr`; do not read those files into the conversation.
+   selected by `ID_USR`; do not read those files into the conversation.
 7. Put payment details in private payment profile TOML files selected by
-   `id_pym`; do not read those files into the conversation.
+   `ID_PYM`; do not read those files into the conversation.
 8. Browser-run artifacts are saved under the configured ignored artifact
    directory. Inspect screenshots there before asking for real submission.
 

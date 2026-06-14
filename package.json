@@ -16,11 +16,7 @@
     "node": ">=22"
   },
   "files": [
-    "assets/.gitkeep",
-    "assets/private/.gitkeep",
-    "assets/private/credentials/.gitkeep",
-    "assets/private/profiles/.gitkeep",
-    "claims/.gitkeep",
+    "assets/dbhopper_banner.png",
     "docs/",
     "LICENSE",
     "README.md",

@@ -1,7 +1,7 @@
-tmp/**
-claims/**
-assets/private/**
-assets/psc/**
+tmp/
+claims/
+assets/private/
+assets/psc/
 .env
 .env.*
 *.key

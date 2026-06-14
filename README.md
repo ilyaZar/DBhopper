@@ -37,14 +37,20 @@ instead of running browser automation or writing files. To change the enabled
 workflows, edit `settings.yaml` and set the relevant flag to `true`; reload or
 restart the plugin if the running OpenClaw process does not pick up the change.
 
-Private profile and credential templates live under `docs/examples/`. Copy
-`docs/examples/private-profile.example.toml` to
-`assets/private/profiles/private-profile-01.toml`, copy
-`docs/examples/buying-profile.example.toml` to
-`assets/private/profiles/buying-profile-01.toml`, and copy
-`docs/examples/credentials.example.toml` to
-`assets/private/credentials/credentials-01.toml`. Keep real profiles and
-credentials private.
+Private profile and credential templates live under `docs/examples/`. Create
+the local private directories, then copy templates into them:
+
+```bash
+mkdir -p assets/private/credentials assets/private/profiles
+cp docs/examples/private-profile.example.toml \
+  assets/private/profiles/private-profile-01.toml
+cp docs/examples/buying-profile.example.toml \
+  assets/private/profiles/buying-profile-01.toml
+cp docs/examples/credentials.example.toml \
+  assets/private/credentials/credentials-01.toml
+```
+
+Keep real profiles and credentials private.
 
 TOML field names are case-sensitive; use the spelling shown in the examples.
 

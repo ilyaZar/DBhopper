@@ -198,9 +198,13 @@ assets/private/profiles/private-profile-03.toml
 assets/private/profiles/buying-profile-01.toml
 ```
 
-Safe public credential/profile templates live under `docs/examples/`. Copy
-those files into the private directories before adding real account, claimant,
-or bank values.
+Safe public credential/profile templates live under `docs/examples/`. Create
+the private directories, then copy those files before adding real account,
+claimant, or bank values.
+
+```bash
+mkdir -p assets/private/credentials assets/private/profiles
+```
 
 ## Tools
 
