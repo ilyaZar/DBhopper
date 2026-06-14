@@ -10,6 +10,7 @@ import {
   filterLongDistanceReplacements,
   filterRegionalDelayedCandidates,
 } from "../dist/db-delay.js";
+import { jsonResponse } from "./helpers/responses.js";
 
 const stationFixture = [
   {
@@ -171,11 +172,4 @@ async function fakeFetch(url) {
     return jsonResponse(duplicateDepartureFixture);
   }
   return new Response("not found", { status: 404 });
-}
-
-function jsonResponse(value) {
-  return new Response(JSON.stringify(value), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
 }

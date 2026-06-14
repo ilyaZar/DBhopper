@@ -8,6 +8,7 @@ import {
   filterLongDistanceReplacements,
   filterRegionalDelayedCandidates,
 } from "../dist/db-delay.js";
+import { jsonResponse, xmlResponse } from "./helpers/responses.js";
 
 const hamm = { name: "Hamm(Westf)Hbf", evaNo: "8000149" };
 const koln = { name: "Koeln Hbf", evaNo: "8000207" };
@@ -225,18 +226,4 @@ async function fakeTimetablesFetch(url) {
     return new Response("", { status: 404 });
   }
   return new Response("not found", { status: 404 });
-}
-
-function jsonResponse(value) {
-  return new Response(JSON.stringify(value), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
-}
-
-function xmlResponse(value) {
-  return new Response(value.trim(), {
-    status: 200,
-    headers: { "content-type": "application/xml" },
-  });
 }

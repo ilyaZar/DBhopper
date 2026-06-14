@@ -11,6 +11,10 @@ import {
 } from "../dist/private-settings.js";
 import { readSelectedCredentialsProfile } from "../dist/credentials.js";
 import { prepareClaim } from "../dist/workspace.js";
+import {
+  writePrivateProfileFixture,
+  writePrivateSettingsFixture,
+} from "./helpers/private-settings.js";
 
 describe("dbhopper private settings", () => {
   it("routes credentials and profiles through selected IDs", async () => {
@@ -26,8 +30,8 @@ describe("dbhopper private settings", () => {
     await writeCredential(credentialsDir, "01", "credentials-01.toml");
     await writeCredential(credentialsDir, "02", "credentials-02.toml");
     await writePaymentProfile(credentialsDir, "01", "payment-profile-01.toml");
-    await writeProfile(profilesDir, "01", "private-profile-01.toml", "First");
-    await writeProfile(profilesDir, "03", "private-profile-03.toml", "Third");
+    await writePrivateProfileFixture(profilesDir, "01", "private-profile-01.toml", "First");
+    await writePrivateProfileFixture(profilesDir, "03", "private-profile-03.toml", "Third");
     await writeBuyingProfile(profilesDir, "01", "buying-profile-01.toml");
 
     const status = await privateSettingsStatus({ workspaceRoot: root });
@@ -81,7 +85,7 @@ describe("dbhopper private settings", () => {
       username: " maria@example.org ",
     });
     await writePaymentProfile(credentialsDir, "01", "payment-profile-01.toml");
-    await writeProfile(profilesDir, "01", "private-profile-01.toml", "First");
+    await writePrivateProfileFixture(profilesDir, "01", "private-profile-01.toml", "First");
     await writeBuyingProfile(profilesDir, "01", "buying-profile-01.toml");
 
     const status = await privateSettingsStatus({ workspaceRoot: root });
@@ -111,8 +115,8 @@ describe("dbhopper private settings", () => {
     await writeCredential(credentialsDir, "02", "credentials-02.toml");
     await writePaymentProfile(credentialsDir, "01", "payment-profile-01.toml");
     await writePaymentProfile(credentialsDir, "02", "payment-profile-02.toml");
-    await writeProfile(profilesDir, "01", "private-profile-01.toml", "First");
-    await writeProfile(profilesDir, "03", "private-profile-03.toml", "Third");
+    await writePrivateProfileFixture(profilesDir, "01", "private-profile-01.toml", "First");
+    await writePrivateProfileFixture(profilesDir, "03", "private-profile-03.toml", "Third");
     await writeBuyingProfile(profilesDir, "01", "buying-profile-01.toml");
     await writeBuyingProfile(profilesDir, "02", "buying-profile-02.toml");
 
@@ -186,10 +190,15 @@ describe("dbhopper private settings", () => {
     );
     await writeCredential(credentialsDir, "01", "credentials-01.toml");
     await writePaymentProfile(credentialsDir, "01", "payment-profile-01.toml");
-    await writeProfile(profilesDir, "03", "private-profile-03.toml", "External");
+    await writePrivateProfileFixture(
+      profilesDir,
+      "03",
+      "private-profile-03.toml",
+      "External",
+    );
     await writeBuyingProfile(profilesDir, "01", "buying-profile-01.toml");
     await fs.mkdir(path.join(root, "assets", "private", "profiles"), { recursive: true });
-    await writeProfile(
+    await writePrivateProfileFixture(
       path.join(root, "assets", "private", "profiles"),
       "03",
       "private-profile-03.toml",
@@ -235,7 +244,7 @@ describe("dbhopper private settings", () => {
       "credentials-02.toml",
       { clientId: "internal-client" },
     );
-    await writeProfile(profilesDir, "01", "private-profile-01.toml", "First");
+    await writePrivateProfileFixture(profilesDir, "01", "private-profile-01.toml", "First");
 
     const credentials = await readSelectedCredentialsProfile({ workspaceRoot: root });
 
@@ -251,7 +260,7 @@ describe("dbhopper private settings", () => {
       credentialsDirName: "credentials-as-file.toml",
     });
     await fs.writeFile(credentialsFile, 'id_usr = "01"\n', "utf8");
-    await writeProfile(profilesDir, "01", "private-profile-01.toml", "First");
+    await writePrivateProfileFixture(profilesDir, "01", "private-profile-01.toml", "First");
     await writeBuyingProfile(profilesDir, "01", "buying-profile-01.toml");
 
     const status = await privateSettingsStatus({ workspaceRoot: root });
@@ -286,7 +295,7 @@ describe("dbhopper private settings", () => {
     );
     await writeCredential(credentialsDir, "01", "credentials-01.toml");
     await writePaymentProfile(credentialsDir, "01", "payment-profile-01.toml");
-    await writeProfile(profilesDir, "01", "private-profile-01.toml", "First");
+    await writePrivateProfileFixture(profilesDir, "01", "private-profile-01.toml", "First");
     await writeBuyingProfile(profilesDir, "01", "buying-profile-01.toml");
 
     const status = await privateSettingsStatus({ workspaceRoot: root });
@@ -320,52 +329,26 @@ async function createSettingsWorkspace(
   {
     credentialsDirName = "creds",
     profilesDirName = "profiles",
-    ...settings
+    credentialId = "01",
+    profileId = "01",
+    buyingProfileId = "01",
+    paymentProfileId = "01",
+    ticketBuyingMode = "review",
   } = {},
 ) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), prefix));
   const credentialsDir = path.join(root, credentialsDirName);
   const profilesDir = path.join(root, profilesDirName);
-  await writeSettings(root, {
-    credentialId: "01",
-    profileId: "01",
-    paymentProfileId: "01",
-    credentialsDir,
-    profilesDir,
-    ...settings,
+  await writePrivateSettingsFixture(root, {
+    userId: credentialId,
+    claimProfileId: profileId,
+    buyingProfileId,
+    paymentProfileId,
+    ticketBuyingMode,
+    credentialsPath: credentialsDir,
+    profilesPath: profilesDir,
   });
   return { root, credentialsDir, profilesDir };
-}
-
-async function writeSettings(
-  root,
-  {
-    credentialId,
-    profileId,
-    buyingProfileId = "01",
-    paymentProfileId = "01",
-    credentialsDir,
-    profilesDir,
-    ticketBuyingMode = "review",
-  },
-) {
-  await fs.mkdir(path.join(root, "assets", "private"), { recursive: true });
-  await fs.writeFile(
-    path.join(root, "assets", "private", "settings.toml"),
-    [
-      `id_usr = "${credentialId}"`,
-      `id_clm = "${profileId}"`,
-      `id_buy = "${buyingProfileId}"`,
-      `id_pym = "${paymentProfileId}"`,
-      `ticket_buying_mode = "${ticketBuyingMode}"`,
-      `path_cred = "${credentialsDir}"`,
-      `path_prf = "${profilesDir}"`,
-      'delay_provider = "bahn-web"',
-      'delay_fallback = "none"',
-      "",
-    ].join("\n"),
-    "utf8",
-  );
 }
 
 async function writePaymentProfile(dir, id, fileName) {
@@ -421,36 +404,6 @@ async function writeCredential(dir, id, fileName, overrides = {}) {
       "[bahn_account]",
       `username = "${overrides.username ?? `user-${id}@example.org`}"`,
       `password = "${overrides.password ?? `password-${id}`}"`,
-      "",
-    ].join("\n"),
-    "utf8",
-  );
-}
-
-async function writeProfile(dir, id, fileName, firstName) {
-  await fs.mkdir(dir, { recursive: true });
-  await fs.writeFile(
-    path.join(dir, fileName),
-    [
-      "version = 1",
-      `id_clm = "${id}"`,
-      "",
-      "[claimant]",
-      'salutation = "FAMILY"',
-      `first_name = "${firstName}"`,
-      'last_name = "Mustermann"',
-      'email = "maria@example.org"',
-      'phone = "+4922112345678"',
-      "",
-      "[claimant.address]",
-      'street_number = "Musterstrasse 1"',
-      'zip = "50667"',
-      'city = "Koeln"',
-      'country = "Deutschland"',
-      "",
-      "[claimant.bank]",
-      'account_owner = "Maria Mustermann"',
-      'iban = "fill-iban"',
       "",
     ].join("\n"),
     "utf8",

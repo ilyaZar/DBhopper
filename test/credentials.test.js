@@ -11,13 +11,14 @@ import {
   readSelectedCredentialsProfile,
   validateCredentialsFiles,
 } from "../dist/credentials.js";
+import { writePrivateSettingsFixture } from "./helpers/private-settings.js";
 
 describe("dbhopper credentials", () => {
   it("loads TOML credentials and redacts values from summaries", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-creds-"));
     const credentialsDir = path.join(root, "assets", "private", "credentials");
     await fs.mkdir(credentialsDir, { recursive: true });
-    await writeSettings(root);
+    await writePrivateSettingsFixture(root);
     await fs.writeFile(
       path.join(credentialsDir, "credentials-01.toml"),
       [
@@ -129,7 +130,7 @@ describe("dbhopper credentials", () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-creds-path-"));
     const credentialsFile = path.join(root, "credentials-as-file.toml");
     await fs.writeFile(credentialsFile, 'id_usr = "01"\n', "utf8");
-    await writeSettings(root, credentialsFile);
+    await writePrivateSettingsFixture(root, { credentialsPath: credentialsFile });
 
     const result = await validateCredentialsFiles({ workspaceRoot: root });
 
@@ -141,22 +142,3 @@ describe("dbhopper credentials", () => {
     );
   });
 });
-
-async function writeSettings(root, credentialsPath = "assets/private/credentials") {
-  await fs.mkdir(path.join(root, "assets", "private"), { recursive: true });
-  await fs.writeFile(
-    path.join(root, "assets", "private", "settings.toml"),
-    [
-      'id_usr = "01"',
-      'id_clm = "01"',
-      'id_buy = "01"',
-      'id_pym = "01"',
-      `path_cred = "${credentialsPath}"`,
-      'path_prf = "assets/private/profiles"',
-      'delay_provider = "bahn-web"',
-      'delay_fallback = "none"',
-      "",
-    ].join("\n"),
-    "utf8",
-  );
-}

@@ -10,6 +10,8 @@ import {
   selectDelayProvider,
   shouldFallbackToProvider,
 } from "../dist/db-delay-tools.js";
+import { writePrivateSettingsFixture } from "./helpers/private-settings.js";
+import { jsonResponse, xmlResponse } from "./helpers/responses.js";
 
 describe("db delay provider selection", () => {
   it("selects Timetables for auto when credentials exist", () => {
@@ -80,21 +82,7 @@ async function writePrivateFiles(root) {
   const privateDir = path.join(root, "assets", "private");
   const credentialsDir = path.join(privateDir, "credentials");
   await fs.mkdir(credentialsDir, { recursive: true });
-  await fs.writeFile(
-    path.join(privateDir, "settings.toml"),
-    [
-      'id_usr = "01"',
-      'id_clm = "01"',
-      'id_buy = "01"',
-      'id_pym = "01"',
-      'path_cred = "assets/private/credentials"',
-      'path_prf = "assets/private/profiles"',
-      'delay_provider = "bahn-web"',
-      'delay_fallback = "none"',
-      "",
-    ].join("\n"),
-    "utf8",
-  );
+  await writePrivateSettingsFixture(root);
   await fs.writeFile(
     path.join(credentialsDir, "credentials-01.toml"),
     [
@@ -204,18 +192,4 @@ async function fakeParityFetch(url) {
     return new Response("", { status: 404 });
   }
   return new Response("not found", { status: 404 });
-}
-
-function jsonResponse(value) {
-  return new Response(JSON.stringify(value), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
-}
-
-function xmlResponse(value) {
-  return new Response(value.trim(), {
-    status: 200,
-    headers: { "content-type": "application/xml" },
-  });
 }

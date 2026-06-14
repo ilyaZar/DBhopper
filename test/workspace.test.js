@@ -12,6 +12,10 @@ import {
   writeSubmittedRecipe,
 } from "../dist/workspace.js";
 import { parseClaimToml, parsePrivateProfileToml } from "../dist/claim-toml.js";
+import {
+  writePrivateProfileFixture,
+  writePrivateSettingsFixture,
+} from "./helpers/private-settings.js";
 
 describe("dbhopper workspace", () => {
   it("creates per-claim folders and copies evidence", async () => {
@@ -57,33 +61,12 @@ describe("dbhopper workspace", () => {
 
   it("merges private profile TOML without storing private fields in claim TOML", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-profile-"));
-    await writeSettings(root);
-    await fs.mkdir(path.join(root, "assets", "private", "profiles"), { recursive: true });
-    await fs.writeFile(
-      path.join(root, "assets", "private", "profiles", "private-profile-01.toml"),
-      [
-        "version = 1",
-        'id_clm = "01"',
-        "",
-        "[claimant]",
-        'salutation = "FAMILY"',
-        'first_name = "Maria"',
-        'last_name = "Mustermann"',
-        'email = "maria@example.org"',
-        'phone = "+4922112345678"',
-        "",
-        "[claimant.address]",
-        'street_number = "Musterstrasse 1"',
-        'zip = "50667"',
-        'city = "Koeln"',
-        'country = "Deutschland"',
-        "",
-        "[claimant.bank]",
-        'account_owner = "Maria Mustermann"',
-        'iban = "fill-iban"',
-        "",
-      ].join("\n"),
-      "utf8",
+    await writePrivateSettingsFixture(root);
+    await writePrivateProfileFixture(
+      path.join(root, "assets", "private", "profiles"),
+      "01",
+      "private-profile-01.toml",
+      "Maria",
     );
 
     const prepared = await prepareClaim(
@@ -238,38 +221,21 @@ describe("dbhopper workspace", () => {
     const result = await validateWorkspaceTomlFiles({ workspaceRoot: root });
 
     assert.equal(result.ok, false);
-    assert.ok(result.messages.some((message) => /firstName must be a string/.test(message.message)));
+    assert.ok(
+      result.messages.some((message) =>
+        /firstName must be a string/.test(message.message),
+      ),
+    );
   });
 
   it("writes a submitted recipe with profile and claim data joined", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-recipe-"));
-    await writeSettings(root);
-    await fs.mkdir(path.join(root, "assets", "private", "profiles"), { recursive: true });
-    await fs.writeFile(
-      path.join(root, "assets", "private", "profiles", "private-profile-01.toml"),
-      [
-        "version = 1",
-        'id_clm = "01"',
-        "",
-        "[claimant]",
-        'salutation = "FAMILY"',
-        'first_name = "Maria"',
-        'last_name = "Mustermann"',
-        'email = "maria@example.org"',
-        'phone = "+4922112345678"',
-        "",
-        "[claimant.address]",
-        'street_number = "Musterstrasse 1"',
-        'zip = "50667"',
-        'city = "Koeln"',
-        'country = "Deutschland"',
-        "",
-        "[claimant.bank]",
-        'account_owner = "Maria Mustermann"',
-        'iban = "fill-iban"',
-        "",
-      ].join("\n"),
-      "utf8",
+    await writePrivateSettingsFixture(root);
+    await writePrivateProfileFixture(
+      path.join(root, "assets", "private", "profiles"),
+      "01",
+      "private-profile-01.toml",
+      "Maria",
     );
     const prepared = await prepareClaim(
       {
@@ -293,22 +259,3 @@ describe("dbhopper workspace", () => {
     assert.match(recipe, /start_station = "Koeln Hbf"/);
   });
 });
-
-async function writeSettings(root) {
-  await fs.mkdir(path.join(root, "assets", "private"), { recursive: true });
-  await fs.writeFile(
-    path.join(root, "assets", "private", "settings.toml"),
-    [
-      'id_usr = "01"',
-      'id_clm = "01"',
-      'id_buy = "01"',
-      'id_pym = "01"',
-      'path_cred = "assets/private/credentials"',
-      'path_prf = "assets/private/profiles"',
-      'delay_provider = "bahn-web"',
-      'delay_fallback = "none"',
-      "",
-    ].join("\n"),
-    "utf8",
-  );
-}
