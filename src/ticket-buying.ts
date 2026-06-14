@@ -1410,22 +1410,12 @@ async function continueFromOfferSelection(
 ) {
   const before = await detectCheckoutBoundary(page);
   if (before.finalOrderButtonVisible || before.paymentBoundaryVisible) {
-    return {
-      stage: before.stage,
-      action: "not_clicked_boundary_visible",
-      clickedText: undefined,
-      boundaryBefore: before,
-    };
+    return offerContinueResult(before, "not_clicked_boundary_visible");
   }
 
   const next = await findOfferSelectionContinue(page);
   if (!next) {
-    return {
-      stage: before.stage,
-      action: "not_clicked_no_offer_continue",
-      clickedText: undefined,
-      boundaryBefore: before,
-    };
+    return offerContinueResult(before, "not_clicked_no_offer_continue");
   }
 
   await next.click();
@@ -1433,12 +1423,7 @@ async function continueFromOfferSelection(
   await waitForCustomerDataProgress(page);
   await captureTicketStage(page, artifactDir, "checkout-customer-data", artifacts);
 
-  return {
-    stage: before.stage,
-    action: "clicked_offer_continue",
-    clickedText: next.text,
-    boundaryBefore: before,
-  };
+  return offerContinueResult(before, "clicked_offer_continue", next.text);
 }
 
 async function continueFromCustomerData(
@@ -1449,40 +1434,29 @@ async function continueFromCustomerData(
 ) {
   const before = await detectCheckoutBoundary(page);
   if (before.finalOrderButtonVisible || before.paymentBoundaryVisible) {
-    return {
-      stage: before.stage,
-      action: "not_clicked_boundary_visible",
-      clickedText: undefined,
+    return customerDataContinueResult(
+      before,
+      "not_clicked_boundary_visible",
       bookingFor,
-      bookingForAction: undefined,
-      boundaryBefore: before,
-      boundaryAfter: before,
-    };
+    );
   }
   if (before.stage !== "customer_data") {
-    return {
-      stage: before.stage,
-      action: "not_clicked_not_customer_data",
-      clickedText: undefined,
+    return customerDataContinueResult(
+      before,
+      "not_clicked_not_customer_data",
       bookingFor,
-      bookingForAction: undefined,
-      boundaryBefore: before,
-      boundaryAfter: before,
-    };
+    );
   }
 
   const bookingForAction = await applyBookingFor(page, bookingFor);
   const next = await findSafeCheckoutNext(page);
   if (!next) {
-    return {
-      stage: before.stage,
-      action: "not_clicked_no_customer_data_continue",
-      clickedText: undefined,
+    return customerDataContinueResult(
+      before,
+      "not_clicked_no_customer_data_continue",
       bookingFor,
-      bookingForAction,
-      boundaryBefore: before,
-      boundaryAfter: before,
-    };
+      { bookingForAction },
+    );
   }
 
   await next.click();
@@ -1491,15 +1465,12 @@ async function continueFromCustomerData(
   await captureTicketStage(page, artifactDir, "checkout-after-customer-data", artifacts);
   const after = await detectCheckoutBoundary(page);
 
-  return {
-    stage: before.stage,
-    action: "clicked_customer_data_continue",
-    clickedText: next.text,
+  return customerDataContinueResult(
+    before,
+    "clicked_customer_data_continue",
     bookingFor,
-    bookingForAction,
-    boundaryBefore: before,
-    boundaryAfter: after,
-  };
+    { bookingForAction, clickedText: next.text, after },
+  );
 }
 
 async function applyBookingFor(page: Page, bookingFor: DBhopperBookingFor) {
@@ -1956,46 +1927,17 @@ async function fillPaymentProfileAtBoundary(
 
 async function continueFromPaymentPage(
   page: Page,
-  paymentFill: {
-    stage: string;
-    action: string;
-    method?: DBhopperPaymentProfile["method"];
-    methodAction?: string;
-    filledFields: string[];
-    matchedFields: string[];
-    mismatchedFields: string[];
-    missingFields: string[];
-    artifactCaptureSkipped: boolean;
-    warnings?: PaymentFieldWarning[];
-  },
+  paymentFill: PaymentFillSummary,
 ) {
   const before = await detectCheckoutBoundary(page);
   if (paymentFill.missingFields.length > 0) {
-    return {
-      stage: before.stage,
-      action: "not_clicked_missing_payment_fields",
-      clickedText: undefined,
-      boundaryBefore: before,
-      boundaryAfter: before,
-    };
+    return paymentContinueResult(before, "not_clicked_missing_payment_fields");
   }
   if (before.finalOrderButtonVisible) {
-    return {
-      stage: before.stage,
-      action: "not_clicked_final_order_boundary",
-      clickedText: undefined,
-      boundaryBefore: before,
-      boundaryAfter: before,
-    };
+    return paymentContinueResult(before, "not_clicked_final_order_boundary");
   }
   if (before.stage !== "payment_boundary") {
-    return {
-      stage: before.stage,
-      action: "not_clicked_not_payment_boundary",
-      clickedText: undefined,
-      boundaryBefore: before,
-      boundaryAfter: before,
-    };
+    return paymentContinueResult(before, "not_clicked_not_payment_boundary");
   }
 
   let clickedText: string | undefined;
@@ -2003,15 +1945,13 @@ async function continueFromPaymentPage(
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const next = await findPaymentPageContinue(page);
     if (!next) {
-      return {
-        stage: before.stage,
-        action: clickedText
+      return paymentContinueResult(
+        before,
+        clickedText
           ? "clicked_payment_continue_no_review_progress"
           : "not_clicked_no_payment_continue",
-        clickedText,
-        boundaryBefore: before,
-        boundaryAfter: after,
-      };
+        { clickedText, after },
+      );
     }
 
     clickedText = next.text;
@@ -2024,24 +1964,20 @@ async function continueFromPaymentPage(
       after.finalOrderButtonVisible ||
       after.stage !== "payment_boundary"
     ) {
-      return {
-        stage: before.stage,
-        action: "clicked_payment_continue",
-        clickedText,
-        boundaryBefore: before,
-        boundaryAfter: after,
-      };
+      return paymentContinueResult(
+        before,
+        "clicked_payment_continue",
+        { clickedText, after },
+      );
     }
     await page.waitForTimeout(750);
   }
 
-  return {
-    stage: before.stage,
-    action: "clicked_payment_continue_no_review_progress",
-    clickedText,
-    boundaryBefore: before,
-    boundaryAfter: after,
-  };
+  return paymentContinueResult(
+    before,
+    "clicked_payment_continue_no_review_progress",
+    { clickedText, after },
+  );
 }
 
 async function selectPaymentMethod(
@@ -2455,8 +2391,129 @@ interface PaymentFieldWarning {
   message: string;
 }
 
+type CheckoutBoundary = Awaited<ReturnType<typeof detectCheckoutBoundary>>;
+
+interface JourneySelectionResult {
+  requestedTrainLabel?: string;
+  selectedIndex: number;
+  trainLabels: string[];
+  price?: string;
+  summary: string;
+  alreadySelected?: boolean;
+}
+
+interface FareSelectionResult {
+  requestedDefaultFare?: string;
+  selectedFare: DBhopperFareProduct;
+  selectedFareLabel?: string;
+  fallbackUsed?: boolean;
+  travelClass?: string;
+  travelClassLabel?: string;
+  selectedIndex: number;
+  price?: string;
+  alreadySelected?: boolean;
+}
+
+interface CheckoutStepResult {
+  stage: string;
+  action: string;
+  clickedText?: string;
+}
+
+interface OfferContinueResult extends CheckoutStepResult {
+  boundaryBefore: CheckoutBoundary;
+}
+
+interface CustomerDataContinueResult extends CheckoutStepResult {
+  bookingFor: DBhopperBookingFor;
+  bookingForAction?: string;
+  boundaryBefore: CheckoutBoundary;
+  boundaryAfter: CheckoutBoundary;
+}
+
+interface PaymentFillSummary {
+  stage: string;
+  action: string;
+  method?: DBhopperPaymentProfile["method"];
+  methodAction?: string;
+  filledFields: string[];
+  matchedFields: string[];
+  mismatchedFields: string[];
+  missingFields: string[];
+  artifactCaptureSkipped: boolean;
+  warnings?: PaymentFieldWarning[];
+}
+
+interface PaymentFillResult extends PaymentFillSummary {
+  boundaryBefore: CheckoutBoundary;
+  boundaryAfter?: CheckoutBoundary;
+}
+
+interface PaymentContinueResult extends CheckoutStepResult {
+  boundaryBefore: CheckoutBoundary;
+  boundaryAfter: CheckoutBoundary;
+}
+
 interface PaymentFillOptions {
   normalize?: (value: string) => string;
+}
+
+function offerContinueResult(
+  before: CheckoutBoundary,
+  action: string,
+  clickedText?: string,
+): OfferContinueResult {
+  return {
+    stage: before.stage,
+    action,
+    clickedText,
+    boundaryBefore: before,
+  };
+}
+
+function customerDataContinueResult(
+  before: CheckoutBoundary,
+  action: string,
+  bookingFor: DBhopperBookingFor,
+  {
+    bookingForAction,
+    clickedText,
+    after = before,
+  }: {
+    bookingForAction?: string;
+    clickedText?: string;
+    after?: CheckoutBoundary;
+  } = {},
+): CustomerDataContinueResult {
+  return {
+    stage: before.stage,
+    action,
+    clickedText,
+    bookingFor,
+    bookingForAction,
+    boundaryBefore: before,
+    boundaryAfter: after,
+  };
+}
+
+function paymentContinueResult(
+  before: CheckoutBoundary,
+  action: string,
+  {
+    clickedText,
+    after = before,
+  }: {
+    clickedText?: string;
+    after?: CheckoutBoundary;
+  } = {},
+): PaymentContinueResult {
+  return {
+    stage: before.stage,
+    action,
+    clickedText,
+    boundaryBefore: before,
+    boundaryAfter: after,
+  };
 }
 
 function paymentFieldWarnings(mismatchedFields: string[]): PaymentFieldWarning[] {
@@ -2608,59 +2665,12 @@ async function paymentCheckboxIsChecked(control: Locator) {
 
 async function stopAfterFareSelection(
   page: Page,
-  selectedJourney: {
-    requestedTrainLabel?: string;
-    selectedIndex: number;
-    trainLabels: string[];
-    price?: string;
-    summary: string;
-    alreadySelected?: boolean;
-  },
-  selectedFare: {
-    requestedDefaultFare?: string;
-    selectedFare: DBhopperFareProduct;
-    selectedFareLabel?: string;
-    fallbackUsed?: boolean;
-    travelClass?: string;
-    travelClassLabel?: string;
-    selectedIndex: number;
-    price?: string;
-    alreadySelected?: boolean;
-  },
-  offerContinue?: {
-    stage: string;
-    action: string;
-    clickedText?: string;
-    boundaryBefore: Awaited<ReturnType<typeof detectCheckoutBoundary>>;
-  },
-  customerDataContinue?: {
-    stage: string;
-    action: string;
-    clickedText?: string;
-    bookingFor: DBhopperBookingFor;
-    bookingForAction?: string;
-    boundaryBefore: Awaited<ReturnType<typeof detectCheckoutBoundary>>;
-    boundaryAfter: Awaited<ReturnType<typeof detectCheckoutBoundary>>;
-  },
-  paymentFill?: {
-    stage: string;
-    action: string;
-    method?: DBhopperPaymentProfile["method"];
-    methodAction?: string;
-    filledFields: string[];
-    matchedFields: string[];
-    mismatchedFields: string[];
-    missingFields: string[];
-    artifactCaptureSkipped: boolean;
-    warnings?: PaymentFieldWarning[];
-  },
-  paymentContinue?: {
-    stage: string;
-    action: string;
-    clickedText?: string;
-    boundaryBefore: Awaited<ReturnType<typeof detectCheckoutBoundary>>;
-    boundaryAfter: Awaited<ReturnType<typeof detectCheckoutBoundary>>;
-  },
+  selectedJourney: JourneySelectionResult,
+  selectedFare: FareSelectionResult,
+  offerContinue?: OfferContinueResult,
+  customerDataContinue?: CustomerDataContinueResult,
+  paymentFill?: PaymentFillResult,
+  paymentContinue?: PaymentContinueResult,
 ) {
   const boundary = await detectCheckoutBoundary(page);
   const resultState = checkoutResultState(
@@ -2723,7 +2733,7 @@ async function stopAfterFareSelection(
 }
 
 function checkoutResultState(
-  boundary: Awaited<ReturnType<typeof detectCheckoutBoundary>>,
+  boundary: CheckoutBoundary,
   ...args: Parameters<typeof checkoutSteps>
 ) {
   const [
@@ -2749,35 +2759,10 @@ function checkoutResultState(
 function checkoutSteps(
   selectedJourney: Parameters<typeof journeySelectionStep>[0],
   selectedFare: Parameters<typeof fareSelectionStep>[0],
-  offerContinue?: {
-    stage: string;
-    action: string;
-    clickedText?: string;
-  },
-  customerDataContinue?: {
-    stage: string;
-    action: string;
-    clickedText?: string;
-    bookingFor: DBhopperBookingFor;
-    bookingForAction?: string;
-  },
-  paymentFill?: {
-    stage: string;
-    action: string;
-    method?: DBhopperPaymentProfile["method"];
-    methodAction?: string;
-    filledFields: string[];
-    matchedFields: string[];
-    mismatchedFields: string[];
-    missingFields: string[];
-    artifactCaptureSkipped: boolean;
-    warnings?: PaymentFieldWarning[];
-  },
-  paymentContinue?: {
-    stage: string;
-    action: string;
-    clickedText?: string;
-  },
+  offerContinue?: CheckoutStepResult,
+  customerDataContinue?: CustomerDataContinueResult,
+  paymentFill?: PaymentFillSummary,
+  paymentContinue?: CheckoutStepResult,
 ) {
   return [
     journeySelectionStep(selectedJourney),
@@ -2789,13 +2774,7 @@ function checkoutSteps(
   ];
 }
 
-function journeySelectionStep(selectedJourney: {
-  requestedTrainLabel?: string;
-  selectedIndex: number;
-  trainLabels: string[];
-  price?: string;
-  alreadySelected?: boolean;
-}) {
+function journeySelectionStep(selectedJourney: JourneySelectionResult) {
   return {
     stage: "search_results",
     action: selectedJourney.alreadySelected
@@ -2808,17 +2787,7 @@ function journeySelectionStep(selectedJourney: {
   };
 }
 
-function fareSelectionStep(selectedFare: {
-  requestedDefaultFare?: string;
-  selectedFare: DBhopperFareProduct;
-  selectedFareLabel?: string;
-  fallbackUsed?: boolean;
-  travelClass?: string;
-  travelClassLabel?: string;
-  selectedIndex: number;
-  price?: string;
-  alreadySelected?: boolean;
-}) {
+function fareSelectionStep(selectedFare: FareSelectionResult) {
   return {
     stage: "offer_selection",
     action: selectedFare.alreadySelected
@@ -2835,11 +2804,7 @@ function fareSelectionStep(selectedFare: {
   };
 }
 
-function offerContinueStep(offerContinue: {
-  stage: string;
-  action: string;
-  clickedText?: string;
-}) {
+function offerContinueStep(offerContinue: CheckoutStepResult) {
   return {
     stage: offerContinue.stage,
     action: offerContinue.action,
@@ -2847,13 +2812,9 @@ function offerContinueStep(offerContinue: {
   };
 }
 
-function customerDataContinueStep(customerDataContinue: {
-  stage: string;
-  action: string;
-  clickedText?: string;
-  bookingFor: DBhopperBookingFor;
-  bookingForAction?: string;
-}) {
+function customerDataContinueStep(
+  customerDataContinue: CustomerDataContinueResult,
+) {
   return {
     stage: customerDataContinue.stage,
     action: customerDataContinue.action,
@@ -2863,18 +2824,7 @@ function customerDataContinueStep(customerDataContinue: {
   };
 }
 
-function paymentFillStep(paymentFill: {
-  stage: string;
-  action: string;
-  method?: DBhopperPaymentProfile["method"];
-  methodAction?: string;
-  filledFields: string[];
-  matchedFields: string[];
-  mismatchedFields: string[];
-  missingFields: string[];
-  artifactCaptureSkipped: boolean;
-  warnings?: PaymentFieldWarning[];
-}) {
+function paymentFillStep(paymentFill: PaymentFillSummary) {
   return {
     stage: paymentFill.stage,
     action: paymentFill.action,
@@ -2889,11 +2839,7 @@ function paymentFillStep(paymentFill: {
   };
 }
 
-function paymentContinueStep(paymentContinue: {
-  stage: string;
-  action: string;
-  clickedText?: string;
-}) {
+function paymentContinueStep(paymentContinue: CheckoutStepResult) {
   return {
     stage: paymentContinue.stage,
     action: paymentContinue.action,

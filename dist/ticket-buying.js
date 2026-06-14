@@ -1053,84 +1053,37 @@ async function selectFareOffer(page, fareSelection) {
 async function continueFromOfferSelection(page, artifactDir, artifacts) {
     const before = await detectCheckoutBoundary(page);
     if (before.finalOrderButtonVisible || before.paymentBoundaryVisible) {
-        return {
-            stage: before.stage,
-            action: "not_clicked_boundary_visible",
-            clickedText: undefined,
-            boundaryBefore: before,
-        };
+        return offerContinueResult(before, "not_clicked_boundary_visible");
     }
     const next = await findOfferSelectionContinue(page);
     if (!next) {
-        return {
-            stage: before.stage,
-            action: "not_clicked_no_offer_continue",
-            clickedText: undefined,
-            boundaryBefore: before,
-        };
+        return offerContinueResult(before, "not_clicked_no_offer_continue");
     }
     await next.click();
     await page.waitForLoadState("domcontentloaded").catch(() => undefined);
     await waitForCustomerDataProgress(page);
     await captureTicketStage(page, artifactDir, "checkout-customer-data", artifacts);
-    return {
-        stage: before.stage,
-        action: "clicked_offer_continue",
-        clickedText: next.text,
-        boundaryBefore: before,
-    };
+    return offerContinueResult(before, "clicked_offer_continue", next.text);
 }
 async function continueFromCustomerData(page, artifactDir, artifacts, bookingFor) {
     const before = await detectCheckoutBoundary(page);
     if (before.finalOrderButtonVisible || before.paymentBoundaryVisible) {
-        return {
-            stage: before.stage,
-            action: "not_clicked_boundary_visible",
-            clickedText: undefined,
-            bookingFor,
-            bookingForAction: undefined,
-            boundaryBefore: before,
-            boundaryAfter: before,
-        };
+        return customerDataContinueResult(before, "not_clicked_boundary_visible", bookingFor);
     }
     if (before.stage !== "customer_data") {
-        return {
-            stage: before.stage,
-            action: "not_clicked_not_customer_data",
-            clickedText: undefined,
-            bookingFor,
-            bookingForAction: undefined,
-            boundaryBefore: before,
-            boundaryAfter: before,
-        };
+        return customerDataContinueResult(before, "not_clicked_not_customer_data", bookingFor);
     }
     const bookingForAction = await applyBookingFor(page, bookingFor);
     const next = await findSafeCheckoutNext(page);
     if (!next) {
-        return {
-            stage: before.stage,
-            action: "not_clicked_no_customer_data_continue",
-            clickedText: undefined,
-            bookingFor,
-            bookingForAction,
-            boundaryBefore: before,
-            boundaryAfter: before,
-        };
+        return customerDataContinueResult(before, "not_clicked_no_customer_data_continue", bookingFor, { bookingForAction });
     }
     await next.click();
     await page.waitForLoadState("domcontentloaded").catch(() => undefined);
     await page.waitForTimeout(5000);
     await captureTicketStage(page, artifactDir, "checkout-after-customer-data", artifacts);
     const after = await detectCheckoutBoundary(page);
-    return {
-        stage: before.stage,
-        action: "clicked_customer_data_continue",
-        clickedText: next.text,
-        bookingFor,
-        bookingForAction,
-        boundaryBefore: before,
-        boundaryAfter: after,
-    };
+    return customerDataContinueResult(before, "clicked_customer_data_continue", bookingFor, { bookingForAction, clickedText: next.text, after });
 }
 async function applyBookingFor(page, bookingFor) {
     if (bookingFor !== "self") {
@@ -1481,46 +1434,22 @@ async function fillPaymentProfileAtBoundary(page, _artifactDir, _artifacts, paym
 async function continueFromPaymentPage(page, paymentFill) {
     const before = await detectCheckoutBoundary(page);
     if (paymentFill.missingFields.length > 0) {
-        return {
-            stage: before.stage,
-            action: "not_clicked_missing_payment_fields",
-            clickedText: undefined,
-            boundaryBefore: before,
-            boundaryAfter: before,
-        };
+        return paymentContinueResult(before, "not_clicked_missing_payment_fields");
     }
     if (before.finalOrderButtonVisible) {
-        return {
-            stage: before.stage,
-            action: "not_clicked_final_order_boundary",
-            clickedText: undefined,
-            boundaryBefore: before,
-            boundaryAfter: before,
-        };
+        return paymentContinueResult(before, "not_clicked_final_order_boundary");
     }
     if (before.stage !== "payment_boundary") {
-        return {
-            stage: before.stage,
-            action: "not_clicked_not_payment_boundary",
-            clickedText: undefined,
-            boundaryBefore: before,
-            boundaryAfter: before,
-        };
+        return paymentContinueResult(before, "not_clicked_not_payment_boundary");
     }
     let clickedText;
     let after = before;
     for (let attempt = 0; attempt < 3; attempt += 1) {
         const next = await findPaymentPageContinue(page);
         if (!next) {
-            return {
-                stage: before.stage,
-                action: clickedText
-                    ? "clicked_payment_continue_no_review_progress"
-                    : "not_clicked_no_payment_continue",
-                clickedText,
-                boundaryBefore: before,
-                boundaryAfter: after,
-            };
+            return paymentContinueResult(before, clickedText
+                ? "clicked_payment_continue_no_review_progress"
+                : "not_clicked_no_payment_continue", { clickedText, after });
         }
         clickedText = next.text;
         await next.click();
@@ -1530,23 +1459,11 @@ async function continueFromPaymentPage(page, paymentFill) {
         if (await isCheckPageReview(page) ||
             after.finalOrderButtonVisible ||
             after.stage !== "payment_boundary") {
-            return {
-                stage: before.stage,
-                action: "clicked_payment_continue",
-                clickedText,
-                boundaryBefore: before,
-                boundaryAfter: after,
-            };
+            return paymentContinueResult(before, "clicked_payment_continue", { clickedText, after });
         }
         await page.waitForTimeout(750);
     }
-    return {
-        stage: before.stage,
-        action: "clicked_payment_continue_no_review_progress",
-        clickedText,
-        boundaryBefore: before,
-        boundaryAfter: after,
-    };
+    return paymentContinueResult(before, "clicked_payment_continue_no_review_progress", { clickedText, after });
 }
 async function selectPaymentMethod(page, method) {
     return page.evaluate((selectedMethod) => {
@@ -1869,6 +1786,34 @@ async function clickCheckboxByVisibleText(page, labels) {
         await page.waitForTimeout(150);
     }
     return result;
+}
+function offerContinueResult(before, action, clickedText) {
+    return {
+        stage: before.stage,
+        action,
+        clickedText,
+        boundaryBefore: before,
+    };
+}
+function customerDataContinueResult(before, action, bookingFor, { bookingForAction, clickedText, after = before, } = {}) {
+    return {
+        stage: before.stage,
+        action,
+        clickedText,
+        bookingFor,
+        bookingForAction,
+        boundaryBefore: before,
+        boundaryAfter: after,
+    };
+}
+function paymentContinueResult(before, action, { clickedText, after = before, } = {}) {
+    return {
+        stage: before.stage,
+        action,
+        clickedText,
+        boundaryBefore: before,
+        boundaryAfter: after,
+    };
 }
 function paymentFieldWarnings(mismatchedFields) {
     return mismatchedFields.map((field) => ({

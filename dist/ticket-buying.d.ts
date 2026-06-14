@@ -1,3 +1,4 @@
+import type { Page } from "playwright-core";
 import { type BuyingFarePreference } from "./buying-profile.js";
 import { type DBhopperTicketBuyingMode } from "./private-settings.js";
 import type { DBhopperBookingFor, DBhopperConfig, DBhopperFareProduct, DBhopperPaymentProfile } from "./types.js";
@@ -519,53 +520,12 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
                 finalOrderButtonVisible: boolean;
                 finalOrderButtonText: string | undefined;
             };
-            selectedJourney: {
-                requestedTrainLabel?: string;
-                selectedIndex: number;
-                trainLabels: string[];
-                price?: string;
-                alreadySelected?: boolean;
-            };
-            selectedFare: {
-                requestedDefaultFare?: string;
-                selectedFare: DBhopperFareProduct;
-                selectedFareLabel?: string;
-                fallbackUsed?: boolean;
-                travelClass?: string;
-                travelClassLabel?: string;
-                selectedIndex: number;
-                price?: string;
-                alreadySelected?: boolean;
-            };
-            offerContinue: {
-                stage: string;
-                action: string;
-                clickedText?: string;
-            } | undefined;
-            customerDataContinue: {
-                stage: string;
-                action: string;
-                clickedText?: string;
-                bookingFor: DBhopperBookingFor;
-                bookingForAction?: string;
-            } | undefined;
-            paymentFill: {
-                stage: string;
-                action: string;
-                method?: DBhopperPaymentProfile["method"];
-                methodAction?: string;
-                filledFields: string[];
-                matchedFields: string[];
-                mismatchedFields: string[];
-                missingFields: string[];
-                artifactCaptureSkipped: boolean;
-                warnings?: PaymentFieldWarning[];
-            } | undefined;
-            paymentContinue: {
-                stage: string;
-                action: string;
-                clickedText?: string;
-            } | undefined;
+            selectedJourney: JourneySelectionResult;
+            selectedFare: FareSelectionResult;
+            offerContinue: CheckoutStepResult | undefined;
+            customerDataContinue: CustomerDataContinueResult | undefined;
+            paymentFill: PaymentFillSummary | undefined;
+            paymentContinue: CheckoutStepResult | undefined;
         };
         controls: {
             text: string;
@@ -1023,6 +983,55 @@ interface PaymentFieldWarning {
     field: string;
     message: string;
 }
+type CheckoutBoundary = Awaited<ReturnType<typeof detectCheckoutBoundary>>;
+interface JourneySelectionResult {
+    requestedTrainLabel?: string;
+    selectedIndex: number;
+    trainLabels: string[];
+    price?: string;
+    summary: string;
+    alreadySelected?: boolean;
+}
+interface FareSelectionResult {
+    requestedDefaultFare?: string;
+    selectedFare: DBhopperFareProduct;
+    selectedFareLabel?: string;
+    fallbackUsed?: boolean;
+    travelClass?: string;
+    travelClassLabel?: string;
+    selectedIndex: number;
+    price?: string;
+    alreadySelected?: boolean;
+}
+interface CheckoutStepResult {
+    stage: string;
+    action: string;
+    clickedText?: string;
+}
+interface CustomerDataContinueResult extends CheckoutStepResult {
+    bookingFor: DBhopperBookingFor;
+    bookingForAction?: string;
+    boundaryBefore: CheckoutBoundary;
+    boundaryAfter: CheckoutBoundary;
+}
+interface PaymentFillSummary {
+    stage: string;
+    action: string;
+    method?: DBhopperPaymentProfile["method"];
+    methodAction?: string;
+    filledFields: string[];
+    matchedFields: string[];
+    mismatchedFields: string[];
+    missingFields: string[];
+    artifactCaptureSkipped: boolean;
+    warnings?: PaymentFieldWarning[];
+}
+declare function detectCheckoutBoundary(page: Page): Promise<{
+    stage: string;
+    paymentBoundaryVisible: boolean;
+    finalOrderButtonVisible: boolean;
+    finalOrderButtonText: string | undefined;
+}>;
 export declare function isFinalOrderText(value: string): boolean;
 export declare function defaultCheckoutServiceDate(now?: Date): string;
 export {};
