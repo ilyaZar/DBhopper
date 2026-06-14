@@ -49,11 +49,17 @@ describe("dbhopper package metadata", () => {
 
   it("keeps runtime claim data out of the npm file list", async () => {
     const pkg = JSON.parse(await fs.readFile("package.json", "utf8"));
-    assert.ok(pkg.files.includes("claims/.gitkeep"));
-    assert.ok(pkg.files.includes("assets/private/.gitkeep"));
-    assert.ok(pkg.files.includes("assets/private/credentials/.gitkeep"));
-    assert.ok(pkg.files.includes("assets/private/profiles/.gitkeep"));
+    assert.ok(pkg.files.includes("assets/dbhopper_banner.png"));
     assert.ok(pkg.files.includes("docs/"));
+    for (const filePath of [
+      "claims/.gitkeep",
+      "assets/.gitkeep",
+      "assets/private/.gitkeep",
+      "assets/private/credentials/.gitkeep",
+      "assets/private/profiles/.gitkeep",
+    ]) {
+      assert.equal(pkg.files.includes(filePath), false);
+    }
     assert.equal(
       pkg.files.includes("assets/private/credentials/credentials.example.toml"),
       false,
@@ -71,15 +77,17 @@ describe("dbhopper package metadata", () => {
     const gitignore = await fs.readFile(".gitignore", "utf8");
     const clawhubignore = await fs.readFile(".clawhubignore", "utf8");
 
-    assert.match(gitignore, /^tmp\/\*\*$/m);
-    assert.match(gitignore, /^claims\/\*\*$/m);
-    assert.match(gitignore, /^assets\/private\/\*\*$/m);
-    assert.match(gitignore, /^assets\/psc\/\*\*$/m);
+    assert.match(gitignore, /^tmp\/$/m);
+    assert.match(gitignore, /^claims\/$/m);
+    assert.match(gitignore, /^assets\/private\/$/m);
+    assert.match(gitignore, /^assets\/psc\/$/m);
     assert.doesNotMatch(gitignore, /!tmp\//);
-    assert.match(clawhubignore, /^tmp\/\*\*$/m);
-    assert.match(clawhubignore, /^claims\/\*\*$/m);
-    assert.match(clawhubignore, /^assets\/private\/\*\*$/m);
-    assert.match(clawhubignore, /^assets\/psc\/\*\*$/m);
+    assert.doesNotMatch(gitignore, /!claims\//);
+    assert.doesNotMatch(gitignore, /!assets\/private\//);
+    assert.match(clawhubignore, /^tmp\/$/m);
+    assert.match(clawhubignore, /^claims\/$/m);
+    assert.match(clawhubignore, /^assets\/private\/$/m);
+    assert.match(clawhubignore, /^assets\/psc\/$/m);
 
     const ignoredPaths = [
       "assets/private/settings.toml",
@@ -113,7 +121,15 @@ describe("dbhopper package metadata", () => {
     const paths = files.map((file) => file.path);
 
     assert.equal(paths.some((filePath) => filePath.startsWith("tmp/")), false);
-    assert.equal(paths.some((filePath) => filePath.startsWith("assets/psc/")), false);
-    assert.equal(paths.includes("tmp/.gitkeep"), false);
+    for (const prefix of ["claims/", "assets/private/", "assets/psc/"]) {
+      assert.equal(paths.some((filePath) => filePath.startsWith(prefix)), false);
+    }
+    for (const filePath of [
+      "tmp/.gitkeep",
+      "claims/.gitkeep",
+      "assets/private/.gitkeep",
+    ]) {
+      assert.equal(paths.includes(filePath), false);
+    }
   });
 });

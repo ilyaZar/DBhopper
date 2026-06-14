@@ -12,14 +12,10 @@ or under the directory selected by `path_cred` in:
 assets/private/settings.toml
 ```
 
-Packaged files in that directory are only:
-
-- `.gitkeep`
-
-Real credential files are ignored by git and should stay local. Use
-`docs/examples/credentials.example.toml` as the public template. Copy it into
-the private credentials directory and set the `ID_USR` value that should be
-selected by settings routing.
+Credential files are ignored by git and should stay local. Create the private
+credentials directory before copying
+`docs/examples/credentials.example.toml` into it, then set the `ID_USR` value
+that should be selected by settings routing.
 
 ## Settings Router
 

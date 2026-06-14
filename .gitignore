@@ -16,16 +16,7 @@ lcov.info
 !specs/
 !specs/**
 
-# User-managed runtime data. Keep the folders, not private contents.
-claims/**
-!claims/
-!claims/.gitkeep
-assets/private/**
-!assets/private/
-!assets/private/.gitkeep
-!assets/private/profiles/
-!assets/private/profiles/.gitkeep
-!assets/private/credentials/
-!assets/private/credentials/.gitkeep
-assets/psc/**
-tmp/**
+claims/
+assets/private/
+assets/psc/
+tmp/
