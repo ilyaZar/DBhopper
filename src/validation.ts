@@ -48,10 +48,6 @@ export function validateClaim(
     }
   }
 
-  if (claim.version && claim.version !== 1) {
-    messages.push(error("unsupported_version", "claim version must be 1"));
-  }
-
   validateJourney(claim, now, messages);
   validateTicket(claim, messages);
   validateFiles(claim, messages);
@@ -77,7 +73,6 @@ export function claimSchemaReference() {
           "assets/private/settings.toml ID_CLM.",
         ].join(" "),
       privateProfileShape: {
-        version: 1,
         claimant: {
           salutation: "FAMILY",
           firstName: "Maria",
@@ -112,7 +107,6 @@ export function claimSchemaReference() {
       formData: REQUIRED_BROWSER_FIELDS,
     },
     editableClaimTomlShape: {
-      version: 1,
       claimId: "koeln-duesseldorf-2026-06-06-re6",
       journey: {
         date: "2026-06-06",

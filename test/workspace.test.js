@@ -99,7 +99,6 @@ describe("dbhopper workspace", () => {
     await fs.writeFile(
       path.join(root, "claims", "bad", "claim.toml"),
       [
-        "version = 1",
         'claim_id = "bad"',
         "",
         "[journey]",
@@ -129,62 +128,62 @@ describe("dbhopper workspace", () => {
     );
   });
 
-  it("keeps old camelCase claim and profile aliases compatible", () => {
-    const claim = parseClaimToml([
-      "version = 1",
-      'claimId = "legacy-claim"',
-      "",
-      "[journey]",
-      'startStation = "Koeln Hbf"',
-      'endStation = "Duesseldorf Hbf"',
-      "delayMinutes = 25",
-      "",
-      "[[files]]",
-      'role = "base_ticket"',
-      'path = "ticket.pdf"',
-      "reusableAsset = true",
-      "",
-    ].join("\n"));
-    const profile = parsePrivateProfileToml([
-      "version = 1",
-      'ID_CLM = "01"',
-      "",
-      "[claimant]",
-      'salutation = "FAMILY"',
-      'firstName = "Maria"',
-      'lastName = "Mustermann"',
-      'email = "maria@example.org"',
-      'phone = "+4922112345678"',
-      "",
-      "[claimant.address]",
-      'streetNumber = "Musterstrasse 1"',
-      'zip = "50667"',
-      'city = "Koeln"',
-      'country = "Deutschland"',
-      "",
-      "[claimant.bank]",
-      'accountOwner = "Maria Mustermann"',
-      'iban = "fill-iban"',
-      "",
-    ].join("\n"));
-
-    assert.equal(claim.claimId, "legacy-claim");
-    assert.equal(claim.journey.startStation, "Koeln Hbf");
-    assert.equal(claim.files[0].reusableAsset, true);
-    assert.equal(profile.ID_CLM, "01");
-    assert.equal(profile.claimant.firstName, "Maria");
-  });
-
-  it("rejects conflicting claim aliases", () => {
+  it("rejects unsupported claim and profile keys", () => {
     assert.throws(
       () =>
         parseClaimToml([
-          "version = 1",
-          'claim_id = "snake-claim"',
-          'claimId = "legacy-claim"',
+          'claimId = "bad-claim"',
           "",
         ].join("\n")),
-      /aliases must not disagree/,
+      /use claim_id/,
+    );
+    assert.throws(
+      () =>
+        parseClaimToml([
+          'claim_id = "bad-claim"',
+          "",
+          "[journey]",
+          'startStation = "Koeln Hbf"',
+          "",
+        ].join("\n")),
+      /use start_station/,
+    );
+    assert.throws(
+      () =>
+        parsePrivateProfileToml([
+          'ID_CLM = "01"',
+          'id_clm = "01"',
+          "",
+          "[claimant]",
+          'salutation = "FAMILY"',
+          'first_name = "Maria"',
+          'last_name = "Mustermann"',
+          'email = "maria@example.org"',
+          'phone = "+4922112345678"',
+          "",
+          "[claimant.address]",
+          'street_number = "Musterstrasse 1"',
+          'zip = "50667"',
+          'city = "Koeln"',
+          'country = "Deutschland"',
+          "",
+          "[claimant.bank]",
+          'account_owner = "Maria Mustermann"',
+          'iban = "fill-iban"',
+          "",
+        ].join("\n")),
+      /id_clm is not a supported field/,
+    );
+    assert.throws(
+      () =>
+        parsePrivateProfileToml([
+          'ID_CLM = "01"',
+          "",
+          "[claimant]",
+          'firstName = "Maria"',
+          "",
+        ].join("\n")),
+      /use first_name/,
     );
   });
 
@@ -194,8 +193,7 @@ describe("dbhopper workspace", () => {
     await fs.writeFile(
       path.join(root, "assets", "private", "profiles", "broken.toml"),
       [
-        "version = 1",
-        'id_clm = "01"',
+        'ID_CLM = "01"',
         "",
         "[claimant]",
         'salutation = "FAMILY"',

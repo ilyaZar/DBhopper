@@ -14,7 +14,6 @@ type PrimitiveKind = "string" | "number" | "boolean";
 interface PrimitiveSchema {
   kind: PrimitiveKind;
   enum?: readonly string[];
-  const?: string | number | boolean;
 }
 
 interface ObjectSchema {
@@ -49,7 +48,6 @@ const FILE_ROLES = [
 ] as const;
 const CLAIM_TOML_ALIASES: TomlKeyMapByPath = {
   "": {
-    id_clm: "ID_CLM",
     claim_id: "claimId",
   },
   claimant: {
@@ -88,7 +86,6 @@ const CLAIM_TOML_ALIASES: TomlKeyMapByPath = {
 };
 const CLAIM_TOML_OUTPUT_KEYS: TomlKeyMapByPath = {
   "": {
-    ID_CLM: "id_clm",
     claimId: "claim_id",
   },
   claimant: {
@@ -191,7 +188,6 @@ const fileSchema: TomlSchema = object(
 );
 
 const baseClaimFields: Record<string, TomlSchema> = {
-  version: constant(1),
   claimId: string(),
   status: string(),
   journey: journeySchema,
@@ -205,7 +201,6 @@ const claimFileSchema = object(baseClaimFields);
 const privateProfileSchema = object(
   {
     ID_CLM: string(),
-    version: constant(1),
     claimant: claimantSchema,
   },
   ["ID_CLM", "claimant"],
@@ -255,7 +250,11 @@ export function schemaValidationMessages(
 ): ValidationMessage[] {
   const schema = kind === "profile" ? privateProfileSchema : claimFileSchema;
   try {
-    assertSchema(normalizeTomlKeys(value, source, CLAIM_TOML_ALIASES), schema, source);
+    assertSchema(
+      normalizeTomlKeys(value, source, CLAIM_TOML_ALIASES, true),
+      schema,
+      source,
+    );
     return [];
   } catch (error) {
     return [validationErrorFromException("invalid_toml_schema", error)];
@@ -267,6 +266,7 @@ function parseTomlDocument(text: string, schema: TomlSchema, source: string) {
     parseToml(text, source),
     source,
     CLAIM_TOML_ALIASES,
+    true,
   );
   assertSchema(parsed, schema, source);
   return parsed;
@@ -316,9 +316,6 @@ function assertSchema(value: unknown, schema: TomlSchema, path: string) {
     if (schema.enum && !schema.enum.includes(value)) {
       throw new Error(`${path} must be one of: ${schema.enum.join(", ")}`);
     }
-    if (schema.const !== undefined && value !== schema.const) {
-      throw new Error(`${path} must be ${String(schema.const)}`);
-    }
     return;
   }
 
@@ -326,17 +323,11 @@ function assertSchema(value: unknown, schema: TomlSchema, path: string) {
     if (typeof value !== "number" || !Number.isFinite(value)) {
       throw new Error(`${path} must be a number`);
     }
-    if (schema.const !== undefined && value !== schema.const) {
-      throw new Error(`${path} must be ${String(schema.const)}`);
-    }
     return;
   }
 
   if (typeof value !== "boolean") {
     throw new Error(`${path} must be a boolean`);
-  }
-  if (schema.const !== undefined && value !== schema.const) {
-    throw new Error(`${path} must be ${String(schema.const)}`);
   }
 }
 
@@ -362,10 +353,6 @@ function number(): TomlSchema {
 
 function boolean(): TomlSchema {
   return { kind: "boolean" };
-}
-
-function constant(value: string | number | boolean): TomlSchema {
-  return { kind: typeof value as PrimitiveKind, const: value };
 }
 
 function array(item: TomlSchema): TomlSchema {

@@ -38,7 +38,6 @@ export declare function readSelectedPaymentProfile(config?: DBhopperConfig): Pro
                 saveAsPreferred: boolean;
             } | undefined;
         };
-        version?: 1;
     };
 } | undefined>;
 export declare function parsePaymentProfileToml(text: string, source?: string): {
@@ -70,7 +69,6 @@ export declare function parsePaymentProfileToml(text: string, source?: string): 
             saveAsPreferred: boolean;
         } | undefined;
     };
-    version?: 1;
 };
 export declare function schemaValidationMessagesForPaymentProfile(value: unknown, source: string): ValidationMessage[];
 export declare function paymentProfileSummary(loaded?: LoadedPaymentProfile): {

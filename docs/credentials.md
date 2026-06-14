@@ -18,7 +18,7 @@ Packaged files in that directory are only:
 
 Real credential files are ignored by git and should stay local. Use
 `docs/examples/credentials.example.toml` as the public template. Copy it into
-the private credentials directory and set the `id_usr` value that should be
+the private credentials directory and set the `ID_USR` value that should be
 selected by settings routing.
 
 ## Settings Router
@@ -26,10 +26,10 @@ selected by settings routing.
 The single settings file is `assets/private/settings.toml`:
 
 ```toml
-id_usr = "01"
-id_clm = "01"
-id_buy = "01"
-id_pym = "01"
+ID_USR = "01"
+ID_CLM = "01"
+ID_BUY = "01"
+ID_PYM = "01"
 ticket_buying_mode = "review"
 path_cred = "assets/private/credentials"
 path_prf = "assets/private/profiles"
@@ -39,7 +39,7 @@ delay_fallback = "none"
 
 `path_cred` and `path_prf` are user-controlled. They may be relative to the
 plugin directory or absolute within the user file system. OpenClaw agents
-should only change `id_usr`, `id_clm`, `id_buy`, `id_pym`, and
+should only change `ID_USR`, `ID_CLM`, `ID_BUY`, `ID_PYM`, and
 `ticket_buying_mode` through `dbhopper_private_settings_select`.
 
 `ticket_buying_mode` defaults to `"review"`, which captures a sensitive DB
@@ -59,8 +59,7 @@ the selected ID does not exist.
 ## Credential Schema
 
 ```toml
-version = 1
-id_usr = "01"
+ID_USR = "01"
 
 [bahn_account]
 username = "user@example.org"
@@ -80,8 +79,7 @@ user_data_dir = "assets/private/browser/db-ticket-buying"
 
 Current top-level fields:
 
-- `version`: optional schema version, currently `1`.
-- `id_usr`: required quoted numeric credential ID, for example `"01"`.
+- `ID_USR`: required quoted numeric credential ID, for example `"01"`.
 
 Current credential sections:
 
@@ -109,11 +107,10 @@ assets/private/credentials/credentials-03.toml
 ```
 
 Payment profiles live in the same private credentials directory and are
-selected by `id_pym`. Use `docs/examples/payment-profile.example.toml` as the
-public template. SEPA profiles can include `birthdate` and
-direct address fields such as `street_number`, `zip`, `city`, and `country`
-for direct debit setup. A grouped `[payment.sepa.address]` table is also
-accepted. `birthday` is accepted as an alias, but `birthdate` is canonical.
+selected by `ID_PYM`. Use `docs/examples/payment-profile.example.toml` as the
+public template. SEPA profiles can include `birthdate` and a grouped
+`[payment.sepa.address]` table for direct debit setup. Direct
+`[payment.sepa]` address fields are rejected.
 Payment-profile summaries expose method and presence flags only, never
 account, IBAN, birthdate, address, or card values.
 
@@ -127,11 +124,11 @@ and updates mismatches.
 
 ## Use
 
-Select the active credential by changing only `id_usr` in
+Select the active credential by changing only `ID_USR` in
 `assets/private/settings.toml`:
 
 ```toml
-id_usr = "02"
+ID_USR = "02"
 ```
 
 DBhopper tools return only presence flags such as `hasBahnAPICredentials`. They

@@ -19,7 +19,6 @@ const FILE_ROLES = [
 ];
 const CLAIM_TOML_ALIASES = {
     "": {
-        id_clm: "ID_CLM",
         claim_id: "claimId",
     },
     claimant: {
@@ -58,7 +57,6 @@ const CLAIM_TOML_ALIASES = {
 };
 const CLAIM_TOML_OUTPUT_KEYS = {
     "": {
-        ID_CLM: "id_clm",
         claimId: "claim_id",
     },
     claimant: {
@@ -143,7 +141,6 @@ const fileSchema = object({
     reusableAsset: boolean(),
 }, ["role", "path"]);
 const baseClaimFields = {
-    version: constant(1),
     claimId: string(),
     status: string(),
     journey: journeySchema,
@@ -154,7 +151,6 @@ const baseClaimFields = {
 const claimFileSchema = object(baseClaimFields);
 const privateProfileSchema = object({
     ID_CLM: string(),
-    version: constant(1),
     claimant: claimantSchema,
 }, ["ID_CLM", "claimant"]);
 export function parseClaimToml(text, source = "claim.toml") {
@@ -189,7 +185,7 @@ export function profileFieldsInClaim(claim) {
 export function schemaValidationMessages(value, kind, source) {
     const schema = kind === "profile" ? privateProfileSchema : claimFileSchema;
     try {
-        assertSchema(normalizeTomlKeys(value, source, CLAIM_TOML_ALIASES), schema, source);
+        assertSchema(normalizeTomlKeys(value, source, CLAIM_TOML_ALIASES, true), schema, source);
         return [];
     }
     catch (error) {
@@ -197,7 +193,7 @@ export function schemaValidationMessages(value, kind, source) {
     }
 }
 function parseTomlDocument(text, schema, source) {
-    const parsed = normalizeTomlKeys(parseToml(text, source), source, CLAIM_TOML_ALIASES);
+    const parsed = normalizeTomlKeys(parseToml(text, source), source, CLAIM_TOML_ALIASES, true);
     assertSchema(parsed, schema, source);
     return parsed;
 }
@@ -242,25 +238,16 @@ function assertSchema(value, schema, path) {
         if (schema.enum && !schema.enum.includes(value)) {
             throw new Error(`${path} must be one of: ${schema.enum.join(", ")}`);
         }
-        if (schema.const !== undefined && value !== schema.const) {
-            throw new Error(`${path} must be ${String(schema.const)}`);
-        }
         return;
     }
     if (schema.kind === "number") {
         if (typeof value !== "number" || !Number.isFinite(value)) {
             throw new Error(`${path} must be a number`);
         }
-        if (schema.const !== undefined && value !== schema.const) {
-            throw new Error(`${path} must be ${String(schema.const)}`);
-        }
         return;
     }
     if (typeof value !== "boolean") {
         throw new Error(`${path} must be a boolean`);
-    }
-    if (schema.const !== undefined && value !== schema.const) {
-        throw new Error(`${path} must be ${String(schema.const)}`);
     }
 }
 function object(fields, required = [], allowUnknown = false) {
@@ -277,9 +264,6 @@ function number() {
 }
 function boolean() {
     return { kind: "boolean" };
-}
-function constant(value) {
-    return { kind: typeof value, const: value };
 }
 function array(item) {
     return { kind: "array", item };

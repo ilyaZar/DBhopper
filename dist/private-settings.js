@@ -19,19 +19,10 @@ const SETTINGS_KEYS = new Set([
     "DELAY_PROVIDER",
     "DELAY_FALLBACK",
 ]);
-const PRIVATE_ID_ALIASES = {
-    "": {
-        id_usr: "ID_USR",
-        id_clm: "ID_CLM",
-        id_buy: "ID_BUY",
-        id_pym: "ID_PYM",
-    },
-};
+const PRIVATE_ID_ALIASES = {};
 const PRIVATE_SETTINGS_ALIASES = {
     "": {
-        ...PRIVATE_ID_ALIASES[""],
         ticket_buying_mode: "TICKET_BUYING_MODE",
-        buying_mode: "TICKET_BUYING_MODE",
         path_cred: "PATH_CRED",
         path_prf: "PATH_PRF",
         delay_provider: "DELAY_PROVIDER",
@@ -86,10 +77,10 @@ export function parsePrivateSettingsToml(text, source = "settings.toml") {
 }
 export function stringifyPrivateSettingsToml(settings) {
     return [
-        `id_usr = ${tomlString(settings.ID_USR)}`,
-        `id_clm = ${tomlString(settings.ID_CLM)}`,
-        `id_buy = ${tomlString(settings.ID_BUY)}`,
-        `id_pym = ${tomlString(settings.ID_PYM)}`,
+        `ID_USR = ${tomlString(settings.ID_USR)}`,
+        `ID_CLM = ${tomlString(settings.ID_CLM)}`,
+        `ID_BUY = ${tomlString(settings.ID_BUY)}`,
+        `ID_PYM = ${tomlString(settings.ID_PYM)}`,
         `ticket_buying_mode = ${tomlString(settings.TICKET_BUYING_MODE)}`,
         `path_cred = ${tomlString(settings.PATH_CRED)}`,
         `path_prf = ${tomlString(settings.PATH_PRF)}`,
@@ -265,7 +256,7 @@ function resolveConfiguredPath(config, value) {
         : path.resolve(workspaceRoot(config), value);
 }
 function normalizePrivateSettings(value, source) {
-    const normalizedValue = normalizeTomlKeys(value, source, PRIVATE_SETTINGS_ALIASES);
+    const normalizedValue = normalizeTomlKeys(value, source, PRIVATE_SETTINGS_ALIASES, true);
     assertTable(normalizedValue, source);
     const table = normalizedValue;
     for (const key of Object.keys(table)) {
@@ -394,7 +385,7 @@ function duplicateIds(items) {
     return [...duplicates.values()];
 }
 function parseIdDocument(text, source) {
-    const parsed = normalizeTomlKeys(parseToml(text, source), source, PRIVATE_ID_ALIASES);
+    const parsed = normalizeTomlKeys(parseToml(text, source), source, PRIVATE_ID_ALIASES, true);
     assertTable(parsed, source);
     return parsed;
 }

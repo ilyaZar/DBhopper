@@ -11,53 +11,14 @@ const FORBIDDEN_PAYMENT_KEYS = [
     /pin/i,
 ];
 const PAYMENT_PROFILE_TOML_ALIASES = {
-    "": {
-        id_pym: "ID_PYM",
-    },
     "payment.sepa": {
         account_owner: "accountOwner",
-        street_number: "streetNumber",
-        street_and_house_number: "streetNumber",
-        streetAndHouseNumber: "streetNumber",
-        street_n_house_num: "streetNumber",
-        streetNhouseNum: "streetNumber",
-        additional_info: "additionalInfo",
-        other_address: "additionalInfo",
-        otherAddress: "additionalInfo",
-        other_adress: "additionalInfo",
-        otherAdress: "additionalInfo",
-        other_address_info: "additionalInfo",
-        otherAddressInfo: "additionalInfo",
-        other_adress_info: "additionalInfo",
-        otherAdressInfo: "additionalInfo",
-        postal_code: "zip",
-        postalCode: "zip",
-        postcode: "zip",
-        town_city: "city",
-        townCity: "city",
         mandate_accepted: "mandateAccepted",
         save_as_preferred: "saveAsPreferred",
     },
     "payment.sepa.address": {
         street_number: "streetNumber",
-        street_and_house_number: "streetNumber",
-        streetAndHouseNumber: "streetNumber",
-        street_n_house_num: "streetNumber",
-        streetNhouseNum: "streetNumber",
         additional_info: "additionalInfo",
-        other_address: "additionalInfo",
-        otherAddress: "additionalInfo",
-        other_adress: "additionalInfo",
-        otherAdress: "additionalInfo",
-        other_address_info: "additionalInfo",
-        otherAddressInfo: "additionalInfo",
-        other_adress_info: "additionalInfo",
-        otherAdressInfo: "additionalInfo",
-        postal_code: "zip",
-        postalCode: "zip",
-        postcode: "zip",
-        town_city: "city",
-        townCity: "city",
     },
     "payment.card": {
         cardholder_name: "cardholderName",
@@ -85,13 +46,13 @@ export async function readSelectedPaymentProfile(config = {}) {
     };
 }
 export function parsePaymentProfileToml(text, source = "payment-profile.toml") {
-    const parsed = normalizeTomlKeys(parseToml(text, source), source, PAYMENT_PROFILE_TOML_ALIASES);
+    const parsed = normalizeTomlKeys(parseToml(text, source), source, PAYMENT_PROFILE_TOML_ALIASES, true);
     assertPaymentProfileShape(parsed, source);
     return normalizePaymentProfile(parsed);
 }
 export function schemaValidationMessagesForPaymentProfile(value, source) {
     try {
-        assertPaymentProfileShape(normalizeTomlKeys(value, source, PAYMENT_PROFILE_TOML_ALIASES), source);
+        assertPaymentProfileShape(normalizeTomlKeys(value, source, PAYMENT_PROFILE_TOML_ALIASES, true), source);
         return [];
     }
     catch (error) {
@@ -154,8 +115,8 @@ function normalizePaymentProfile(value) {
                     sepa: {
                         accountOwner: value.payment.sepa.accountOwner?.trim(),
                         iban: value.payment.sepa.iban?.replace(/\s+/g, "").toUpperCase(),
-                        birthdate: normalizeOptionalPaymentBirthdate(value.payment.sepa.birthdate ?? value.payment.sepa.birthday),
-                        address: normalizePaymentAddress(value.payment.sepa.address, value.payment.sepa),
+                        birthdate: normalizeOptionalPaymentBirthdate(value.payment.sepa.birthdate),
+                        address: normalizePaymentAddress(value.payment.sepa.address),
                         mandateAccepted: value.payment.sepa.mandateAccepted === true,
                         saveAsPreferred: value.payment.sepa.saveAsPreferred === true,
                     },
@@ -185,7 +146,7 @@ function normalizePaymentProfile(value) {
 function assertPaymentProfileShape(value, source) {
     assertTable(value, source);
     rejectForbiddenPaymentKeys(value, source);
-    assertKnownKeys(value, new Set(["ID_PYM", "version", "method", "payment"]), source);
+    assertKnownKeys(value, new Set(["ID_PYM", "method", "payment"]), source);
     if (!("ID_PYM" in value)) {
         throw new Error(`${source}.ID_PYM is required`);
     }
@@ -195,9 +156,6 @@ function assertPaymentProfileShape(value, source) {
     assertString(value.ID_PYM, `${source}.ID_PYM`);
     if (!/^\d{2,}$/.test(value.ID_PYM)) {
         throw new Error(`${source}.ID_PYM must be a quoted numeric ID like "01"`);
-    }
-    if ("version" in value && value.version !== 1) {
-        throw new Error(`${source}.version must be 1`);
     }
     assertString(value.method, `${source}.method`);
     const method = normalizePaymentMethod(value.method, `${source}.method`);
@@ -211,12 +169,6 @@ function assertPaymentProfileShape(value, source) {
                 "accountOwner",
                 "iban",
                 "birthdate",
-                "birthday",
-                "streetNumber",
-                "additionalInfo",
-                "zip",
-                "city",
-                "country",
                 "address",
                 "mandateAccepted",
                 "saveAsPreferred",
@@ -228,32 +180,9 @@ function assertPaymentProfileShape(value, source) {
                 assertString(sepa.iban, `${source}.payment.sepa.iban`);
             }
             const birthdate = "birthdate" in sepa ? sepa.birthdate : undefined;
-            const birthday = "birthday" in sepa ? sepa.birthday : undefined;
             if (birthdate !== undefined) {
                 assertString(birthdate, `${source}.payment.sepa.birthdate`);
                 normalizePaymentBirthdate(birthdate, `${source}.payment.sepa.birthdate`);
-            }
-            if (birthday !== undefined) {
-                assertString(birthday, `${source}.payment.sepa.birthday`);
-                normalizePaymentBirthdate(birthday, `${source}.payment.sepa.birthday`);
-            }
-            for (const key of [
-                "streetNumber",
-                "additionalInfo",
-                "zip",
-                "city",
-                "country",
-            ]) {
-                if (key in sepa) {
-                    assertOptionalString(sepa[key], `${source}.payment.sepa.${key}`);
-                }
-            }
-            if (birthdate !== undefined && birthday !== undefined) {
-                const normalizedBirthdate = normalizePaymentBirthdate(birthdate, `${source}.payment.sepa.birthdate`);
-                const normalizedBirthday = normalizePaymentBirthdate(birthday, `${source}.payment.sepa.birthday`);
-                if (normalizedBirthdate !== normalizedBirthday) {
-                    throw new Error(`${source}.payment.sepa.birthdate and birthday must match`);
-                }
             }
             if ("address" in sepa) {
                 const address = sepa.address;
@@ -390,36 +319,17 @@ function assertOptionalString(value, source) {
 function normalizeOptionalPaymentBirthdate(value) {
     return value ? normalizePaymentBirthdate(value) : undefined;
 }
-function normalizePaymentAddress(address, sepa) {
-    const direct = sepa;
-    if (!address && !hasDirectPaymentAddress(direct)) {
+function normalizePaymentAddress(address) {
+    if (!address) {
         return undefined;
     }
     const keyed = (address ?? {});
     return {
-        streetNumber: stringOrUndefined(keyed.streetNumber ??
-            keyed.streetAndHouseNumber ??
-            direct.streetNumber ??
-            direct.streetAndHouseNumber ??
-            direct.streetNhouseNum),
-        additionalInfo: stringOrUndefined(keyed.additionalInfo ??
-            keyed.otherAddress ??
-            keyed.otherAdress ??
-            keyed.otherAddressInfo ??
-            keyed.otherAdressInfo ??
-            direct.additionalInfo ??
-            direct.otherAddress ??
-            direct.otherAdress ??
-            direct.otherAddressInfo ??
-            direct.otherAdressInfo),
-        zip: stringOrUndefined(keyed.zip ??
-            keyed.postcode ??
-            keyed.postalCode ??
-            direct.zip ??
-            direct.postcode ??
-            direct.postalCode),
-        city: stringOrUndefined(keyed.city ?? keyed.townCity ?? direct.city ?? direct.townCity),
-        country: stringOrUndefined(keyed.country ?? direct.country),
+        streetNumber: stringOrUndefined(keyed.streetNumber),
+        additionalInfo: stringOrUndefined(keyed.additionalInfo),
+        zip: stringOrUndefined(keyed.zip),
+        city: stringOrUndefined(keyed.city),
+        country: stringOrUndefined(keyed.country),
     };
 }
 function hasPaymentAddress(address) {
@@ -431,24 +341,6 @@ function hasPaymentAddress(address) {
 function stringOrUndefined(value) {
     const trimmed = value?.trim();
     return trimmed || undefined;
-}
-function hasDirectPaymentAddress(value) {
-    return [
-        "streetNhouseNum",
-        "streetAndHouseNumber",
-        "streetNumber",
-        "additionalInfo",
-        "otherAddress",
-        "otherAdress",
-        "otherAddressInfo",
-        "otherAdressInfo",
-        "zip",
-        "postcode",
-        "postalCode",
-        "city",
-        "townCity",
-        "country",
-    ].some((key) => Boolean(value[key]));
 }
 function checkedBirthdateParts(year, month, day, source) {
     const yyyy = Number(year);

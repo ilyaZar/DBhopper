@@ -1,7 +1,6 @@
 import type { DBhopperConfig, ValidationMessage } from "./types.js";
 export interface DBhopperCredentials {
     ID_USR: string;
-    version?: 1;
     bahnAPI?: {
         clientId?: string;
         apiKey?: string;

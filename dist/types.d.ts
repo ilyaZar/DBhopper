@@ -9,7 +9,6 @@ export interface ClaimFile {
 }
 export interface DBhopperClaim {
     ID_CLM?: string;
-    version?: 1;
     claimId?: string;
     status?: string;
     claimant?: {
@@ -61,7 +60,6 @@ export type DBhopperBookingFor = "self" | "other";
 export type DBhopperPaymentMethod = "sepa" | "credit_card" | "paypal";
 export interface DBhopperBuyingProfile {
     ID_BUY: string;
-    version?: 1;
     defaultFare: DBhopperFareProduct;
     fallbackFares?: DBhopperFareProduct[];
     travelClass?: DBhopperTravelClass;
@@ -71,28 +69,12 @@ export interface DBhopperBuyingProfile {
 }
 export interface DBhopperPaymentProfile {
     ID_PYM: string;
-    version?: 1;
     method: DBhopperPaymentMethod;
     payment?: {
         sepa?: {
             accountOwner?: string;
             iban?: string;
             birthdate?: string;
-            birthday?: string;
-            streetNhouseNum?: string;
-            streetAndHouseNumber?: string;
-            streetNumber?: string;
-            additionalInfo?: string;
-            otherAddress?: string;
-            otherAdress?: string;
-            otherAddressInfo?: string;
-            otherAdressInfo?: string;
-            zip?: string;
-            postcode?: string;
-            postalCode?: string;
-            city?: string;
-            townCity?: string;
-            country?: string;
             address?: {
                 streetNumber?: string;
                 additionalInfo?: string;

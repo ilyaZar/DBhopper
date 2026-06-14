@@ -47,12 +47,6 @@ export function createPrivateSettingsToolDefinitions(tool: any) {
               description: 'User credential ID_USR to select, for example "01".',
             }),
           ),
-          profile_id: Type.Optional(
-            Type.String({
-              description:
-                'Deprecated alias for claim_profile_id; selects ID_CLM.',
-            }),
-          ),
           claim_profile_id: Type.Optional(
             Type.String({
               description: 'Claim profile ID_CLM to select, for example "03".',
@@ -80,7 +74,6 @@ export function createPrivateSettingsToolDefinitions(tool: any) {
       execute: async (
         params: {
           user_id?: string;
-          profile_id?: string;
           claim_profile_id?: string;
           buying_profile_id?: string;
           payment_profile_id?: string;
@@ -95,7 +88,7 @@ export function createPrivateSettingsToolDefinitions(tool: any) {
             status: await writePrivateSettingsIds(
               {
                 userId: params.user_id,
-                claimProfileId: params.claim_profile_id ?? params.profile_id,
+                claimProfileId: params.claim_profile_id,
                 buyingProfileId: params.buying_profile_id,
                 paymentProfileId: params.payment_profile_id,
                 ticketBuyingMode: params.ticket_buying_mode,

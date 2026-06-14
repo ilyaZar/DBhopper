@@ -24,9 +24,17 @@ export function tryParseToml(text: string): unknown | undefined {
 export function normalizeTomlKeys(
   value: unknown,
   source: string,
-  aliasesByPath: TomlKeyMapByPath,
+  keyMapByPath: TomlKeyMapByPath,
+  rejectMappedTargetKeys = false,
 ) {
-  return normalizeTomlKeysAt(value, source, aliasesByPath, "", source);
+  return normalizeTomlKeysAt(
+    value,
+    source,
+    keyMapByPath,
+    "",
+    source,
+    rejectMappedTargetKeys,
+  );
 }
 
 export function renameTomlKeys(
@@ -39,40 +47,61 @@ export function renameTomlKeys(
 function normalizeTomlKeysAt(
   value: unknown,
   source: string,
-  aliasesByPath: TomlKeyMapByPath,
+  keyMapByPath: TomlKeyMapByPath,
   path: string,
   displayPath: string,
+  rejectMappedTargetKeys: boolean,
 ): unknown {
   if (Array.isArray(value)) {
     return value.map((entry) =>
-      normalizeTomlKeysAt(entry, source, aliasesByPath, path, displayPath),
+      normalizeTomlKeysAt(
+        entry,
+        source,
+        keyMapByPath,
+        path,
+        displayPath,
+        rejectMappedTargetKeys,
+      ),
     );
   }
   if (!isPlainObject(value)) {
     return value;
   }
 
-  const aliases = aliasesByPath[path] ?? {};
+  const keyMap = keyMapByPath[path] ?? {};
+  const canonicalByTarget = Object.fromEntries(
+    Object.entries(keyMap).map(([canonicalKey, targetKey]) => [
+      targetKey,
+      canonicalKey,
+    ]),
+  );
   const normalized: Record<string, unknown> = {};
   const originalPaths: Record<string, string> = {};
 
   for (const [key, child] of Object.entries(value)) {
-    const normalizedKey = aliases[key] ?? key;
+    if (rejectMappedTargetKeys && canonicalByTarget[key] && canonicalByTarget[key] !== key) {
+      throw new Error(
+        `${displayPath}.${key} is not a supported field; use ` +
+          `${canonicalByTarget[key]}`,
+      );
+    }
+    const normalizedKey = keyMap[key] ?? key;
     const childPath = path ? `${path}.${normalizedKey}` : normalizedKey;
     const childDisplayPath = `${displayPath}.${normalizedKey}`;
     const originalPath = `${displayPath}.${key}`;
     const normalizedChild = normalizeTomlKeysAt(
       child,
       source,
-      aliasesByPath,
+      keyMapByPath,
       childPath,
       childDisplayPath,
+      rejectMappedTargetKeys,
     );
 
     if (Object.prototype.hasOwnProperty.call(normalized, normalizedKey)) {
       if (!tomlValuesEqual(normalized[normalizedKey], normalizedChild)) {
         throw new Error(
-          `${originalPaths[normalizedKey]} and ${originalPath} aliases must ` +
+          `${originalPaths[normalizedKey]} and ${originalPath} fields must ` +
             "not disagree",
         );
       }

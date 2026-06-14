@@ -14,10 +14,10 @@ user-managed local runtime state and is not packaged.
 `settings.toml` has these fields:
 
 ```toml
-id_usr = "01"
-id_clm = "01"
-id_buy = "01"
-id_pym = "01"
+ID_USR = "01"
+ID_CLM = "01"
+ID_BUY = "01"
+ID_PYM = "01"
 ticket_buying_mode = "review"
 path_cred = "assets/private/credentials"
 path_prf = "assets/private/profiles"
@@ -25,10 +25,10 @@ delay_provider = "bahn-web"
 delay_fallback = "none"
 ```
 
-- `id_usr` selects one user credential file from `path_cred`.
-- `id_clm` selects one claim profile file from `path_prf`.
-- `id_buy` selects one buying profile file from `path_prf`.
-- `id_pym` selects one payment profile file from `path_cred`.
+- `ID_USR` selects one user credential file from `path_cred`.
+- `ID_CLM` selects one claim profile file from `path_prf`.
+- `ID_BUY` selects one buying profile file from `path_prf`.
+- `ID_PYM` selects one payment profile file from `path_cred`.
 - `ticket_buying_mode` controls the final DB Check-page gate. `"review"` is the
   default and saves a sensitive screenshot artifact for user inspection.
   `"auto"` requests automatic buying, but buying is not enabled yet, so the
@@ -44,7 +44,7 @@ delay_fallback = "none"
 
 Paths may be relative to the plugin directory or absolute within the user file
 system. The user owns path values and file contents. OpenClaw agents should
-only change `id_usr`, `id_clm`, `id_buy`, `id_pym`, and
+only change `ID_USR`, `ID_CLM`, `ID_BUY`, `ID_PYM`, and
 `ticket_buying_mode`; they must not change path fields or read private values
 into the conversation.
 
@@ -55,32 +55,28 @@ itself always remains at `assets/private/settings.toml`.
 
 ## File IDs
 
-Every routed credential file needs an `id_usr`:
+Every routed credential file needs an `ID_USR`:
 
 ```toml
-version = 1
-id_usr = "01"
+ID_USR = "01"
 ```
 
-Every routed claim profile file needs an `id_clm`:
+Every routed claim profile file needs an `ID_CLM`:
 
 ```toml
-version = 1
-id_clm = "01"
+ID_CLM = "01"
 ```
 
-Every routed buying profile file needs an `id_buy`:
+Every routed buying profile file needs an `ID_BUY`:
 
 ```toml
-version = 1
-id_buy = "01"
+ID_BUY = "01"
 ```
 
-Every routed payment profile file needs an `id_pym`:
+Every routed payment profile file needs an `ID_PYM`:
 
 ```toml
-version = 1
-id_pym = "01"
+ID_PYM = "01"
 ```
 
 IDs are quoted numeric strings such as `"01"`, `"02"`, and `"03"`.
@@ -89,8 +85,7 @@ IDs are quoted numeric strings such as `"01"`, `"02"`, and `"03"`.
 
 Current top-level fields:
 
-- `version`: optional schema version, currently `1`.
-- `id_clm`: required quoted numeric claim profile ID, for example `"01"`.
+- `ID_CLM`: required quoted numeric claim profile ID, for example `"01"`.
 
 Current claim profile sections:
 
@@ -110,15 +105,14 @@ Current claim profile sections:
 
 Current top-level fields:
 
-- `version`: optional schema version, currently `1`.
-- `id_buy`: required quoted numeric buying profile ID, for example `"01"`.
+- `ID_BUY`: required quoted numeric buying profile ID, for example `"01"`.
 - `default_fare`: first fare product to select on the DB Offers page.
 - `fallback_fares`: ordered fallback fare products when the default is not
   visible on the current DB Offers page.
 - `travel_class`: optional class preference, `"second"` by default.
-- `continue_to_customer_data`: optional boolean; `true` selects the fare and then
-  clicks the offer-page `Continue` button so checkout stops on Customer data.
-  Set it to `false` for an Abnahme stop on the fare cards.
+- `continue_to_customer_data`: optional boolean; `true` selects the fare and
+  then clicks the offer-page `Continue` button so checkout stops on Customer
+  data. Set it to `false` for an Abnahme stop on the fare cards.
 - `booking_for`: optional customer-data choice, `"self"` by default.
 - `continue_to_payment_boundary`: optional boolean; `true` applies
   `booking_for` and clicks the customer-data `Continue` button so checkout
@@ -148,12 +142,11 @@ reserved for a later passenger-details profile; current automation supports
 
 ## Payment Profile Fields
 
-Payment profiles live under `path_cred` and are selected by `id_pym`.
+Payment profiles live under `path_cred` and are selected by `ID_PYM`.
 
 Current top-level fields:
 
-- `version`: optional schema version, currently `1`.
-- `id_pym`: required quoted numeric payment profile ID, for example `"01"`.
+- `ID_PYM`: required quoted numeric payment profile ID, for example `"01"`.
 - `method`: one of `sepa`, `credit_card`, or `paypal`.
 
 Current payment profile sections:
@@ -164,22 +157,9 @@ Current payment profile sections:
 - `[payment.sepa].birthdate`: optional account-holder birth date. Use
   `YYYY-MM-DD` in TOML; DB's `DD/MM/YYYY` form format is accepted as input and
   used for comparison. During logged-in DB checkout this is checked against the
-  DB account value but not changed. `birthday` is accepted as an alias, but
-  `birthdate` is canonical.
-- `[payment.sepa].street_number`: optional registered street and house number
-  for direct debit. `street_and_house_number` and `street_n_house_num` are
-  accepted as aliases.
-- `[payment.sepa].additional_info`: optional additional address line.
-  `other_address`, `other_adress`, `other_address_info`, and
-  `other_adress_info` are also accepted.
-- `[payment.sepa].zip`: optional postcode. `postcode` and `postal_code` are
-  also accepted.
-- `[payment.sepa].city`: optional town or city. `town_city` is also accepted.
-- `[payment.sepa].country`: optional country.
+  DB account value but not changed.
 - `[payment.sepa.address]`: optional grouped address table. It accepts
-  `street_number`, `additional_info`, `zip`, `city`, and `country` with the same
-  alias handling. Direct `[payment.sepa]` address fields are supported for
-  compact profiles.
+  `street_number`, `additional_info`, `zip`, `city`, and `country`.
 - `[payment.sepa].mandate_accepted`: optional boolean for the SEPA mandate
   checkbox when DB exposes it.
 - `[payment.sepa].save_as_preferred`: optional boolean for DB's preferred
@@ -193,6 +173,9 @@ Current payment profile sections:
 
 Do not store CVC, CVV, CID, PIN, or similar authentication secrets in DBhopper
 payment profiles. Those fields are rejected by the parser.
+
+Use only the snake_case keys shown above. Direct SEPA address fields under
+`[payment.sepa]` are rejected.
 
 For SEPA checkout, DB account data may prefill account-holder and registered
 address fields. DB account identity values, currently account-holder name and
@@ -225,6 +208,6 @@ Use `dbhopper_private_settings_status` to list available user credential,
 claim, buying, and payment IDs. It returns an error when the selected ID does
 not exist.
 
-Use `dbhopper_private_settings_select` to update `id_usr`, `id_clm`, `id_buy`,
-`id_pym`, and/or `ticket_buying_mode`. That tool does not accept path fields,
+Use `dbhopper_private_settings_select` to update `ID_USR`, `ID_CLM`, `ID_BUY`,
+`ID_PYM`, and/or `ticket_buying_mode`. That tool does not accept path fields,
 so an agent cannot change the directories where private files are stored.

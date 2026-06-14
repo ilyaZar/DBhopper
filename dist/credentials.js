@@ -8,7 +8,6 @@ import { resolveWorkspace } from "./workspace.js";
 const CREDENTIALS_DIR = path.join("assets", "private", "credentials");
 const CREDENTIALS_TOML_ALIASES = {
     "": {
-        id_usr: "ID_USR",
         bahn_api: "bahnAPI",
         bahn_account: "bahnAccount",
         bahn_account_api: "bahnAccountAPI",
@@ -21,11 +20,7 @@ const CREDENTIALS_TOML_ALIASES = {
         user_data_dir: "userDataDir",
     },
 };
-const PAYMENT_PROFILE_ID_ALIASES = {
-    "": {
-        id_pym: "ID_PYM",
-    },
-};
+const PAYMENT_PROFILE_ID_ALIASES = {};
 export function credentialsDir(config = {}) {
     return path.join(resolveWorkspace(config).root, CREDENTIALS_DIR);
 }
@@ -93,7 +88,7 @@ export async function validateCredentialsFiles(config = {}) {
 }
 function isPaymentProfileToml(text) {
     const parsedValue = tryParseToml(text);
-    const parsed = normalizeTomlKeys(parsedValue, "credentials.toml", PAYMENT_PROFILE_ID_ALIASES);
+    const parsed = normalizeTomlKeys(parsedValue, "credentials.toml", PAYMENT_PROFILE_ID_ALIASES, true);
     return Boolean(parsed &&
         typeof parsed === "object" &&
         !Array.isArray(parsed) &&
@@ -134,7 +129,7 @@ export function credentialsSummary(loaded) {
     };
 }
 export function parseCredentialsToml(text, source = "credentials.toml") {
-    const parsed = normalizeTomlKeys(parseToml(text, source), source, CREDENTIALS_TOML_ALIASES);
+    const parsed = normalizeTomlKeys(parseToml(text, source), source, CREDENTIALS_TOML_ALIASES, true);
     assertCredentialsShape(parsed, source);
     return normalizeCredentials(parsed);
 }
@@ -179,7 +174,6 @@ function assertCredentialsShape(value, source) {
     assertTable(value, source);
     const allowed = new Set([
         "ID_USR",
-        "version",
         "bahnAPI",
         "bahnAccount",
         "bahnAccountAPI",
@@ -193,9 +187,6 @@ function assertCredentialsShape(value, source) {
     assertString(id, `${source}.ID_USR`);
     if (!/^\d{2,}$/.test(id)) {
         throw new Error(`${source}.ID_USR must be a quoted numeric ID like "01"`);
-    }
-    if ("version" in value && value.version !== 1) {
-        throw new Error(`${source}.version must be 1`);
     }
     if ("bahnAPI" in value) {
         assertSection(value.bahnAPI, `${source}.bahnAPI`, [

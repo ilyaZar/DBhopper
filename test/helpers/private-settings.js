@@ -14,10 +14,10 @@ export async function writePrivateSettingsFixture(root, options = {}) {
     delayFallback = "none",
   } = options;
   const lines = [
-    `id_usr = "${userId}"`,
-    `id_clm = "${claimProfileId}"`,
-    `id_buy = "${buyingProfileId}"`,
-    `id_pym = "${paymentProfileId}"`,
+    `ID_USR = "${userId}"`,
+    `ID_CLM = "${claimProfileId}"`,
+    `ID_BUY = "${buyingProfileId}"`,
+    `ID_PYM = "${paymentProfileId}"`,
   ];
 
   if (ticketBuyingMode) {
@@ -45,8 +45,7 @@ export async function writePrivateProfileFixture(dir, id, fileName, firstName) {
   await fs.writeFile(
     path.join(dir, fileName),
     [
-      "version = 1",
-      `id_clm = "${id}"`,
+      `ID_CLM = "${id}"`,
       "",
       "[claimant]",
       'salutation = "FAMILY"',

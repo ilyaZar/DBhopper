@@ -218,7 +218,7 @@ Validation:
 Urgent goal:
 
 - Consolidate ticket-buying into one stable user-facing capability with a clear
-  name and safe contract. Once that exists, de-emphasize or deprecate the
+  name and safe contract. Once that exists, trim the
   current exploratory `dbhopper_ticket_buying_*` helpers from the public README
   surface while keeping any useful lower-level pieces available to the agent.
 

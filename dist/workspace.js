@@ -150,7 +150,6 @@ export async function prepareClaim(params, config = {}) {
     const existingFiles = Array.isArray(incoming.files) ? incoming.files : [];
     const storedClaim = {
         ...incoming,
-        version: 1,
         claimId,
         status: incoming.status || "draft",
         files: [...existingFiles, ...copiedFiles],
