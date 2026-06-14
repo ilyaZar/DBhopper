@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
-import { parse } from "smol-toml";
 import { resolveSelectedBuyingProfileFile } from "./private-settings.js";
+import { parseToml } from "./toml.js";
+import { validationErrorFromException } from "./validation-messages.js";
 export const BUYING_FARE_PRODUCT_ORDER = [
     "super_sparpreis",
     "sparpreis",
@@ -74,13 +75,7 @@ export async function readSelectedBuyingProfile(config = {}) {
     };
 }
 export function parseBuyingProfileToml(text, source = "buying-profile.toml") {
-    let parsed;
-    try {
-        parsed = parse(text);
-    }
-    catch (error) {
-        throw new Error(`${source}: invalid TOML: ${errorMessage(error)}`);
-    }
+    const parsed = parseToml(text, source);
     assertBuyingProfileShape(parsed, source);
     return normalizeBuyingProfile(parsed);
 }
@@ -90,11 +85,7 @@ export function schemaValidationMessagesForBuyingProfile(value, source) {
         return [];
     }
     catch (error) {
-        return [{
-                code: "invalid_toml_schema",
-                message: error instanceof Error ? error.message : String(error),
-                severity: "error",
-            }];
+        return [validationErrorFromException("invalid_toml_schema", error)];
     }
 }
 export function buyingProfileSummary(loaded) {
@@ -250,7 +241,4 @@ function assertString(value, source) {
     if (typeof value !== "string" || value.length === 0) {
         throw new Error(`${source} must be a non-empty string`);
     }
-}
-function errorMessage(error) {
-    return error instanceof Error ? error.message : String(error);
 }

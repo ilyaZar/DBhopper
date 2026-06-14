@@ -1,4 +1,6 @@
-import { parse, stringify } from "smol-toml";
+import { stringify } from "smol-toml";
+import { parseToml } from "./toml.js";
+import { validationErrorFromException } from "./validation-messages.js";
 const SALUTATIONS = ["MR", "MS", "DIVERS", "FAMILY"];
 const DISRUPTION_TYPES = ["delay", "cancellation"];
 const SUBSTITUTE_TYPES = [
@@ -113,21 +115,11 @@ export function schemaValidationMessages(value, kind, source) {
         return [];
     }
     catch (error) {
-        return [{
-                code: "invalid_toml_schema",
-                message: error instanceof Error ? error.message : String(error),
-                severity: "error",
-            }];
+        return [validationErrorFromException("invalid_toml_schema", error)];
     }
 }
 function parseTomlDocument(text, schema, source) {
-    let parsed;
-    try {
-        parsed = parse(text);
-    }
-    catch (error) {
-        throw new Error(`${source}: invalid TOML: ${errorMessage(error)}`);
-    }
+    const parsed = parseToml(text, source);
     assertSchema(parsed, schema, source);
     return parsed;
 }
@@ -254,7 +246,4 @@ function mergeObjects(base, override) {
 }
 function isPlainObject(value) {
     return Boolean(value && typeof value === "object" && !Array.isArray(value));
-}
-function errorMessage(error) {
-    return error instanceof Error ? error.message : String(error);
 }

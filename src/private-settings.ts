@@ -2,9 +2,12 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { parse } from "smol-toml";
-
 import type { DBhopperConfig, ValidationMessage } from "./types.js";
+import { parseToml } from "./toml.js";
+import {
+  validationError,
+  validationErrorFromException,
+} from "./validation-messages.js";
 
 export type DBhopperDelayProviderSetting = "auto" | "db-timetables" | "bahn-web";
 export type DBhopperDelayFallbackSetting = "none" | "db-timetables" | "bahn-web";
@@ -109,12 +112,7 @@ export function parsePrivateSettingsToml(
   text: string,
   source = "settings.toml",
 ): DBhopperPrivateSettings {
-  let parsed: unknown;
-  try {
-    parsed = parse(text);
-  } catch (error) {
-    throw new Error(`${source}: invalid TOML: ${errorMessage(error)}`);
-  }
+  const parsed = parseToml(text, source);
   return normalizePrivateSettings(parsed, source);
 }
 
@@ -493,11 +491,10 @@ async function listIdFiles(
   const pathField =
     idField === "ID_USR" || idField === "ID_PYM" ? "PATH_CRED" : "PATH_PRF";
   const stat = await fs.stat(dir).catch((error: NodeJS.ErrnoException) => {
-    messages.push({
-      code: "invalid_private_directory",
-      message: `${pathField} ${dir} is not readable: ${error.code ?? error.message}`,
-      severity: "error",
-    });
+    messages.push(validationError(
+      "invalid_private_directory",
+      `${pathField} ${dir} is not readable: ${error.code ?? error.message}`,
+    ));
     return undefined;
   });
 
@@ -505,11 +502,10 @@ async function listIdFiles(
     return { items, messages, directoryOk: false };
   }
   if (!stat.isDirectory()) {
-    messages.push({
-      code: "invalid_private_directory",
-      message: `${pathField} ${dir} must point to a directory`,
-      severity: "error",
-    });
+    messages.push(validationError(
+      "invalid_private_directory",
+      `${pathField} ${dir} must point to a directory`,
+    ));
     return { items, messages, directoryOk: false };
   }
 
@@ -539,21 +535,16 @@ async function listIdFiles(
         filePath,
       });
     } catch (error) {
-      messages.push({
-        code: "invalid_private_id_file",
-        message: error instanceof Error ? error.message : String(error),
-        severity: "error",
-      });
+      messages.push(validationErrorFromException("invalid_private_id_file", error));
     }
   }
 
   items.sort((a, b) => a.id.localeCompare(b.id) || a.fileName.localeCompare(b.fileName));
   for (const item of duplicateIds(items)) {
-    messages.push({
-      code: "duplicate_private_id",
-      message: `${idField} ${item.id} appears in more than one TOML file`,
-      severity: "error",
-    });
+    messages.push(validationError(
+      "duplicate_private_id",
+      `${idField} ${item.id} appears in more than one TOML file`,
+    ));
   }
   return { items, messages, directoryOk: true };
 }
@@ -586,11 +577,10 @@ function resolveIdFromList(
   if (matches.length === 1) {
     return matches[0];
   }
-  messages.push({
-    code: "missing_selected_private_id",
-    message: `${idField} ${id} does not exist`,
-    severity: "error",
-  });
+  messages.push(validationError(
+    "missing_selected_private_id",
+    `${idField} ${id} does not exist`,
+  ));
   return undefined;
 }
 
@@ -607,12 +597,7 @@ function duplicateIds(items: PrivateIdFile[]) {
 }
 
 function parseIdDocument(text: string, source: string) {
-  let parsed: unknown;
-  try {
-    parsed = parse(text);
-  } catch (error) {
-    throw new Error(`${source}: invalid TOML: ${errorMessage(error)}`);
-  }
+  const parsed = parseToml(text, source);
   assertTable(parsed, source);
   return parsed;
 }
@@ -656,8 +641,4 @@ function assertOneOf(value: unknown, allowed: Set<string>, source: string) {
 
 function tomlString(value: string) {
   return JSON.stringify(value);
-}
-
-function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
 }
