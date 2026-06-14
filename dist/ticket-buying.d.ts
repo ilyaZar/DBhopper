@@ -1,4 +1,7 @@
-import type { DBhopperConfig } from "./types.js";
+import type { Page } from "playwright-core";
+import { type BuyingFarePreference } from "./buying-profile.js";
+import { type DBhopperTicketBuyingMode } from "./private-settings.js";
+import type { DBhopperBookingFor, DBhopperConfig, DBhopperFareProduct, DBhopperPaymentProfile } from "./types.js";
 export declare const TICKET_BUYING_TOOL_NAMES: readonly ["dbhopper_ticket_buying_research", "dbhopper_ticket_buying_dry_run", "dbhopper_ticket_checkout_dry_run"];
 export interface TicketBuyingDryRunParams {
     departure_station: string;
@@ -11,17 +14,21 @@ export interface TicketBuyingDryRunParams {
     stay_logged_in?: boolean;
     headless?: boolean;
     include_controls?: boolean;
+    review_pause_ms?: number;
 }
 export interface TicketCheckoutDryRunParams {
     departure_station?: string;
     arrival_station?: string;
     service_date?: string;
     departure_time?: string;
+    train_label?: string;
     login_before_search?: boolean;
     stay_logged_in?: boolean;
     open_browser?: boolean;
     headless?: boolean;
     include_controls?: boolean;
+    review_pause_ms?: number;
+    continue_after_payment_profile?: boolean;
 }
 export declare const TICKET_BUYING_RESEARCH_SUMMARY: {
     status: string;
@@ -282,6 +289,38 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
     finalSafetyStop: string;
     needsUserAction: boolean;
     message: string;
+    warnings: PaymentFieldWarning[];
+    ticketBuyingMode: DBhopperTicketBuyingMode;
+    reviewGate: {
+        status: string;
+        ticketBuyingMode: DBhopperTicketBuyingMode;
+        stage: string;
+        finalSafetyStop: string;
+        needsUserAction: boolean;
+        message: string;
+        reviewScreenshot: undefined;
+    } | {
+        status: string;
+        ticketBuyingMode: "review";
+        stage: string;
+        finalSafetyStop: string;
+        needsUserAction: boolean;
+        message: string;
+        reviewScreenshot: {
+            captured: boolean;
+            path: string;
+            mimeType: string;
+            sensitive: boolean;
+            purpose: string;
+        };
+    };
+    reviewScreenshot: {
+        captured: boolean;
+        path: string;
+        mimeType: string;
+        sensitive: boolean;
+        purpose: string;
+    } | undefined;
     credentials: {
         configured: boolean;
         credentialsName: undefined;
@@ -299,6 +338,56 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
         hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
     };
+    buyingProfile: {
+        configured: boolean;
+        buyingProfileName: undefined;
+        buyingProfileId: undefined;
+        farePreference: BuyingFarePreference;
+    } | {
+        configured: boolean;
+        buyingProfileName: string;
+        buyingProfileId: string | undefined;
+        farePreference: BuyingFarePreference;
+    };
+    paymentProfile: {
+        configured: boolean;
+        paymentProfileName: undefined;
+        paymentProfileId: undefined;
+        method: undefined;
+        hasSepaAccountOwner: boolean;
+        hasSepaIban: boolean;
+        hasSepaBirthdate: boolean;
+        hasSepaAddress: boolean;
+        hasSepaAddressStreetNumber: boolean;
+        hasSepaAddressAdditionalInfo: boolean;
+        hasSepaAddressZip: boolean;
+        hasSepaAddressCity: boolean;
+        hasSepaAddressCountry: boolean;
+        sepaMandateAccepted: boolean;
+        hasCardholderName: boolean;
+        hasCardNumber: boolean;
+        hasCardExpiry: boolean;
+        hasCvc: boolean;
+    } | {
+        configured: boolean;
+        paymentProfileName: string;
+        paymentProfileId: string | undefined;
+        method: import("./types.js").DBhopperPaymentMethod;
+        hasSepaAccountOwner: boolean;
+        hasSepaIban: boolean;
+        hasSepaBirthdate: boolean;
+        hasSepaAddress: boolean;
+        hasSepaAddressStreetNumber: boolean;
+        hasSepaAddressAdditionalInfo: boolean;
+        hasSepaAddressZip: boolean;
+        hasSepaAddressCity: boolean;
+        hasSepaAddressCountry: boolean;
+        sepaMandateAccepted: boolean;
+        hasCardholderName: boolean;
+        hasCardNumber: boolean;
+        hasCardExpiry: boolean;
+        hasCvc: boolean;
+    };
     plan: {
         startUrl: string;
         target: {
@@ -306,6 +395,7 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
             arrivalStation: string;
             serviceDate: string;
             departureTime: string;
+            trainLabel: string | undefined;
         };
         browser: {
             canUsePersistentProfile: boolean;
@@ -315,8 +405,26 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
             loginBeforeSearch: boolean;
             stayLoggedIn: boolean;
         };
+        fareSelection: {
+            defaultFare: DBhopperFareProduct;
+            fallbackFares: DBhopperFareProduct[];
+            preferenceOrder: DBhopperFareProduct[];
+            labels: Record<DBhopperFareProduct, string>;
+            travelClass: import("./types.js").DBhopperTravelClass;
+            travelClassLabel: string;
+            continueToCustomerData: boolean;
+            bookingFor: DBhopperBookingFor;
+            continueToPaymentBoundary: boolean;
+        };
+        ticketBuyingMode: DBhopperTicketBuyingMode;
+        finalBuying: {
+            requested: boolean;
+            enabled: boolean;
+        };
         safety: {
-            mayEnterPaymentData: boolean;
+            mayEnterPaymentProfileData: boolean;
+            mayClickPaymentPageContinue: boolean;
+            mayReviewCheckPage: boolean;
             maySubmitPayment: boolean;
             mayClickFinalOrder: boolean;
             finalUnsafeButtonPatterns: string[];
@@ -349,18 +457,122 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
             finalSafetyStop: string;
             needsUserAction: boolean;
             message: string;
-            steps: {
+            reviewGate: {
+                status: string;
+                ticketBuyingMode: DBhopperTicketBuyingMode;
+                stage: string;
+                finalSafetyStop: string;
+                needsUserAction: boolean;
+                message: string;
+                reviewScreenshot: undefined;
+            } | {
+                status: string;
+                ticketBuyingMode: "review";
+                stage: string;
+                finalSafetyStop: string;
+                needsUserAction: boolean;
+                message: string;
+                reviewScreenshot: {
+                    captured: boolean;
+                    path: string;
+                    mimeType: string;
+                    sensitive: boolean;
+                    purpose: string;
+                };
+            };
+            steps: ({
                 stage: string;
                 action: string;
-                clickedText?: string;
-                boundary?: string;
-            }[];
+                requestedTrainLabel: string | undefined;
+                selectedIndex: number;
+                trainLabels: string[];
+                price: string | undefined;
+            } | {
+                stage: string;
+                action: string;
+                requestedDefaultFare: string | undefined;
+                selectedFare: DBhopperFareProduct;
+                selectedFareLabel: string | undefined;
+                fallbackUsed: boolean;
+                travelClass: string | undefined;
+                travelClassLabel: string | undefined;
+                selectedIndex: number;
+                price: string | undefined;
+            } | {
+                stage: string;
+                action: string;
+                clickedText: string | undefined;
+            } | {
+                stage: string;
+                action: string;
+                method: import("./types.js").DBhopperPaymentMethod | undefined;
+                methodAction: string | undefined;
+                filledFields: string[];
+                matchedFields: string[];
+                mismatchedFields: string[];
+                missingFields: string[];
+                warnings: PaymentFieldWarning[] | undefined;
+                artifactCaptureSkipped: boolean;
+            })[];
             boundary: {
                 stage: string;
                 paymentBoundaryVisible: boolean;
                 finalOrderButtonVisible: boolean;
                 finalOrderButtonText: string | undefined;
             };
+            selectedJourney: {
+                requestedTrainLabel?: string;
+                selectedIndex: number;
+                trainLabels: string[];
+                price?: string;
+                summary: string;
+                alreadySelected?: boolean;
+            };
+            selectedFare: {
+                requestedDefaultFare?: string;
+                selectedFare: DBhopperFareProduct;
+                selectedFareLabel?: string;
+                fallbackUsed?: boolean;
+                travelClass?: string;
+                travelClassLabel?: string;
+                selectedIndex: number;
+                price?: string;
+                alreadySelected?: boolean;
+            };
+            offerContinue: {
+                stage: string;
+                action: string;
+                clickedText?: string;
+                boundaryBefore: Awaited<ReturnType<typeof detectCheckoutBoundary>>;
+            } | undefined;
+            customerDataContinue: {
+                stage: string;
+                action: string;
+                clickedText?: string;
+                bookingFor: DBhopperBookingFor;
+                bookingForAction?: string;
+                boundaryBefore: Awaited<ReturnType<typeof detectCheckoutBoundary>>;
+                boundaryAfter: Awaited<ReturnType<typeof detectCheckoutBoundary>>;
+            } | undefined;
+            paymentFill: {
+                stage: string;
+                action: string;
+                method?: DBhopperPaymentProfile["method"];
+                methodAction?: string;
+                filledFields: string[];
+                matchedFields: string[];
+                mismatchedFields: string[];
+                missingFields: string[];
+                artifactCaptureSkipped: boolean;
+                warnings?: PaymentFieldWarning[];
+            } | undefined;
+            paymentContinue: {
+                stage: string;
+                action: string;
+                clickedText?: string;
+                boundaryBefore: Awaited<ReturnType<typeof detectCheckoutBoundary>>;
+                boundaryAfter: Awaited<ReturnType<typeof detectCheckoutBoundary>>;
+            } | undefined;
         };
         controls: {
             text: string;
@@ -370,6 +582,14 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
             type: string | undefined;
             visible: boolean;
         }[] | undefined;
+        reviewPauseMs: number;
+        reviewScreenshot: {
+            captured: boolean;
+            path: string;
+            mimeType: string;
+            sensitive: boolean;
+            purpose: string;
+        } | undefined;
     };
     research: {
         status: string;
@@ -406,6 +626,56 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
         hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
     };
+    buyingProfile: {
+        configured: boolean;
+        buyingProfileName: undefined;
+        buyingProfileId: undefined;
+        farePreference: BuyingFarePreference;
+    } | {
+        configured: boolean;
+        buyingProfileName: string;
+        buyingProfileId: string | undefined;
+        farePreference: BuyingFarePreference;
+    };
+    paymentProfile: {
+        configured: boolean;
+        paymentProfileName: undefined;
+        paymentProfileId: undefined;
+        method: undefined;
+        hasSepaAccountOwner: boolean;
+        hasSepaIban: boolean;
+        hasSepaBirthdate: boolean;
+        hasSepaAddress: boolean;
+        hasSepaAddressStreetNumber: boolean;
+        hasSepaAddressAdditionalInfo: boolean;
+        hasSepaAddressZip: boolean;
+        hasSepaAddressCity: boolean;
+        hasSepaAddressCountry: boolean;
+        sepaMandateAccepted: boolean;
+        hasCardholderName: boolean;
+        hasCardNumber: boolean;
+        hasCardExpiry: boolean;
+        hasCvc: boolean;
+    } | {
+        configured: boolean;
+        paymentProfileName: string;
+        paymentProfileId: string | undefined;
+        method: import("./types.js").DBhopperPaymentMethod;
+        hasSepaAccountOwner: boolean;
+        hasSepaIban: boolean;
+        hasSepaBirthdate: boolean;
+        hasSepaAddress: boolean;
+        hasSepaAddressStreetNumber: boolean;
+        hasSepaAddressAdditionalInfo: boolean;
+        hasSepaAddressZip: boolean;
+        hasSepaAddressCity: boolean;
+        hasSepaAddressCountry: boolean;
+        sepaMandateAccepted: boolean;
+        hasCardholderName: boolean;
+        hasCardNumber: boolean;
+        hasCardExpiry: boolean;
+        hasCvc: boolean;
+    };
     plan: {
         startUrl: string;
         target: {
@@ -413,6 +683,7 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
             arrivalStation: string;
             serviceDate: string;
             departureTime: string;
+            trainLabel: string | undefined;
         };
         browser: {
             canUsePersistentProfile: boolean;
@@ -422,8 +693,26 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
             loginBeforeSearch: boolean;
             stayLoggedIn: boolean;
         };
+        fareSelection: {
+            defaultFare: DBhopperFareProduct;
+            fallbackFares: DBhopperFareProduct[];
+            preferenceOrder: DBhopperFareProduct[];
+            labels: Record<DBhopperFareProduct, string>;
+            travelClass: import("./types.js").DBhopperTravelClass;
+            travelClassLabel: string;
+            continueToCustomerData: boolean;
+            bookingFor: DBhopperBookingFor;
+            continueToPaymentBoundary: boolean;
+        };
+        ticketBuyingMode: DBhopperTicketBuyingMode;
+        finalBuying: {
+            requested: boolean;
+            enabled: boolean;
+        };
         safety: {
-            mayEnterPaymentData: boolean;
+            mayEnterPaymentProfileData: boolean;
+            mayClickPaymentPageContinue: boolean;
+            mayReviewCheckPage: boolean;
             maySubmitPayment: boolean;
             mayClickFinalOrder: boolean;
             finalUnsafeButtonPatterns: string[];
@@ -439,6 +728,8 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
         applied?: undefined;
         checkout?: undefined;
         controls?: undefined;
+        reviewPauseMs?: undefined;
+        reviewScreenshot?: undefined;
     };
     research: {
         status: string;
@@ -449,6 +740,10 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
             notes: string;
         }[];
     };
+    warnings?: undefined;
+    ticketBuyingMode?: undefined;
+    reviewGate?: undefined;
+    reviewScreenshot?: undefined;
 } | {
     ok: boolean;
     operation: string;
@@ -474,6 +769,57 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
         hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
     };
+    buyingProfile: {
+        configured: boolean;
+        buyingProfileName: undefined;
+        buyingProfileId: undefined;
+        farePreference: BuyingFarePreference;
+    } | {
+        configured: boolean;
+        buyingProfileName: string;
+        buyingProfileId: string | undefined;
+        farePreference: BuyingFarePreference;
+    };
+    paymentProfile: {
+        configured: boolean;
+        paymentProfileName: undefined;
+        paymentProfileId: undefined;
+        method: undefined;
+        hasSepaAccountOwner: boolean;
+        hasSepaIban: boolean;
+        hasSepaBirthdate: boolean;
+        hasSepaAddress: boolean;
+        hasSepaAddressStreetNumber: boolean;
+        hasSepaAddressAdditionalInfo: boolean;
+        hasSepaAddressZip: boolean;
+        hasSepaAddressCity: boolean;
+        hasSepaAddressCountry: boolean;
+        sepaMandateAccepted: boolean;
+        hasCardholderName: boolean;
+        hasCardNumber: boolean;
+        hasCardExpiry: boolean;
+        hasCvc: boolean;
+    } | {
+        configured: boolean;
+        paymentProfileName: string;
+        paymentProfileId: string | undefined;
+        method: import("./types.js").DBhopperPaymentMethod;
+        hasSepaAccountOwner: boolean;
+        hasSepaIban: boolean;
+        hasSepaBirthdate: boolean;
+        hasSepaAddress: boolean;
+        hasSepaAddressStreetNumber: boolean;
+        hasSepaAddressAdditionalInfo: boolean;
+        hasSepaAddressZip: boolean;
+        hasSepaAddressCity: boolean;
+        hasSepaAddressCountry: boolean;
+        sepaMandateAccepted: boolean;
+        hasCardholderName: boolean;
+        hasCardNumber: boolean;
+        hasCardExpiry: boolean;
+        hasCvc: boolean;
+    };
+    ticketBuyingMode: DBhopperTicketBuyingMode;
     plan: {
         startUrl: string;
         target: {
@@ -481,6 +827,7 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
             arrivalStation: string;
             serviceDate: string;
             departureTime: string;
+            trainLabel: string | undefined;
         };
         browser: {
             canUsePersistentProfile: boolean;
@@ -490,8 +837,26 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
             loginBeforeSearch: boolean;
             stayLoggedIn: boolean;
         };
+        fareSelection: {
+            defaultFare: DBhopperFareProduct;
+            fallbackFares: DBhopperFareProduct[];
+            preferenceOrder: DBhopperFareProduct[];
+            labels: Record<DBhopperFareProduct, string>;
+            travelClass: import("./types.js").DBhopperTravelClass;
+            travelClassLabel: string;
+            continueToCustomerData: boolean;
+            bookingFor: DBhopperBookingFor;
+            continueToPaymentBoundary: boolean;
+        };
+        ticketBuyingMode: DBhopperTicketBuyingMode;
+        finalBuying: {
+            requested: boolean;
+            enabled: boolean;
+        };
         safety: {
-            mayEnterPaymentData: boolean;
+            mayEnterPaymentProfileData: boolean;
+            mayClickPaymentPageContinue: boolean;
+            mayReviewCheckPage: boolean;
             maySubmitPayment: boolean;
             mayClickFinalOrder: boolean;
             finalUnsafeButtonPatterns: string[];
@@ -534,6 +899,57 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
         hasBahnAccountAPICredentials: boolean;
         hasBrowserUserDataDir: boolean;
     };
+    buyingProfile: {
+        configured: boolean;
+        buyingProfileName: undefined;
+        buyingProfileId: undefined;
+        farePreference: BuyingFarePreference;
+    } | {
+        configured: boolean;
+        buyingProfileName: string;
+        buyingProfileId: string | undefined;
+        farePreference: BuyingFarePreference;
+    };
+    paymentProfile: {
+        configured: boolean;
+        paymentProfileName: undefined;
+        paymentProfileId: undefined;
+        method: undefined;
+        hasSepaAccountOwner: boolean;
+        hasSepaIban: boolean;
+        hasSepaBirthdate: boolean;
+        hasSepaAddress: boolean;
+        hasSepaAddressStreetNumber: boolean;
+        hasSepaAddressAdditionalInfo: boolean;
+        hasSepaAddressZip: boolean;
+        hasSepaAddressCity: boolean;
+        hasSepaAddressCountry: boolean;
+        sepaMandateAccepted: boolean;
+        hasCardholderName: boolean;
+        hasCardNumber: boolean;
+        hasCardExpiry: boolean;
+        hasCvc: boolean;
+    } | {
+        configured: boolean;
+        paymentProfileName: string;
+        paymentProfileId: string | undefined;
+        method: import("./types.js").DBhopperPaymentMethod;
+        hasSepaAccountOwner: boolean;
+        hasSepaIban: boolean;
+        hasSepaBirthdate: boolean;
+        hasSepaAddress: boolean;
+        hasSepaAddressStreetNumber: boolean;
+        hasSepaAddressAdditionalInfo: boolean;
+        hasSepaAddressZip: boolean;
+        hasSepaAddressCity: boolean;
+        hasSepaAddressCountry: boolean;
+        sepaMandateAccepted: boolean;
+        hasCardholderName: boolean;
+        hasCardNumber: boolean;
+        hasCardExpiry: boolean;
+        hasCvc: boolean;
+    };
+    ticketBuyingMode: DBhopperTicketBuyingMode;
     research: {
         status: string;
         safety: string;
@@ -566,13 +982,14 @@ export declare function ticketBuyingPlan(params: TicketBuyingDryRunParams, userD
     currentStop: string;
     maySubmitPayment: boolean;
 };
-export declare function ticketCheckoutPlan(params: TicketCheckoutDryRunParams, userDataDir?: string, now?: Date): {
+export declare function ticketCheckoutPlan(params: TicketCheckoutDryRunParams, userDataDir?: string, now?: Date, farePreference?: BuyingFarePreference, ticketBuyingMode?: DBhopperTicketBuyingMode): {
     startUrl: string;
     target: {
         departureStation: string;
         arrivalStation: string;
         serviceDate: string;
         departureTime: string;
+        trainLabel: string | undefined;
     };
     browser: {
         canUsePersistentProfile: boolean;
@@ -582,13 +999,43 @@ export declare function ticketCheckoutPlan(params: TicketCheckoutDryRunParams, u
         loginBeforeSearch: boolean;
         stayLoggedIn: boolean;
     };
+    fareSelection: {
+        defaultFare: DBhopperFareProduct;
+        fallbackFares: DBhopperFareProduct[];
+        preferenceOrder: DBhopperFareProduct[];
+        labels: Record<DBhopperFareProduct, string>;
+        travelClass: import("./types.js").DBhopperTravelClass;
+        travelClassLabel: string;
+        continueToCustomerData: boolean;
+        bookingFor: DBhopperBookingFor;
+        continueToPaymentBoundary: boolean;
+    };
+    ticketBuyingMode: DBhopperTicketBuyingMode;
+    finalBuying: {
+        requested: boolean;
+        enabled: boolean;
+    };
     safety: {
-        mayEnterPaymentData: boolean;
+        mayEnterPaymentProfileData: boolean;
+        mayClickPaymentPageContinue: boolean;
+        mayReviewCheckPage: boolean;
         maySubmitPayment: boolean;
         mayClickFinalOrder: boolean;
         finalUnsafeButtonPatterns: string[];
     };
     plannedStages: string[];
 };
+interface PaymentFieldWarning {
+    code: "db_account_identity_mismatch";
+    field: string;
+    message: string;
+}
+declare function detectCheckoutBoundary(page: Page): Promise<{
+    stage: string;
+    paymentBoundaryVisible: boolean;
+    finalOrderButtonVisible: boolean;
+    finalOrderButtonText: string | undefined;
+}>;
 export declare function isFinalOrderText(value: string): boolean;
 export declare function defaultCheckoutServiceDate(now?: Date): string;
+export {};
