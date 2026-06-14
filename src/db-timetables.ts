@@ -1,5 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 
+import { errorMessage } from "./errors.js";
 import type { DBhopperConfig } from "./types.js";
 import {
   DEFAULT_TIME_ZONE,
@@ -628,8 +629,4 @@ function stringAttr(value: Record<string, unknown> | undefined, key: string) {
 
 function toArray(value: unknown) {
   return Array.isArray(value) ? value : value === undefined || value === null ? [] : [value];
-}
-
-function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
 }

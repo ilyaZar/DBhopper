@@ -1,4 +1,5 @@
 import type { DBhopperConfig } from "./types.js";
+import { errorMessage } from "./errors.js";
 import {
   applyCredentialsToConfig,
   credentialsSummary,
@@ -34,7 +35,7 @@ export async function runDbApiCredentialProbe(
       operation: "db_api_credential_probe",
       source_api: "db-timetables",
       needsConfiguration: true,
-      message: error instanceof Error ? error.message : String(error),
+      message: errorMessage(error),
       credentials: credentialsSummary(loadedCredentials),
       credentialSignals: bahnAPICredentialSignals(config),
       configStatus: baseStatus,
@@ -111,7 +112,7 @@ export async function runDbApiCredentialProbe(
       credentials: credentialsSummary(loadedCredentials),
       credentialSignals,
       configStatus: status,
-      error: error instanceof Error ? error.message : String(error),
+      error: errorMessage(error),
       browserLoginDoesNotProveApiKeyValidity: true,
     };
   } finally {

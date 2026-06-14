@@ -1,6 +1,7 @@
 import type { DBhopperConfig, DBhopperClaim } from "./types.js";
 import { probeBrowser, runBrowserClaim } from "./browser.js";
 import { claimSchemaReference, validateClaim } from "./validation.js";
+import { errorMessage } from "./errors.js";
 import {
   claimPaths,
   listClaims,
@@ -386,7 +387,7 @@ function errorResult(operation: string, error: unknown, needsUserAction = false)
   return textResult({
     ok: false,
     operation,
-    error: error instanceof Error ? error.message : String(error),
+    error: errorMessage(error),
     needsUserAction,
   });
 }

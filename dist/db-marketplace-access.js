@@ -1,6 +1,7 @@
 import path from "node:path";
 import { DB_MARKETPLACE_LOGIN_URL, DB_MARKETPLACE_TIMETABLES_URL, captureAccessStage, openCredentialBrowserSession, pageAccessState, } from "./access-browser.js";
 import { credentialsSummary, readSelectedCredentialsProfile, } from "./credentials.js";
+import { errorMessage } from "./errors.js";
 import { performDbAccountLogin } from "./db-login.js";
 import { resolveWorkspace } from "./workspace.js";
 const MARKETPLACE_DB_ACCOUNT_CONTINUE_SELECTORS = [
@@ -140,7 +141,7 @@ export async function runDbMarketplaceAccessCheck(params, config = {}, signal) {
             operation: "db_marketplace_access_check",
             accessPath: "db_api_marketplace_browser",
             credentials: credentialsSummary(loadedCredentials),
-            message: error instanceof Error ? error.message : String(error),
+            message: errorMessage(error),
             artifactDir: session?.artifactDir,
             artifacts,
             needsUserAction: true,

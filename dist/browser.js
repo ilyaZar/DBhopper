@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { errorMessage } from "./errors.js";
 import { resolveClaimFilePath } from "./workspace.js";
 const FORM_URL = "https://mg.kcm-nrw.de/elmapublic/";
 const DEFAULT_TIMEOUT_MS = 180000;
@@ -124,7 +125,7 @@ export async function runBrowserClaim(params) {
             artifacts,
             submitted: false,
             needsUserAction: true,
-            message: error instanceof Error ? error.message : String(error),
+            message: errorMessage(error),
         };
     }
     finally {

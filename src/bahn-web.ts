@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
 import { resolveBrowserExecutablePath } from "./browser.js";
+import { errorMessage } from "./errors.js";
 import type { DBhopperConfig } from "./types.js";
 import {
   DEFAULT_TIME_ZONE,
@@ -723,8 +724,4 @@ function boolAttr(value: Record<string, unknown>, key: string) {
 
 function toArray(value: unknown) {
   return Array.isArray(value) ? value : value === undefined || value === null ? [] : [value];
-}
-
-function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
 }
