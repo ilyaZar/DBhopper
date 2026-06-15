@@ -11,23 +11,17 @@ import {
   readSelectedCredentialsProfile,
   validateCredentialsFiles,
 } from "../dist/credentials.js";
-import { writePrivateSettingsFixture } from "./helpers/private-settings.js";
+import {
+  writeCredentialsFixture,
+  writePrivateSettingsFixture,
+} from "./helpers/private-settings.js";
 
 describe("dbhopper credentials", () => {
   it("loads TOML credentials and redacts values from summaries", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-creds-"));
-    const credentialsDir = path.join(root, "assets", "private", "credentials");
-    await fs.mkdir(credentialsDir, { recursive: true });
     await writePrivateSettingsFixture(root);
-    await fs.writeFile(
-      path.join(credentialsDir, "credentials-01.toml"),
-      [
-        'ID_USR = "01"',
-        "",
-        "[bahn_api]",
-        'client_id = "client-secret-value"',
-        'api_key = "api-secret-value"',
-        "",
+    await writeCredentialsFixture(root, {
+      extraLines: [
         "[bahn_account_api]",
         'username = "api-user@example.org"',
         'password = "api-account-secret"',
@@ -39,9 +33,8 @@ describe("dbhopper credentials", () => {
         "[browser]",
         'user_data_dir = "assets/private/browser/db-ticket-buying"',
         "",
-      ].join("\n"),
-      "utf8",
-    );
+      ],
+    });
 
     const loaded = await readSelectedCredentialsProfile({ workspaceRoot: root });
     assert.equal(loaded.credentialsName, "credentials-01.toml");

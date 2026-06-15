@@ -40,6 +40,31 @@ export async function writePrivateSettingsFixture(root, options = {}) {
   );
 }
 
+export async function writeCredentialsFixture(root, options = {}) {
+  const {
+    id = "01",
+    fileName = `credentials-${id}.toml`,
+    clientId = "client-secret-value",
+    apiKey = "api-secret-value",
+    extraLines = [],
+  } = options;
+  const credentialsDir = path.join(root, "assets", "private", "credentials");
+  const lines = [
+    `ID_USR = "${id}"`,
+    "",
+    "[bahn_api]",
+    `client_id = "${clientId}"`,
+    `api_key = "${apiKey}"`,
+    "",
+    ...extraLines,
+  ];
+
+  await fs.mkdir(credentialsDir, { recursive: true });
+  const credentialsFile = path.join(credentialsDir, fileName);
+  await fs.writeFile(credentialsFile, lines.join("\n"), "utf8");
+  return { credentialsDir, credentialsFile };
+}
+
 export async function writePrivateProfileFixture(dir, id, fileName, firstName) {
   await fs.mkdir(dir, { recursive: true });
   await fs.writeFile(

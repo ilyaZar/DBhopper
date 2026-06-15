@@ -10,7 +10,10 @@ import {
   selectDelayProvider,
   shouldFallbackToProvider,
 } from "../dist/db-delay-tools.js";
-import { writePrivateSettingsFixture } from "./helpers/private-settings.js";
+import {
+  writeCredentialsFixture,
+  writePrivateSettingsFixture,
+} from "./helpers/private-settings.js";
 import { jsonResponse, xmlResponse } from "./helpers/responses.js";
 
 describe("db delay provider selection", () => {
@@ -79,22 +82,11 @@ function credentialError() {
 }
 
 async function writePrivateFiles(root) {
-  const privateDir = path.join(root, "assets", "private");
-  const credentialsDir = path.join(privateDir, "credentials");
-  await fs.mkdir(credentialsDir, { recursive: true });
   await writePrivateSettingsFixture(root);
-  await fs.writeFile(
-    path.join(credentialsDir, "credentials-01.toml"),
-    [
-      'ID_USR = "01"',
-      "",
-      "[bahn_api]",
-      'client_id = "client-id"',
-      'api_key = "api-key"',
-      "",
-    ].join("\n"),
-    "utf8",
-  );
+  await writeCredentialsFixture(root, {
+    clientId: "client-id",
+    apiKey: "api-key",
+  });
 }
 
 async function fakeParityFetch(url) {

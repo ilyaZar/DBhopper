@@ -8,6 +8,13 @@ import {
   featureSettingForToolName,
   parseTopLevelSettings,
 } from "../dist/plugin-settings.js";
+import {
+  DB_API_CREDENTIAL_PROBE_TOOL_NAME,
+  DB_STANDARD_LOGIN_CHECK_TOOL_NAME,
+  PRIVATE_SETTINGS_STATUS_TOOL_NAME,
+  QUERY_DB_DELAY_TOOL_NAME,
+  TICKET_CHECKOUT_DRY_RUN_TOOL_NAME,
+} from "../dist/tool-contracts.js";
 
 describe("dbhopper top-level settings", () => {
   it("defaults to delay retrieval only", async () => {
@@ -18,9 +25,9 @@ describe("dbhopper top-level settings", () => {
     assert.deepEqual(settings, DEFAULT_FEATURE_SETTINGS);
 
     const tools = enabledToolNames(settings);
-    assert.equal(tools.has("dbhopper_query_db_delay"), true);
+    assert.equal(tools.has(QUERY_DB_DELAY_TOOL_NAME), true);
     assert.equal(tools.has("dbhopper_prepare_claim"), false);
-    assert.equal(tools.has("dbhopper_ticket_checkout_dry_run"), false);
+    assert.equal(tools.has(TICKET_CHECKOUT_DRY_RUN_TOOL_NAME), false);
   });
 
   it("enables claim and ticket tool groups explicitly", () => {
@@ -32,11 +39,11 @@ describe("dbhopper top-level settings", () => {
     ].join("\n"));
     const tools = enabledToolNames(settings);
 
-    assert.equal(tools.has("dbhopper_query_db_delay"), false);
-    assert.equal(tools.has("dbhopper_db_api_credential_probe"), false);
+    assert.equal(tools.has(QUERY_DB_DELAY_TOOL_NAME), false);
+    assert.equal(tools.has(DB_API_CREDENTIAL_PROBE_TOOL_NAME), false);
     assert.equal(tools.has("dbhopper_run_claim"), true);
-    assert.equal(tools.has("dbhopper_db_standard_login_check"), true);
-    assert.equal(tools.has("dbhopper_ticket_checkout_dry_run"), true);
+    assert.equal(tools.has(DB_STANDARD_LOGIN_CHECK_TOOL_NAME), true);
+    assert.equal(tools.has(TICKET_CHECKOUT_DRY_RUN_TOOL_NAME), true);
   });
 
   it("rejects unknown top-level settings", () => {
@@ -48,7 +55,7 @@ describe("dbhopper top-level settings", () => {
 
   it("maps public tool names to workflow gates", () => {
     assert.equal(
-      featureSettingForToolName("dbhopper_query_db_delay"),
+      featureSettingForToolName(QUERY_DB_DELAY_TOOL_NAME),
       "use_delay_retrieval",
     );
     assert.equal(
@@ -56,11 +63,11 @@ describe("dbhopper top-level settings", () => {
       "use_claim_requests",
     );
     assert.equal(
-      featureSettingForToolName("dbhopper_ticket_checkout_dry_run"),
+      featureSettingForToolName(TICKET_CHECKOUT_DRY_RUN_TOOL_NAME),
       "use_ticket_buying",
     );
     assert.equal(
-      featureSettingForToolName("dbhopper_private_settings_status"),
+      featureSettingForToolName(PRIVATE_SETTINGS_STATUS_TOOL_NAME),
       undefined,
     );
   });
