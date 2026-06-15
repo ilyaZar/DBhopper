@@ -4,6 +4,8 @@ import fs from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
+import { PUBLIC_TOOL_NAMES } from "../dist/tool-contracts.js";
+
 const execFileAsync = promisify(execFile);
 
 describe("dbhopper package metadata", () => {
@@ -23,25 +25,7 @@ describe("dbhopper package metadata", () => {
     });
     assert.deepEqual(manifest.skills, ["./skills"]);
     assert.ok(pkg.files.includes("settings.yaml"));
-    assert.deepEqual(manifest.contracts.tools, [
-      "dbhopper_claim_schema",
-      "dbhopper_list_claims",
-      "dbhopper_prepare_claim",
-      "dbhopper_validate_claim",
-      "dbhopper_browser_probe",
-      "dbhopper_run_claim",
-      "dbhopper_private_settings_status",
-      "dbhopper_private_settings_select",
-      "dbhopper_credentials_validate",
-      "dbhopper_db_standard_login_check",
-      "dbhopper_db_marketplace_access_check",
-      "dbhopper_db_api_credential_probe",
-      "dbhopper_db_delay_research",
-      "dbhopper_query_db_delay",
-      "dbhopper_ticket_buying_research",
-      "dbhopper_ticket_buying_dry_run",
-      "dbhopper_ticket_checkout_dry_run",
-    ]);
+    assert.deepEqual(manifest.contracts.tools, [...PUBLIC_TOOL_NAMES]);
     for (const toolName of manifest.contracts.tools) {
       assert.equal(manifest.toolMetadata[toolName].optional, true);
     }
