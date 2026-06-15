@@ -9,6 +9,12 @@ import type {
   ValidationMessage,
 } from "./types.js";
 import { resolveSelectedBuyingProfileFile } from "./private-settings.js";
+import {
+  assertKnownKeys,
+  assertNumericIdString,
+  assertString,
+  assertTable,
+} from "./schema-helpers.js";
 import { normalizeTomlKeys, parseToml, type TomlKeyMapByPath } from "./toml.js";
 import { validationErrorFromException } from "./validation-messages.js";
 
@@ -236,21 +242,14 @@ function assertBuyingProfileShape(
     "bookingFor",
     "continueToPaymentBoundary",
   ]);
-  for (const key of Object.keys(value)) {
-    if (!allowed.has(key)) {
-      throw new Error(`${source}.${key} is not a supported field`);
-    }
-  }
+  assertKnownKeys(value, allowed, source);
   if (!("ID_BUY" in value)) {
     throw new Error(`${source}.ID_BUY is required`);
   }
   if (!("defaultFare" in value)) {
     throw new Error(`${source}.defaultFare is required`);
   }
-  assertString(value.ID_BUY, `${source}.ID_BUY`);
-  if (!/^\d{2,}$/.test(value.ID_BUY)) {
-    throw new Error(`${source}.ID_BUY must be a quoted numeric ID like "01"`);
-  }
+  assertNumericIdString(value.ID_BUY, `${source}.ID_BUY`);
   assertString(value.defaultFare, `${source}.defaultFare`);
   normalizeFareProduct(value.defaultFare, `${source}.defaultFare`);
   if ("fallbackFares" in value) {
@@ -304,19 +303,4 @@ function normalizeBookingFor(value: string, source: string): DBhopperBookingFor 
     throw new Error(`${source} must be one of: self, other`);
   }
   return normalized;
-}
-
-function assertTable(
-  value: unknown,
-  source: string,
-): asserts value is Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error(`${source} must be a TOML table`);
-  }
-}
-
-function assertString(value: unknown, source: string): asserts value is string {
-  if (typeof value !== "string" || value.length === 0) {
-    throw new Error(`${source} must be a non-empty string`);
-  }
 }

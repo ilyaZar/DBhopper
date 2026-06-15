@@ -376,6 +376,31 @@ export function stationMatches(candidate: StationRef, expected: StationRef) {
   return candidateNames.some((candidateName) => expectedNames.includes(candidateName));
 }
 
+export function buildPathStops(
+  boardingStop: JourneyStop,
+  pathNames: string[],
+  buildPathStop: (name: string, index: number) => JourneyStop,
+) {
+  const pathStops = pathNames.map(buildPathStop);
+  const boardingIndex = pathStops.findIndex((stop) =>
+    stationMatches(stop.station, boardingStop.station),
+  );
+
+  if (boardingIndex < 0) {
+    return [
+      { ...boardingStop, stopIndex: 0 },
+      ...pathStops.map((stop, index) => ({ ...stop, stopIndex: index + 1 })),
+    ];
+  }
+
+  pathStops[boardingIndex] = {
+    ...pathStops[boardingIndex],
+    ...boardingStop,
+    stopIndex: boardingIndex,
+  };
+  return pathStops.map((stop, index) => ({ ...stop, stopIndex: index }));
+}
+
 export function categoryMatches(journey: Journey, allowedTypes: string[]) {
   const allowed = normalizeTypeList(allowedTypes);
   const tokens = getCategoryTokens(journey);

@@ -3,6 +3,10 @@ import path from "node:path";
 
 import type { BrowserContext, Page } from "playwright-core";
 
+import {
+  createTimestampedArtifactDir,
+  safeArtifactSegment,
+} from "./artifacts.js";
 import { resolveBrowserExecutablePath } from "./browser.js";
 import type { LoadedCredentialsProfile } from "./credentials.js";
 import type { DBhopperConfig } from "./types.js";
@@ -80,7 +84,7 @@ export async function captureAccessStage(
   if (!artifactDir) {
     return;
   }
-  const target = path.join(artifactDir, `${safeArtifactLabel(label)}.png`);
+  const target = path.join(artifactDir, `${safeArtifactSegment(label)}.png`);
   await page.screenshot({ path: target, fullPage: true });
   artifacts.push(target);
 }
@@ -120,13 +124,6 @@ export async function pageAccessState(page: Page) {
 
 async function createAccessArtifactDir(config: DBhopperConfig, prefix: string) {
   const workspace = resolveWorkspace(config);
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   const artifactRoot = config.artifactRoot || path.join(workspace.root, "tmp");
-  const artifactDir = path.join(artifactRoot, `${prefix}-${timestamp}`);
-  await fs.mkdir(artifactDir, { recursive: true });
-  return artifactDir;
-}
-
-function safeArtifactLabel(value: string) {
-  return value.replace(/[^a-z0-9._-]+/gi, "-").replace(/-+/g, "-").toLowerCase();
+  return createTimestampedArtifactDir(artifactRoot, prefix);
 }

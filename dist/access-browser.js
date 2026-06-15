@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { createTimestampedArtifactDir, safeArtifactSegment, } from "./artifacts.js";
 import { resolveBrowserExecutablePath } from "./browser.js";
 import { resolveWorkspace } from "./workspace.js";
 export const DB_STANDARD_HOME_URL = "https://int.bahn.de/en";
@@ -41,7 +42,7 @@ export async function captureAccessStage(page, artifactDir, label, artifacts) {
     if (!artifactDir) {
         return;
     }
-    const target = path.join(artifactDir, `${safeArtifactLabel(label)}.png`);
+    const target = path.join(artifactDir, `${safeArtifactSegment(label)}.png`);
     await page.screenshot({ path: target, fullPage: true });
     artifacts.push(target);
 }
@@ -71,12 +72,6 @@ export async function pageAccessState(page) {
 }
 async function createAccessArtifactDir(config, prefix) {
     const workspace = resolveWorkspace(config);
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const artifactRoot = config.artifactRoot || path.join(workspace.root, "tmp");
-    const artifactDir = path.join(artifactRoot, `${prefix}-${timestamp}`);
-    await fs.mkdir(artifactDir, { recursive: true });
-    return artifactDir;
-}
-function safeArtifactLabel(value) {
-    return value.replace(/[^a-z0-9._-]+/gi, "-").replace(/-+/g, "-").toLowerCase();
+    return createTimestampedArtifactDir(artifactRoot, prefix);
 }

@@ -2,7 +2,6 @@ import type { Page } from "playwright-core";
 import { type BuyingFarePreference } from "./buying-profile.js";
 import { type DBhopperTicketBuyingMode } from "./private-settings.js";
 import type { DBhopperBookingFor, DBhopperConfig, DBhopperFareProduct, DBhopperPaymentProfile } from "./types.js";
-export declare const TICKET_BUYING_TOOL_NAMES: readonly ["dbhopper_ticket_buying_research", "dbhopper_ticket_buying_dry_run", "dbhopper_ticket_checkout_dry_run"];
 export interface TicketBuyingDryRunParams {
     departure_station: string;
     arrival_station: string;

@@ -5,7 +5,7 @@ export declare const DEFAULT_BAHN_WEB_BASE_URL = "https://int.bahn.de/web/api";
 export declare const BAHN_WEB_FALLBACK_BASE_URL = "https://www.bahn.de/web/api";
 export declare const DEFAULT_BAHN_WEB_TRANSPORT = "auto";
 export declare const DEFAULT_BAHN_WEB_REQUEST_TIMEOUT_MS = 20000;
-export type BahnWebTransport = "auto" | "fetch" | "curl" | "browser";
+export type { BahnWebTransport } from "./delay-provider-options.js";
 export interface BahnWebProviderOptions extends DBhopperConfig {
     signal?: AbortSignal;
     fetchImpl?: typeof fetch;

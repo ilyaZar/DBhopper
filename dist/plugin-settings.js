@@ -1,38 +1,19 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { ALWAYS_ENABLED_TOOL_NAMES, AUTONOMOUS_TICKET_BUYING_TOOL_NAMES, CLAIM_TOOL_NAMES, DELAY_RETRIEVAL_TOOL_NAMES, } from "./tool-contracts.js";
 export const DEFAULT_FEATURE_SETTINGS = {
     use_delay_retrieval: true,
     use_claim_requests: false,
     use_ticket_buying: false,
 };
-export const CLAIM_TOOL_NAMES = [
-    "dbhopper_claim_schema",
-    "dbhopper_list_claims",
-    "dbhopper_prepare_claim",
-    "dbhopper_validate_claim",
-    "dbhopper_browser_probe",
-    "dbhopper_run_claim",
-];
-export const DELAY_RETRIEVAL_TOOL_NAMES = [
-    "dbhopper_db_marketplace_access_check",
-    "dbhopper_db_api_credential_probe",
-    "dbhopper_db_delay_research",
-    "dbhopper_query_db_delay",
-];
-export const TICKET_BUYING_TOOL_NAMES = [
-    "dbhopper_db_standard_login_check",
-    "dbhopper_ticket_buying_research",
-    "dbhopper_ticket_buying_dry_run",
-    "dbhopper_ticket_checkout_dry_run",
-];
 const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SETTINGS_FILE = "settings.yaml";
 const SETTINGS_KEYS = new Set(Object.keys(DEFAULT_FEATURE_SETTINGS));
 const TOOL_FEATURE_SETTINGS = new Map([
     ...CLAIM_TOOL_NAMES.map((name) => [name, "use_claim_requests"]),
     ...DELAY_RETRIEVAL_TOOL_NAMES.map((name) => [name, "use_delay_retrieval"]),
-    ...TICKET_BUYING_TOOL_NAMES.map((name) => [name, "use_ticket_buying"]),
+    ...AUTONOMOUS_TICKET_BUYING_TOOL_NAMES.map((name) => [name, "use_ticket_buying"]),
 ]);
 export function readTopLevelSettings(packageRoot = PACKAGE_ROOT) {
     const settingsPath = path.join(packageRoot, SETTINGS_FILE);
@@ -62,11 +43,7 @@ export function parseTopLevelSettings(source, sourceName = SETTINGS_FILE) {
     return settings;
 }
 export function enabledToolNames(settings) {
-    const names = new Set([
-        "dbhopper_private_settings_status",
-        "dbhopper_private_settings_select",
-        "dbhopper_credentials_validate",
-    ]);
+    const names = new Set(ALWAYS_ENABLED_TOOL_NAMES);
     if (settings.use_delay_retrieval) {
         for (const name of DELAY_RETRIEVAL_TOOL_NAMES) {
             names.add(name);
@@ -78,7 +55,7 @@ export function enabledToolNames(settings) {
         }
     }
     if (settings.use_ticket_buying) {
-        for (const name of TICKET_BUYING_TOOL_NAMES) {
+        for (const name of AUTONOMOUS_TICKET_BUYING_TOOL_NAMES) {
             names.add(name);
         }
     }

@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import { resolveSelectedPaymentProfileFile } from "./private-settings.js";
+import { assertKnownKeys, assertNumericIdString, assertSection, assertString, assertTable, } from "./schema-helpers.js";
 import { normalizeTomlKeys, parseToml } from "./toml.js";
 import { validationErrorFromException } from "./validation-messages.js";
 const PAYMENT_METHODS = new Set(["sepa", "credit_card", "paypal"]);
@@ -153,10 +154,7 @@ function assertPaymentProfileShape(value, source) {
     if (!("method" in value)) {
         throw new Error(`${source}.method is required`);
     }
-    assertString(value.ID_PYM, `${source}.ID_PYM`);
-    if (!/^\d{2,}$/.test(value.ID_PYM)) {
-        throw new Error(`${source}.ID_PYM must be a quoted numeric ID like "01"`);
-    }
+    assertNumericIdString(value.ID_PYM, `${source}.ID_PYM`);
     assertString(value.method, `${source}.method`);
     const method = normalizePaymentMethod(value.method, `${source}.method`);
     if ("payment" in value) {
@@ -284,27 +282,6 @@ function rejectForbiddenPaymentKeys(value, source) {
         }
     };
     visit(value, source);
-}
-function assertSection(value, source, allowedKeys) {
-    assertTable(value, source);
-    assertKnownKeys(value, new Set(allowedKeys), source);
-}
-function assertKnownKeys(value, allowed, source) {
-    for (const key of Object.keys(value)) {
-        if (!allowed.has(key)) {
-            throw new Error(`${source}.${key} is not a supported field`);
-        }
-    }
-}
-function assertTable(value, source) {
-    if (!value || typeof value !== "object" || Array.isArray(value)) {
-        throw new Error(`${source} must be a TOML table`);
-    }
-}
-function assertString(value, source) {
-    if (typeof value !== "string" || value.length === 0) {
-        throw new Error(`${source} must be a non-empty string`);
-    }
 }
 function assertOptionalBoolean(value, source) {
     if (value !== undefined && typeof value !== "boolean") {

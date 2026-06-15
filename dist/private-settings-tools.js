@@ -1,14 +1,11 @@
 import { Type } from "typebox";
 import { privateSettingsStatus, writePrivateSettingsIds, } from "./private-settings.js";
+import { PRIVATE_SETTINGS_SELECT_TOOL_NAME, PRIVATE_SETTINGS_STATUS_TOOL_NAME, } from "./tool-contracts.js";
 import { errorMessage } from "./errors.js";
-export const PRIVATE_SETTINGS_TOOL_NAMES = [
-    "dbhopper_private_settings_status",
-    "dbhopper_private_settings_select",
-];
 export function createPrivateSettingsToolDefinitions(tool) {
     return [
         tool({
-            name: "dbhopper_private_settings_status",
+            name: PRIVATE_SETTINGS_STATUS_TOOL_NAME,
             label: "DBhopper Private Settings Status",
             description: [
                 "List current DBhopper private user, claim, buying, and payment IDs.",
@@ -23,7 +20,7 @@ export function createPrivateSettingsToolDefinitions(tool) {
             }),
         }),
         tool({
-            name: "dbhopper_private_settings_select",
+            name: PRIVATE_SETTINGS_SELECT_TOOL_NAME,
             label: "DBhopper Private Settings Select",
             description: [
                 "Update ID_USR, ID_CLM, ID_BUY, ID_PYM, and/or",

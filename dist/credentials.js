@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { readPrivateSettings, resolveSelectedCredentialFile, } from "./private-settings.js";
 import { parsePaymentProfileToml } from "./payment-profile.js";
+import { assertKnownKeys, assertNumericIdString, assertSection, assertString, assertTable, } from "./schema-helpers.js";
 import { normalizeTomlKeys, parseToml, tryParseToml, } from "./toml.js";
 import { validationError, validationErrorFromException, } from "./validation-messages.js";
 import { resolveWorkspace } from "./workspace.js";
@@ -183,11 +184,7 @@ function assertCredentialsShape(value, source) {
     if (!("ID_USR" in value)) {
         throw new Error(`${source}.ID_USR is required`);
     }
-    const id = value.ID_USR;
-    assertString(id, `${source}.ID_USR`);
-    if (!/^\d{2,}$/.test(id)) {
-        throw new Error(`${source}.ID_USR must be a quoted numeric ID like "01"`);
-    }
+    assertNumericIdString(value.ID_USR, `${source}.ID_USR`);
     if ("bahnAPI" in value) {
         assertSection(value.bahnAPI, `${source}.bahnAPI`, [
             "clientId",
@@ -219,26 +216,5 @@ function assertCredentialsShape(value, source) {
         if ("userDataDir" in value.browser) {
             assertString(value.browser.userDataDir, `${source}.browser.userDataDir`);
         }
-    }
-}
-function assertSection(value, source, allowedKeys) {
-    assertTable(value, source);
-    assertKnownKeys(value, new Set(allowedKeys), source);
-}
-function assertTable(value, source) {
-    if (!value || typeof value !== "object" || Array.isArray(value)) {
-        throw new Error(`${source} must be a TOML table`);
-    }
-}
-function assertKnownKeys(value, allowed, source) {
-    for (const key of Object.keys(value)) {
-        if (!allowed.has(key)) {
-            throw new Error(`${source}.${key} is not a supported field`);
-        }
-    }
-}
-function assertString(value, source) {
-    if (typeof value !== "string" || value.length === 0) {
-        throw new Error(`${source} must be a non-empty string`);
     }
 }

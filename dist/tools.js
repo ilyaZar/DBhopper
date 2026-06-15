@@ -1,19 +1,10 @@
+import { CLAIM_FILE_ROLES, CLAIM_TOOL_CONTRACTS, CLAIM_TOOL_NAMES, RUN_CLAIM_MODES, SIDE_EFFECT_CLAIM_TOOL_NAMES, } from "./claim-tool-contracts.js";
 import { probeBrowser, runBrowserClaim } from "./browser.js";
 import { claimSchemaReference, validateClaim } from "./validation.js";
 import { errorMessage } from "./errors.js";
 import { claimPaths, listClaims, prepareClaim, readClaim, redactEmail, validateWorkspaceTomlFiles, writeSubmittedRecipe, } from "./workspace.js";
-const SIDE_EFFECT_TOOL_NAMES = new Set([
-    "dbhopper_prepare_claim",
-    "dbhopper_run_claim",
-]);
-const CLAIM_TOOL_NAMES = new Set([
-    "dbhopper_claim_schema",
-    "dbhopper_list_claims",
-    "dbhopper_prepare_claim",
-    "dbhopper_validate_claim",
-    "dbhopper_browser_probe",
-    "dbhopper_run_claim",
-]);
+const SIDE_EFFECT_TOOL_NAMES = new Set(SIDE_EFFECT_CLAIM_TOOL_NAMES);
+const CLAIM_TOOL_NAME_SET = new Set(CLAIM_TOOL_NAMES);
 export function resolveApprovalToolNames(config = {}) {
     const mode = config.approvalMode || "all";
     if (mode === "none") {
@@ -22,7 +13,7 @@ export function resolveApprovalToolNames(config = {}) {
     if (mode === "mutating") {
         return new Set(SIDE_EFFECT_TOOL_NAMES);
     }
-    return new Set(CLAIM_TOOL_NAMES);
+    return new Set(CLAIM_TOOL_NAME_SET);
 }
 export function buildDBhopperApprovalDescription({ toolName, params = {}, }) {
     const lines = [
@@ -64,9 +55,7 @@ export function createDBhopperTools(config = {}) {
 }
 function schemaTool() {
     return {
-        name: "dbhopper_claim_schema",
-        label: "DBhopper Claim Schema",
-        description: "Return NRW Mobilitätsgarantie claim facts, required evidence, and the DBhopper claim TOML shape.",
+        ...CLAIM_TOOL_CONTRACTS.dbhopper_claim_schema,
         parameters: objectSchema({}),
         async execute() {
             return textResult({
@@ -88,9 +77,7 @@ function schemaTool() {
 }
 function listClaimsTool() {
     return {
-        name: "dbhopper_list_claims",
-        label: "DBhopper List Claims",
-        description: "List local DBhopper claims with personal fields redacted.",
+        ...CLAIM_TOOL_CONTRACTS.dbhopper_list_claims,
         parameters: objectSchema({}),
         async execute() {
             return textResult({
@@ -103,9 +90,7 @@ function listClaimsTool() {
 }
 function prepareClaimTool() {
     return {
-        name: "dbhopper_prepare_claim",
-        label: "DBhopper Prepare Claim",
-        description: "Create or replace a local claim folder, copy evidence files into it, and write claim.toml.",
+        ...CLAIM_TOOL_CONTRACTS.dbhopper_prepare_claim,
         parameters: objectSchema({
             confirm: confirmSchema,
             claimId: { type: "string" },
@@ -119,14 +104,7 @@ function prepareClaimTool() {
                     properties: {
                         role: {
                             type: "string",
-                            enum: [
-                                "base_ticket",
-                                "substitute_receipt",
-                                "delay_evidence",
-                                "submission_pdf",
-                                "screenshot",
-                                "other",
-                            ],
+                            enum: [...CLAIM_FILE_ROLES],
                         },
                         sourcePath: { type: "string" },
                         assetName: { type: "string" },
@@ -160,9 +138,7 @@ function prepareClaimTool() {
 }
 function validateClaimTool() {
     return {
-        name: "dbhopper_validate_claim",
-        label: "DBhopper Validate Claim",
-        description: "Validate deterministic NRW Mobilitätsgarantie eligibility checks for a claim object or claim folder.",
+        ...CLAIM_TOOL_CONTRACTS.dbhopper_validate_claim,
         parameters: objectSchema({
             claimId: { type: "string" },
             claim: { type: "object", additionalProperties: true },
@@ -200,9 +176,7 @@ function validateClaimTool() {
 }
 function browserProbeTool() {
     return {
-        name: "dbhopper_browser_probe",
-        label: "DBhopper Browser Probe",
-        description: "Open the NRW Mobilitätsgarantie form and report whether the browser automation surface is reachable.",
+        ...CLAIM_TOOL_CONTRACTS.dbhopper_browser_probe,
         parameters: objectSchema({}),
         async execute() {
             try {
@@ -220,18 +194,13 @@ function browserProbeTool() {
 }
 function runClaimTool() {
     return {
-        name: "dbhopper_run_claim",
-        label: "DBhopper Run Claim",
-        description: [
-            "Drive the NRW Mobilitätsgarantie browser form for a prepared claim.",
-            "Dry run stops at summary; submit requires confirmSubmit.",
-        ].join(" "),
+        ...CLAIM_TOOL_CONTRACTS.dbhopper_run_claim,
         parameters: objectSchema({
             confirm: confirmSchema,
             claimId: { type: "string" },
             mode: {
                 type: "string",
-                enum: ["dry_run", "submit"],
+                enum: [...RUN_CLAIM_MODES],
                 default: "dry_run",
             },
             confirmSubmit: {

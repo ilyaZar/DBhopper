@@ -5,13 +5,27 @@ import { fileURLToPath } from "node:url";
 import type { DBhopperConfig, ValidationMessage } from "./types.js";
 import { normalizeTomlKeys, parseToml, type TomlKeyMapByPath } from "./toml.js";
 import {
+  assertKnownKeys,
+  assertNumericId,
+  assertString,
+  assertTable,
+} from "./schema-helpers.js";
+import {
+  DELAY_FALLBACKS,
+  DELAY_PROVIDERS,
+  type DBhopperDelayFallbackSetting,
+  type DBhopperDelayProviderSetting,
+} from "./delay-provider-options.js";
+import {
   validationError,
   validationErrorFromException,
 } from "./validation-messages.js";
 
-export type DBhopperDelayProviderSetting = "auto" | "db-timetables" | "bahn-web";
-export type DBhopperDelayFallbackSetting = "none" | "db-timetables" | "bahn-web";
 export type DBhopperTicketBuyingMode = "review" | "auto";
+export type {
+  DBhopperDelayFallbackSetting,
+  DBhopperDelayProviderSetting,
+} from "./delay-provider-options.js";
 
 export interface DBhopperPrivateSettings {
   ID_USR: string;
@@ -59,6 +73,12 @@ const SETTINGS_KEYS = new Set([
   "DELAY_FALLBACK",
 ]);
 const PRIVATE_ID_ALIASES: TomlKeyMapByPath = {};
+const SIBLING_PRIVATE_ID_FIELDS: Record<PrivateIdField, PrivateIdField> = {
+  ID_USR: "ID_PYM",
+  ID_PYM: "ID_USR",
+  ID_CLM: "ID_BUY",
+  ID_BUY: "ID_CLM",
+};
 const PRIVATE_SETTINGS_ALIASES: TomlKeyMapByPath = {
   "": {
     ticket_buying_mode: "TICKET_BUYING_MODE",
@@ -68,8 +88,8 @@ const PRIVATE_SETTINGS_ALIASES: TomlKeyMapByPath = {
     delay_fallback: "DELAY_FALLBACK",
   },
 };
-const DELAY_PROVIDER_VALUES = new Set(["auto", "db-timetables", "bahn-web"]);
-const DELAY_FALLBACK_VALUES = new Set(["none", "db-timetables", "bahn-web"]);
+const DELAY_PROVIDER_VALUES = new Set<string>(DELAY_PROVIDERS);
+const DELAY_FALLBACK_VALUES = new Set<string>(DELAY_FALLBACKS);
 const TICKET_BUYING_MODE_VALUES = new Set(["review", "auto"]);
 
 export function privateSettingsPath(config: DBhopperConfig = {}) {
@@ -147,10 +167,6 @@ export async function listPaymentProfileIdFiles(config: DBhopperConfig = {}) {
   return listConfiguredIdFiles(config, "credentialsDir", "ID_PYM");
 }
 
-export async function listProfileIdFiles(config: DBhopperConfig = {}) {
-  return listClaimProfileIdFiles(config);
-}
-
 export async function listClaimProfileIdFiles(config: DBhopperConfig = {}) {
   return listConfiguredIdFiles(config, "profilesDir", "ID_CLM");
 }
@@ -165,10 +181,6 @@ export async function resolveSelectedCredentialFile(config: DBhopperConfig = {})
 
 export async function resolveSelectedPaymentProfileFile(config: DBhopperConfig = {}) {
   return resolveConfiguredIdFile(config, "credentialsDir", "ID_PYM");
-}
-
-export async function resolveSelectedProfileFile(config: DBhopperConfig = {}) {
-  return resolveSelectedClaimProfileFile(config);
 }
 
 export async function resolveSelectedClaimProfileFile(config: DBhopperConfig = {}) {
@@ -362,9 +374,7 @@ export function normalizePrivateId(
   field: PrivateIdField,
 ) {
   const trimmed = value.trim();
-  if (!/^\d{2,}$/.test(trimmed)) {
-    throw new Error(`${field} must be a quoted numeric ID like "01"`);
-  }
+  assertNumericId(trimmed, field);
   return trimmed;
 }
 
@@ -390,11 +400,7 @@ function normalizePrivateSettings(
   );
   assertTable(normalizedValue, source);
   const table = normalizedValue as Record<string, unknown>;
-  for (const key of Object.keys(table)) {
-    if (!SETTINGS_KEYS.has(key)) {
-      throw new Error(`${source}.${key} is not a supported field`);
-    }
-  }
+  assertKnownKeys(table, SETTINGS_KEYS, source);
   const normalized: Record<string, unknown> = {
     ...table,
     TICKET_BUYING_MODE: table.TICKET_BUYING_MODE ?? "review",
@@ -583,31 +589,7 @@ function isSiblingProfileFile(
   parsed: Record<string, unknown>,
   idField: PrivateIdField,
 ) {
-  if (idField === "ID_USR") {
-    return "ID_PYM" in parsed;
-  }
-  if (idField === "ID_PYM") {
-    return "ID_USR" in parsed;
-  }
-  if (idField === "ID_CLM") {
-    return "ID_BUY" in parsed;
-  }
-  if (idField === "ID_BUY") {
-    return "ID_CLM" in parsed;
-  }
-  return false;
-}
-
-function assertTable(value: unknown, source: string): asserts value is Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error(`${source} must be a TOML table`);
-  }
-}
-
-function assertString(value: unknown, source: string) {
-  if (typeof value !== "string" || value.length === 0) {
-    throw new Error(`${source} must be a non-empty string`);
-  }
+  return SIBLING_PRIVATE_ID_FIELDS[idField] in parsed;
 }
 
 function assertOneOf(value: unknown, allowed: Set<string>, source: string) {

@@ -3,6 +3,10 @@ import path from "node:path";
 
 import type { Browser, Page } from "playwright-core";
 
+import {
+  createTimestampedArtifactDir,
+  safeArtifactSegment,
+} from "./artifacts.js";
 import type { DBhopperClaim, DBhopperConfig } from "./types.js";
 import { errorMessage } from "./errors.js";
 import { resolveClaimFilePath } from "./workspace.js";
@@ -402,12 +406,9 @@ async function captureStage(
 
 async function createArtifactDir(params: BrowserRunParams) {
   const claimId = safeArtifactSegment(path.basename(params.claimDir));
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   const artifactRoot =
     params.artifactRoot || path.join(path.dirname(path.dirname(params.claimDir)), "tmp");
-  const artifactDir = path.join(artifactRoot, `${claimId}-${timestamp}`);
-  await fs.mkdir(artifactDir, { recursive: true });
-  return artifactDir;
+  return createTimestampedArtifactDir(artifactRoot, claimId);
 }
 
 async function savePageText(page: Page, artifactDir: string, label: string) {
@@ -425,10 +426,6 @@ async function saveScreenshot(page: Page, artifactDir: string, label: string) {
 
 function safeArtifactLabel(value: string) {
   return `browser-${safeArtifactSegment(value)}`;
-}
-
-function safeArtifactSegment(value: string) {
-  return value.replace(/[^a-z0-9._-]+/gi, "-").replace(/-+/g, "-").toLowerCase();
 }
 
 function formatEuro(value?: number) {

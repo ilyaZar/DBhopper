@@ -1,6 +1,6 @@
 import { XMLParser } from "fast-xml-parser";
 import { errorMessage } from "./errors.js";
-import { DEFAULT_TIME_ZONE, addMinutes, derivePublicCategory, localDateTimeToUtc, normalizeStationName, stationMatches, } from "./db-delay.js";
+import { DEFAULT_TIME_ZONE, addMinutes, buildPathStops, derivePublicCategory, localDateTimeToUtc, normalizeStationName, } from "./db-delay.js";
 import { extractDbErrorMessage } from "./db-api-errors.js";
 export const DEFAULT_TIMETABLE_BASE_URL = "https://apis.deutschebahn.com/db-api-marketplace/apis/timetables/v1";
 export const DEFAULT_DELAY_LOOKBACK_MINUTES = 180;
@@ -254,7 +254,7 @@ function stationEventFromTimetableRow(row, boardStation, timeZone) {
     };
 }
 function buildStopsFromPath(boardingStop, pathNames) {
-    const pathStops = pathNames.map((name, index) => ({
+    return buildPathStops(boardingStop, pathNames, (name, index) => ({
         station: { name },
         journeyId: boardingStop.journeyId,
         trainCategory: boardingStop.trainCategory,
@@ -268,16 +268,6 @@ function buildStopsFromPath(boardingStop, pathNames) {
         operator: boardingStop.operator,
         stopIndex: index,
     }));
-    const boardingIndex = pathStops.findIndex((stop) => stationMatches(stop.station, boardingStop.station));
-    if (boardingIndex < 0) {
-        return [boardingStop, ...pathStops.map((stop, index) => ({ ...stop, stopIndex: index + 1 }))];
-    }
-    pathStops[boardingIndex] = {
-        ...pathStops[boardingIndex],
-        ...boardingStop,
-        stopIndex: boardingIndex,
-    };
-    return pathStops.map((stop, index) => ({ ...stop, stopIndex: index }));
 }
 function extractPathNames(node) {
     const path = stringAttr(node, "cpth") ?? stringAttr(node, "ppth") ?? "";

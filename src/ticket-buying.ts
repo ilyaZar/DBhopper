@@ -4,6 +4,10 @@ import path from "node:path";
 import { Type } from "typebox";
 import type { Browser, BrowserContext, Locator, Page } from "playwright-core";
 
+import {
+  createTimestampedArtifactDir,
+  safeArtifactSegment,
+} from "./artifacts.js";
 import { launchBrowser, resolveBrowserExecutablePath } from "./browser.js";
 import {
   credentialsSummary,
@@ -38,6 +42,11 @@ import {
 } from "./private-settings.js";
 import { resolveCredentialUserDataDir } from "./access-browser.js";
 import { performDbAccountLogin } from "./db-login.js";
+import {
+  TICKET_BUYING_DRY_RUN_TOOL_NAME,
+  TICKET_BUYING_RESEARCH_TOOL_NAME,
+  TICKET_CHECKOUT_DRY_RUN_TOOL_NAME,
+} from "./tool-contracts.js";
 import type {
   DBhopperBookingFor,
   DBhopperConfig,
@@ -45,12 +54,6 @@ import type {
   DBhopperPaymentProfile,
 } from "./types.js";
 import { resolveWorkspace } from "./workspace.js";
-
-export const TICKET_BUYING_TOOL_NAMES = [
-  "dbhopper_ticket_buying_research",
-  "dbhopper_ticket_buying_dry_run",
-  "dbhopper_ticket_checkout_dry_run",
-] as const;
 
 export interface TicketBuyingDryRunParams {
   departure_station: string;
@@ -154,7 +157,7 @@ export const TICKET_BUYING_RESEARCH_SUMMARY = {
 export function createTicketBuyingToolDefinitions(tool: any) {
   return [
     tool({
-      name: "dbhopper_ticket_buying_research",
+      name: TICKET_BUYING_RESEARCH_TOOL_NAME,
       label: "DBhopper Ticket Buying Research",
       description:
         "Return WIP ticket-buying interface candidates and safety constraints.",
@@ -167,7 +170,7 @@ export function createTicketBuyingToolDefinitions(tool: any) {
       }),
     }),
     tool({
-      name: "dbhopper_ticket_buying_dry_run",
+      name: TICKET_BUYING_DRY_RUN_TOOL_NAME,
       label: "DBhopper Ticket Buying Dry Run",
       description:
         [
@@ -219,7 +222,7 @@ export function createTicketBuyingToolDefinitions(tool: any) {
       ) => runTicketBuyingDryRun(params, config, context.signal),
     }),
     tool({
-      name: "dbhopper_ticket_checkout_dry_run",
+      name: TICKET_CHECKOUT_DRY_RUN_TOOL_NAME,
       label: "DBhopper Ticket Checkout Dry Run",
       description:
         [
@@ -403,34 +406,36 @@ export async function runTicketCheckoutDryRun(
   }
 }
 
-async function readCredentialsForTicketDryRun(
+async function readProfileWhenBrowserOpens<T>(
   params: { open_browser?: boolean },
   config: DBhopperConfig,
+  readProfile: (config: DBhopperConfig) => Promise<T>,
 ) {
   if (params.open_browser !== true) {
     return undefined;
   }
-  return readSelectedCredentialsProfile(config);
+  return readProfile(config);
+}
+
+async function readCredentialsForTicketDryRun(
+  params: { open_browser?: boolean },
+  config: DBhopperConfig,
+) {
+  return readProfileWhenBrowserOpens(params, config, readSelectedCredentialsProfile);
 }
 
 async function readBuyingProfileForTicketCheckout(
   params: { open_browser?: boolean },
   config: DBhopperConfig,
 ) {
-  if (params.open_browser !== true) {
-    return undefined;
-  }
-  return readSelectedBuyingProfile(config);
+  return readProfileWhenBrowserOpens(params, config, readSelectedBuyingProfile);
 }
 
 async function readPaymentProfileForTicketCheckout(
   params: { open_browser?: boolean },
   config: DBhopperConfig,
 ) {
-  if (params.open_browser !== true) {
-    return undefined;
-  }
-  return readSelectedPaymentProfile(config);
+  return readProfileWhenBrowserOpens(params, config, readSelectedPaymentProfile);
 }
 
 export function ticketBuyingPlan(params: TicketBuyingDryRunParams, userDataDir?: string) {
@@ -1528,30 +1533,62 @@ async function applyBookingFor(page: Page, bookingFor: DBhopperBookingFor) {
   });
 }
 
-async function findOfferSelectionContinue(page: Page) {
-  const controls = await page.locator("button, a").evaluateAll((nodes) =>
-    nodes.map((node, index) => ({
-      index,
-      text: ((node as HTMLElement).innerText || node.textContent || "")
-        .trim()
-        .replace(/\s+/g, " "),
-      visible: Boolean(
-        (node as HTMLElement).offsetWidth ||
-          (node as HTMLElement).offsetHeight ||
-          node.getClientRects().length,
-      ),
-      disabled:
-        (node as HTMLButtonElement).disabled ||
-        (node as HTMLElement).getAttribute("aria-disabled") === "true",
-    })),
+interface ControlSnapshot {
+  index: number;
+  text: string;
+  visible: boolean;
+  disabled: boolean;
+  rect: {
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+  };
+}
+
+async function collectControlSnapshots(
+  page: Page,
+  selector: string,
+  options: { preferInputValue?: boolean } = {},
+): Promise<ControlSnapshot[]> {
+  const { preferInputValue = false } = options;
+  return page.locator(selector).evaluateAll(
+    (nodes, browserOptions) =>
+      nodes.map((node, index) => {
+        const element = node as HTMLElement;
+        const rect = element.getBoundingClientRect();
+        const inputValue = browserOptions.preferInputValue
+          ? (node as HTMLInputElement).value
+          : "";
+        return {
+          index,
+          text: (inputValue || element.innerText || node.textContent || "")
+            .trim()
+            .replace(/\s+/g, " "),
+          visible: Boolean(
+            element.offsetWidth ||
+              element.offsetHeight ||
+              node.getClientRects().length,
+          ),
+          disabled:
+            (node as HTMLButtonElement).disabled ||
+            element.getAttribute("aria-disabled") === "true",
+          rect: {
+            top: rect.top,
+            left: rect.left,
+            width: rect.width,
+            height: rect.height,
+          },
+        };
+      }),
+    { preferInputValue },
   );
+}
+
+async function findOfferSelectionContinue(page: Page) {
+  const controls = await collectControlSnapshots(page, "button, a");
   const candidate = controls
-    .filter((control) =>
-      control.visible &&
-      !control.disabled &&
-      /^Continue$/i.test(control.text) &&
-      !isFinalOrderText(control.text),
-    )
+    .filter(isSafeContinueControl)
     .at(-1);
   if (!candidate) {
     return undefined;
@@ -1561,6 +1598,13 @@ async function findOfferSelectionContinue(page: Page) {
     text: candidate.text,
     click: () => locator.click({ timeout: 10000 }),
   };
+}
+
+function isSafeContinueControl(control: ControlSnapshot) {
+  return control.visible &&
+    !control.disabled &&
+    /^Continue$/i.test(control.text) &&
+    !isFinalOrderText(control.text);
 }
 
 async function waitForCustomerDataProgress(page: Page) {
@@ -2119,19 +2163,31 @@ async function fillPaymentInput(
   value: string,
   options: PaymentFillOptions = {},
 ) {
+  const input = await findVisiblePaymentInput(page, labels, selectors);
+  if (!input) {
+    return "missing";
+  }
+  return applyPaymentControlValue(input, value, options);
+}
+
+async function findVisiblePaymentInput(
+  page: Page,
+  labels: RegExp[],
+  selectors: string[],
+): Promise<Locator | undefined> {
   for (const label of labels) {
     const input = page.getByLabel(label).first();
     if (await input.isVisible({ timeout: 500 }).catch(() => false)) {
-      return applyPaymentControlValue(input, value, options);
+      return input;
     }
   }
   for (const selector of selectors) {
     const input = page.locator(selector).first();
     if (await input.isVisible({ timeout: 500 }).catch(() => false)) {
-      return applyPaymentControlValue(input, value, options);
+      return input;
     }
   }
-  return "missing";
+  return undefined;
 }
 
 async function verifyPaymentInput(
@@ -2142,21 +2198,12 @@ async function verifyPaymentInput(
   options: PaymentFillOptions = {},
 ) {
   const normalize = options.normalize ?? normalizeUiText;
-  for (const label of labels) {
-    const input = page.getByLabel(label).first();
-    if (await input.isVisible({ timeout: 500 }).catch(() => false)) {
-      const current = await readPaymentControlValue(input);
-      return normalize(current) === normalize(value) ? "matched" : "mismatched";
-    }
+  const input = await findVisiblePaymentInput(page, labels, selectors);
+  if (!input) {
+    return "missing";
   }
-  for (const selector of selectors) {
-    const input = page.locator(selector).first();
-    if (await input.isVisible({ timeout: 500 }).catch(() => false)) {
-      const current = await readPaymentControlValue(input);
-      return normalize(current) === normalize(value) ? "matched" : "mismatched";
-    }
-  }
-  return "missing";
+  const current = await readPaymentControlValue(input);
+  return normalize(current) === normalize(value) ? "matched" : "mismatched";
 }
 
 async function clickPaymentCheckbox(page: Page, labels: RegExp[]) {
@@ -2864,74 +2911,6 @@ function extractPrice(value: string) {
   return /€\s?\d+[,.]\d{2}|\d+[,.]\d{2}\s?€/i.exec(value)?.[0];
 }
 
-async function advanceCheckoutSafely(
-  page: Page,
-  artifactDir: string,
-  artifacts: string[],
-) {
-  const steps: Array<{
-    stage: string;
-    action: string;
-    clickedText?: string;
-    boundary?: string;
-  }> = [];
-
-  for (let index = 0; index < 5; index += 1) {
-    const boundary = await detectCheckoutBoundary(page);
-    if (boundary.finalOrderButtonVisible) {
-      return {
-        stage: "final_order_boundary",
-        finalSafetyStop: "final_order_boundary",
-        needsUserAction: false,
-        message: "stopped before a legally binding final order button",
-        steps,
-        boundary,
-      };
-    }
-    if (boundary.paymentBoundaryVisible) {
-      return {
-        stage: "payment_boundary",
-        finalSafetyStop: "payment_boundary",
-        needsUserAction: false,
-        message: "stopped at payment boundary before payment continuation",
-        steps,
-        boundary,
-      };
-    }
-
-    const next = await findSafeCheckoutNext(page);
-    if (!next) {
-      return {
-        stage: boundary.stage,
-        finalSafetyStop: "no_safe_next_step",
-        needsUserAction: true,
-        message: "no safe checkout continuation control was found",
-        steps,
-        boundary,
-      };
-    }
-
-    await next.click();
-    steps.push({
-      stage: boundary.stage,
-      action: "clicked_safe_next",
-      clickedText: next.text,
-    });
-    await page.waitForTimeout(5000);
-    await captureTicketStage(page, artifactDir, `checkout-${index + 1}`, artifacts);
-  }
-
-  const boundary = await detectCheckoutBoundary(page);
-  return {
-    stage: boundary.stage,
-    finalSafetyStop: "step_limit",
-    needsUserAction: true,
-    message: "stopped after safe checkout exploration step limit",
-    steps,
-    boundary,
-  };
-}
-
 async function detectCheckoutBoundary(page: Page) {
   const body = await page.locator("body").innerText().catch(() => "");
   const visibleButtons = await visibleButtonTexts(page);
@@ -2954,19 +2933,7 @@ async function detectCheckoutBoundary(page: Page) {
 }
 
 async function findSafeCheckoutNext(page: Page) {
-  const controls = await page.locator("button, a").evaluateAll((nodes) =>
-    nodes.map((node, index) => ({
-      index,
-      text: ((node as HTMLElement).innerText || node.textContent || "")
-        .trim()
-        .replace(/\s+/g, " "),
-      visible: Boolean(
-        (node as HTMLElement).offsetWidth ||
-          (node as HTMLElement).offsetHeight ||
-          node.getClientRects().length,
-      ),
-    })),
-  );
+  const controls = await collectControlSnapshots(page, "button, a");
   const candidate = controls.find((control) =>
     control.visible &&
     !isFinalOrderText(control.text) &&
@@ -2984,52 +2951,15 @@ async function findSafeCheckoutNext(page: Page) {
 
 async function findPaymentPageContinue(page: Page) {
   const selector = "button, a, input[type='submit'], [role='button']";
-  const controls = await page.locator(selector).evaluateAll((nodes) =>
-    nodes.map((node, index) => ({
-      index,
-      text: (
-        (node as HTMLInputElement).value ||
-        (node as HTMLElement).innerText ||
-        node.textContent ||
-        ""
-      )
-        .trim()
-        .replace(/\s+/g, " "),
-      rect: (() => {
-        const rect = (node as HTMLElement).getBoundingClientRect();
-        return {
-          top: rect.top,
-          left: rect.left,
-          width: rect.width,
-          height: rect.height,
-        };
-      })(),
-      visible: Boolean(
-        (node as HTMLElement).offsetWidth ||
-          (node as HTMLElement).offsetHeight ||
-          node.getClientRects().length,
-      ),
-      disabled:
-        (node as HTMLButtonElement).disabled ||
-        (node as HTMLElement).getAttribute("aria-disabled") === "true",
-    })),
-  );
-  const candidate = controls.find((control) =>
-    control.visible &&
-      !control.disabled &&
-      /^Continue$/i.test(control.text) &&
-      !isFinalOrderText(control.text),
-  );
+  const controls = await collectControlSnapshots(page, selector, {
+    preferInputValue: true,
+  });
+  const candidate = controls.find(isSafeContinueControl);
   if (!candidate) {
     return undefined;
   }
   const ranked = controls
-    .filter((control) =>
-      control.visible &&
-        !control.disabled &&
-        /^Continue$/i.test(control.text) &&
-        !isFinalOrderText(control.text),
-    )
+    .filter(isSafeContinueControl)
     .sort((left, right) =>
       right.rect.top - left.rect.top ||
       right.rect.left - left.rect.left ||
@@ -3066,21 +2996,10 @@ async function waitForCheckOrFinalOrderProgress(page: Page) {
 }
 
 async function visibleButtonTexts(page: Page) {
-  return page.locator("button, a").evaluateAll((nodes) =>
-    nodes
-      .map((node) => ({
-        text: ((node as HTMLElement).innerText || node.textContent || "")
-          .trim()
-          .replace(/\s+/g, " "),
-        visible: Boolean(
-          (node as HTMLElement).offsetWidth ||
-            (node as HTMLElement).offsetHeight ||
-            node.getClientRects().length,
-        ),
-      }))
-      .filter((entry) => entry.visible)
-      .map((entry) => entry.text),
-  );
+  const controls = await collectControlSnapshots(page, "button, a");
+  return controls
+    .filter((entry) => entry.visible)
+    .map((entry) => entry.text);
 }
 
 export function isFinalOrderText(value: string) {
@@ -3186,11 +3105,8 @@ export function defaultCheckoutServiceDate(now = new Date()) {
 
 async function createTicketArtifactDir(config: DBhopperConfig) {
   const workspace = resolveWorkspace(config);
-  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
   const artifactRoot = config.artifactRoot || path.join(workspace.root, "tmp");
-  const artifactDir = path.join(artifactRoot, `ticket-buying-dry-run-${timestamp}`);
-  await fs.mkdir(artifactDir, { recursive: true });
-  return artifactDir;
+  return createTimestampedArtifactDir(artifactRoot, "ticket-buying-dry-run");
 }
 
 async function captureTicketStage(
@@ -3204,14 +3120,14 @@ async function captureTicketStage(
 }
 
 async function saveTicketPageText(page: Page, artifactDir: string, label: string) {
-  const target = path.join(artifactDir, `ticket-${safeArtifactLabel(label)}.txt`);
+  const target = path.join(artifactDir, `ticket-${safeArtifactSegment(label)}.txt`);
   const text = await page.locator("body").innerText().catch(() => "");
   await fs.writeFile(target, `${text}\n`, "utf8");
   return target;
 }
 
 async function saveTicketScreenshot(page: Page, artifactDir: string, label: string) {
-  const target = path.join(artifactDir, `ticket-${safeArtifactLabel(label)}.png`);
+  const target = path.join(artifactDir, `ticket-${safeArtifactSegment(label)}.png`);
   await page.screenshot({ path: target, fullPage: true });
   return target;
 }
@@ -3291,10 +3207,6 @@ function requiredString(value: string | undefined, field: string) {
     throw new Error(`${field} is required`);
   }
   return trimmed;
-}
-
-function safeArtifactLabel(value: string) {
-  return value.replace(/[^a-z0-9._-]+/gi, "-").replace(/-+/g, "-").toLowerCase();
 }
 
 function escapeRegExp(value: string) {

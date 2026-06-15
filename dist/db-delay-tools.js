@@ -4,16 +4,14 @@ import { errorMessage } from "./errors.js";
 import { BAHN_WEB_RESEARCH_SUMMARY, BAHN_WEB_SOURCE_API, createBahnWebProvider, } from "./bahn-web.js";
 import { DB_DELAY_RESEARCH_SUMMARY, createTimetablesProvider, timetablesConfigStatus, } from "./db-timetables.js";
 import { diagnoseDbApiCredentialErrorMessage } from "./db-api-errors.js";
+import { DELAY_PROVIDERS, } from "./delay-provider-options.js";
+import { DB_DELAY_RESEARCH_TOOL_NAME, QUERY_DB_DELAY_TOOL_NAME, } from "./tool-contracts.js";
 import { DEFAULT_DELAY_THRESHOLD_MINUTES, DEFAULT_LONG_DISTANCE_REPLACEMENT_TYPES, DEFAULT_REGIONAL_TYPES, DEFAULT_TIME_ZONE, DEFAULT_WINDOW_WIDTH_MINUTES, buildQueryWindow, collectProviderJourneys, filterLongDistanceReplacements, filterRegionalDelayedCandidates, normalizeCandidateQuery, normalizeStationName, } from "./db-delay.js";
-import { readPrivateSettings, } from "./private-settings.js";
-export const DB_DELAY_TOOL_NAMES = [
-    "dbhopper_db_delay_research",
-    "dbhopper_query_db_delay",
-];
+import { readPrivateSettings } from "./private-settings.js";
 export function createDbDelayToolDefinitions(tool) {
     return [
         tool({
-            name: "dbhopper_db_delay_research",
+            name: DB_DELAY_RESEARCH_TOOL_NAME,
             label: "DBhopper DB Delay Research",
             description: "Return the documented API stack and deterministic semantics used by DBhopper delay queries.",
             optional: true,
@@ -21,7 +19,7 @@ export function createDbDelayToolDefinitions(tool) {
             execute: () => dbDelayResearchResult(),
         }),
         tool({
-            name: "dbhopper_query_db_delay",
+            name: QUERY_DB_DELAY_TOOL_NAME,
             label: "DBhopper Query DB Delay",
             description: [
                 "Find delayed direct regional train candidates and reachable direct",
@@ -29,11 +27,7 @@ export function createDbDelayToolDefinitions(tool) {
             ].join(" "),
             optional: true,
             parameters: Type.Object({
-                provider: Type.Optional(Type.Union([
-                    Type.Literal("auto"),
-                    Type.Literal("db-timetables"),
-                    Type.Literal("bahn-web"),
-                ], {
+                provider: Type.Optional(Type.Union(DELAY_PROVIDERS.map((provider) => Type.Literal(provider)), {
                     description: "Delay data provider. Omit to use DELAY_PROVIDER from settings.toml.",
                 })),
                 departure_station: Type.String({
@@ -236,7 +230,7 @@ async function runDbDelayQueryWithProvider(params, effectiveConfig, loadedCreden
     }
     const query = normalizeCandidateQuery(toCandidateQuery(params, departure, arrival));
     const window = buildQueryWindow(query);
-    const { events, journeys } = await collectProviderJourneys(provider, departure, {
+    const { journeys } = await collectProviderJourneys(provider, departure, {
         lowerBound: window.lowerBound,
         queryTime: window.queryTime,
         upperBound: window.upperBound,
@@ -456,7 +450,7 @@ function compareCleanedRows(officialRows, webRows) {
     };
 }
 function cleanedRowKey(row) {
-    return [
+    return keyFromParts([
         ...cleanedRowIdentityParts(row),
         row.planned_boarding_time,
         row.realtime_boarding_time,
@@ -464,16 +458,17 @@ function cleanedRowKey(row) {
         row.reachable,
         row.boarding_station,
         row.destination_station,
-    ]
-        .map((value) => String(value ?? ""))
-        .join("|");
+    ]);
 }
 function cleanedRowIdentityKey(row) {
-    return [
+    return keyFromParts([
         ...cleanedRowIdentityParts(row),
         row.boarding_station,
         row.destination_station,
-    ]
+    ]);
+}
+function keyFromParts(parts) {
+    return parts
         .map((value) => String(value ?? ""))
         .join("|");
 }

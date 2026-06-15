@@ -3,11 +3,17 @@ import path from "node:path";
 
 import type { DBhopperConfig, ValidationMessage } from "./types.js";
 import {
-  configuredCredentialsDir,
   readPrivateSettings,
   resolveSelectedCredentialFile,
 } from "./private-settings.js";
 import { parsePaymentProfileToml } from "./payment-profile.js";
+import {
+  assertKnownKeys,
+  assertNumericIdString,
+  assertSection,
+  assertString,
+  assertTable,
+} from "./schema-helpers.js";
 import {
   normalizeTomlKeys,
   parseToml,
@@ -263,11 +269,7 @@ function assertCredentialsShape(value: unknown, source: string) {
   if (!("ID_USR" in value)) {
     throw new Error(`${source}.ID_USR is required`);
   }
-  const id = value.ID_USR;
-  assertString(id, `${source}.ID_USR`);
-  if (!/^\d{2,}$/.test(id)) {
-    throw new Error(`${source}.ID_USR must be a quoted numeric ID like "01"`);
-  }
+  assertNumericIdString(value.ID_USR, `${source}.ID_USR`);
   if ("bahnAPI" in value) {
     assertSection(value.bahnAPI, `${source}.bahnAPI`, [
       "clientId",
@@ -305,38 +307,5 @@ function assertCredentialsShape(value: unknown, source: string) {
     if ("userDataDir" in value.browser) {
       assertString(value.browser.userDataDir, `${source}.browser.userDataDir`);
     }
-  }
-}
-
-function assertSection(
-  value: unknown,
-  source: string,
-  allowedKeys: string[],
-): asserts value is Record<string, unknown> {
-  assertTable(value, source);
-  assertKnownKeys(value, new Set(allowedKeys), source);
-}
-
-function assertTable(value: unknown, source: string): asserts value is Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error(`${source} must be a TOML table`);
-  }
-}
-
-function assertKnownKeys(
-  value: Record<string, unknown>,
-  allowed: Set<string>,
-  source: string,
-) {
-  for (const key of Object.keys(value)) {
-    if (!allowed.has(key)) {
-      throw new Error(`${source}.${key} is not a supported field`);
-    }
-  }
-}
-
-function assertString(value: unknown, source: string): asserts value is string {
-  if (typeof value !== "string" || value.length === 0) {
-    throw new Error(`${source} must be a non-empty string`);
   }
 }

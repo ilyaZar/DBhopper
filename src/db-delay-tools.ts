@@ -19,6 +19,16 @@ import {
 } from "./db-timetables.js";
 import { diagnoseDbApiCredentialErrorMessage } from "./db-api-errors.js";
 import {
+  DELAY_PROVIDERS,
+  type DBhopperDelayFallbackSetting,
+  type DBhopperDelayProviderSetting,
+  type DBhopperSelectedDelayProvider,
+} from "./delay-provider-options.js";
+import {
+  DB_DELAY_RESEARCH_TOOL_NAME,
+  QUERY_DB_DELAY_TOOL_NAME,
+} from "./tool-contracts.js";
+import {
   DEFAULT_DELAY_THRESHOLD_MINUTES,
   DEFAULT_LONG_DISTANCE_REPLACEMENT_TYPES,
   DEFAULT_REGIONAL_TYPES,
@@ -39,14 +49,10 @@ import {
   type StationEvent,
   type StationRef,
 } from "./db-delay.js";
-import {
-  readPrivateSettings,
-  type DBhopperDelayFallbackSetting,
-  type DBhopperDelayProviderSetting,
-} from "./private-settings.js";
+import { readPrivateSettings } from "./private-settings.js";
 
-export type DbDelayProviderName = "auto" | "db-timetables" | "bahn-web";
-export type SelectedDelayProviderName = "db-timetables" | "bahn-web";
+export type DbDelayProviderName = DBhopperDelayProviderSetting;
+export type SelectedDelayProviderName = DBhopperSelectedDelayProvider;
 
 export interface DelayProviderRuntimeConfig extends DBhopperConfig {
   fetchImpl?: typeof fetch;
@@ -59,11 +65,6 @@ export interface DelayProviderChoice {
   reason: string;
   fallbackFrom?: SelectedDelayProviderName;
 }
-
-export const DB_DELAY_TOOL_NAMES = [
-  "dbhopper_db_delay_research",
-  "dbhopper_query_db_delay",
-] as const;
 
 export interface DbDelayQueryToolParams {
   provider?: DbDelayProviderName;
@@ -145,7 +146,7 @@ export interface DbDelayProviderParityProbeResult {
 export function createDbDelayToolDefinitions(tool: any) {
   return [
     tool({
-      name: "dbhopper_db_delay_research",
+      name: DB_DELAY_RESEARCH_TOOL_NAME,
       label: "DBhopper DB Delay Research",
       description:
         "Return the documented API stack and deterministic semantics used by DBhopper delay queries.",
@@ -154,7 +155,7 @@ export function createDbDelayToolDefinitions(tool: any) {
       execute: () => dbDelayResearchResult(),
     }),
     tool({
-      name: "dbhopper_query_db_delay",
+      name: QUERY_DB_DELAY_TOOL_NAME,
       label: "DBhopper Query DB Delay",
       description:
         [
@@ -165,11 +166,7 @@ export function createDbDelayToolDefinitions(tool: any) {
       parameters: Type.Object(
         {
           provider: Type.Optional(
-            Type.Union([
-              Type.Literal("auto"),
-              Type.Literal("db-timetables"),
-              Type.Literal("bahn-web"),
-            ], {
+            Type.Union(DELAY_PROVIDERS.map((provider) => Type.Literal(provider)), {
               description:
                 "Delay data provider. Omit to use DELAY_PROVIDER from settings.toml.",
             }),
@@ -451,7 +448,7 @@ async function runDbDelayQueryWithProvider(
 
   const query = normalizeCandidateQuery(toCandidateQuery(params, departure, arrival));
   const window = buildQueryWindow(query);
-  const { events, journeys } = await collectProviderJourneys(provider, departure, {
+  const { journeys } = await collectProviderJourneys(provider, departure, {
     lowerBound: window.lowerBound,
     queryTime: window.queryTime,
     upperBound: window.upperBound,
@@ -724,7 +721,7 @@ function compareCleanedRows(
 }
 
 function cleanedRowKey(row: CleanedDelayTableRow) {
-  return [
+  return keyFromParts([
     ...cleanedRowIdentityParts(row),
     row.planned_boarding_time,
     row.realtime_boarding_time,
@@ -732,17 +729,19 @@ function cleanedRowKey(row: CleanedDelayTableRow) {
     row.reachable,
     row.boarding_station,
     row.destination_station,
-  ]
-    .map((value) => String(value ?? ""))
-    .join("|");
+  ]);
 }
 
 function cleanedRowIdentityKey(row: CleanedDelayTableRow) {
-  return [
+  return keyFromParts([
     ...cleanedRowIdentityParts(row),
     row.boarding_station,
     row.destination_station,
-  ]
+  ]);
+}
+
+function keyFromParts(parts: unknown[]) {
+  return parts
     .map((value) => String(value ?? ""))
     .join("|");
 }
