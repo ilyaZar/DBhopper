@@ -2,32 +2,13 @@
 
 ## Publishing readiness
 
-Current release decision:
+Current release gates:
 
-- The checks in this section are currently resolved for a publish attempt,
-  subject to owner release approval, final package file-list inspection, and a
-  clean intentional git state.
-
-Resolved in this branch:
-
-- OpenClaw now registers the full public tool contract and enforces
-  `settings.yaml` feature gates at execution time. Disabled claim and
-  ticket-buying tools return `feature_disabled` instead of being omitted from
-  `openclaw.plugin.json`.
-- `package.json` declares ClawHub install metadata:
-  `clawhub:dbhopper`, default source `clawhub`, and host floor
-  `>=2026.6.2`.
-- The selected official DB Timetables technical credentials probed
-  successfully on 2026-06-13 with HTTP 200 and diagnosis `accepted`.
-- `npm run test:live:delay-backends` passed on 2026-06-13 with 50 web
-  successes, 47 official API successes, and 425 matched user-visible rows.
-- ClawHub validator passed with zero breakages and zero warnings, and the
-  ClawHub publish dry-run completed without publishing.
-- Ticket-buying tools remain feature-gated, testing-only, and dry-run bounded.
-
-Blocking issues found by the current checks:
-
-- None.
+- Owner release approval.
+- Final package file-list inspection.
+- A clean intentional git state.
+- Fresh local validation from the commands below.
+- Fresh ClawHub validation before any publish attempt.
 
 Release cautions to keep visible:
 
@@ -53,12 +34,15 @@ Also inspect the dry-run package file list manually. It must exclude real
 `claims/*`, `assets/private/*`, browser profiles, credentials, claim PDFs,
 runtime `tmp/*`, generated ClawHub reports, and this `TODO.md`.
 
-Security and release evidence to capture:
+Evidence to refresh before publish:
 
 - `npm audit --omit=dev --audit-level=high`
 - ClawHub validator output with zero hard breakages.
 - ClawHub security evidence via `oc-clawhub-security-capture` once an exact
   version exists on ClawHub or when validating a published scanner result.
+- DB Timetables credential probe against the selected `[bahnAPI]` fields.
+- `npm run test:live:delay-backends` when delay-provider behavior changed or a
+  version is ready for broader publication.
 - A clean git state containing only intentional source, manifest, dist, docs,
   and test updates.
 
@@ -115,14 +99,13 @@ Implemented passenger website alternative:
   Playwright page-context JSON fetch. Use `bahnWebTransport: "browser"` to go
   straight to the structured browser-context fetch path.
 
-Live verification notes:
+Live verification expectations:
 
-- 2026-06-13 direct Timetables API probe returned HTTP 200 with populated
-  selected `[bahnAPI]` fields. Browser Marketplace login remains separate from
-  API-key validity.
-- 2026-06-13 live backend parity passed with 50 route probes, 47 official API
-  successes, 50 `bahn-web` successes, 425 matched user-visible rows, failed
-  API probe IDs `p035`, `p038`, and `p039`, and no failed web probes.
+- A current Timetables API probe should return HTTP 200 with populated selected
+  `[bahnAPI]` fields. Browser Marketplace login remains separate from API-key
+  validity.
+- A current live backend parity run should show both providers returning
+  user-visible rows, or should document provider-specific failures clearly.
 - Invalid API probe and query failures still classify DB 401 responses as
   `invalid_client_id_or_secret` and return next checks for `[bahnAPI]`
   `clientId`, `[bahnAPI]` `apiKey`, selected settings ID, and the Timetables
@@ -130,7 +113,6 @@ Live verification notes:
 - The configured default remains `DELAY_PROVIDER = "bahn-web"` with
   `DELAY_FALLBACK = "none"` because the passenger website provider works
   without technical API credentials and is the safer default for local use.
-- Ticket checkout dry-run reached a safe stop and did not buy anything.
 - Fixture parity now verifies that Timetables and `bahn-web` provider parsers
   feed the same normalized `Journey[]` data shape into the shared filters.
 - `runDbDelayProviderParityProbe` can run both providers for the same query and
@@ -215,47 +197,15 @@ Validation:
 
 ## Ticket buying WIP
 
-Urgent goal:
+Long-form status and candidate-interface notes live in
+`docs/ticket-buying-wip.md`. Keep this section to active follow-up work.
+
+Current next action:
 
 - Consolidate ticket-buying into one stable user-facing capability with a clear
-  name and safe contract. Once that exists, trim the
-  current exploratory `dbhopper_ticket_buying_*` helpers from the public README
-  surface while keeping any useful lower-level pieces available to the agent.
-
-Current state:
-
-- `dbhopper_ticket_buying_research` returns candidate purchase interfaces and
-  safety constraints.
-- `dbhopper_ticket_buying_dry_run` can return a deterministic plan.
-- With `open_browser: true`, the dry run opens `https://int.bahn.de/en`, fills
-  route and outbound date/time controls, optionally logs into the configured
-  Bahn account, and stops after search/results.
-- `dbhopper_ticket_checkout_dry_run` can explore offer/customer-data steps as
-  far as safely possible and stops at payment or final-order boundaries.
-- A live headless run for Hamm(Westf)Hbf -> Köln Hbf on 2026-06-18 stopped at
-  `no_safe_next_step` because the site showed the outbound frame but no visible
-  offer-selection controls. It did not submit a purchase.
-- The dry run is explicitly testing-only and returns
-  `purchaseSubmitted: false`.
-- No tool selects payment, submits payment, or finalizes a purchase.
-
-Candidate interfaces:
-
-- Official consumer website: `https://int.bahn.de/en`
-- Official app path: DB Navigator, useful later for device/emulator work
-- Official DB Marketplace Timetables: live delay only, not ticket purchase
-- Partner PST interface: mentioned publicly, but treat as partner-only unless
-  DB gives explicit access
-- Website JSON endpoints: useful for search/delay data, not for purchase
-  finalization without documented terms
-
-Follow-up work:
-
-1. Add controlled offer selection for a replacement train after
-   `dbhopper_query_db_delay` has found the ICE/IC/EC candidate.
-2. Keep payment profile data private, redacted from tool output, and out of
-   browser-run artifacts after fields are filled.
-3. Add an explicit confirmation gate before any future purchase-capable step.
+  name and safe contract. Once that exists, trim the current exploratory
+  `dbhopper_ticket_buying_*` helpers from the public README surface while
+  keeping any useful lower-level pieces available to the agent.
 
 ## Local claim files
 
