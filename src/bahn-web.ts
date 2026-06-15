@@ -2,10 +2,12 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
 import { resolveBrowserExecutablePath } from "./browser.js";
+import type { BahnWebTransport } from "./delay-provider-options.js";
 import { errorMessage } from "./errors.js";
 import type { DBhopperConfig } from "./types.js";
 import {
   DEFAULT_TIME_ZONE,
+  buildPathStops,
   derivePublicCategory,
   localDateTimeToUtc,
   normalizeStationName,
@@ -26,7 +28,7 @@ export const BAHN_WEB_FALLBACK_BASE_URL =
 export const DEFAULT_BAHN_WEB_TRANSPORT = "auto";
 export const DEFAULT_BAHN_WEB_REQUEST_TIMEOUT_MS = 20000;
 
-export type BahnWebTransport = "auto" | "fetch" | "curl" | "browser";
+export type { BahnWebTransport } from "./delay-provider-options.js";
 
 export interface BahnWebProviderOptions extends DBhopperConfig {
   signal?: AbortSignal;
@@ -459,7 +461,7 @@ function stationEventFromBahnWebEntry(
 }
 
 function buildStops(boardingStop: JourneyStop, pathNames: string[]) {
-  const pathStops = pathNames.map<JourneyStop>((name, index) => ({
+  return buildPathStops(boardingStop, pathNames, (name, index) => ({
     station: stationMatches({ name }, boardingStop.station)
       ? boardingStop.station
       : { name },
@@ -476,23 +478,6 @@ function buildStops(boardingStop: JourneyStop, pathNames: string[]) {
     cancelled: boardingStop.cancelled,
     stopIndex: index,
   }));
-  const boardingIndex = pathStops.findIndex((stop) =>
-    stationMatches(stop.station, boardingStop.station),
-  );
-
-  if (boardingIndex < 0) {
-    return [
-      { ...boardingStop, stopIndex: 0 },
-      ...pathStops.map((stop, index) => ({ ...stop, stopIndex: index + 1 })),
-    ];
-  }
-
-  pathStops[boardingIndex] = {
-    ...pathStops[boardingIndex],
-    ...boardingStop,
-    stopIndex: boardingIndex,
-  };
-  return pathStops.map((stop, index) => ({ ...stop, stopIndex: index }));
 }
 
 function pathNamesFromEntry(entry: Record<string, unknown>) {

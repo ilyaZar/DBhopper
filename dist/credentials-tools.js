@@ -1,11 +1,11 @@
 import { Type } from "typebox";
 import { validateCredentialsFiles, } from "./credentials.js";
 import { configuredCredentialsDir } from "./private-settings.js";
-export const CREDENTIALS_TOOL_NAMES = ["dbhopper_credentials_validate"];
+import { CREDENTIALS_VALIDATE_TOOL_NAME } from "./tool-contracts.js";
 export function createCredentialsToolDefinitions(tool) {
     return [
         tool({
-            name: "dbhopper_credentials_validate",
+            name: CREDENTIALS_VALIDATE_TOOL_NAME,
             label: "DBhopper Credentials Validate",
             description: "Validate DBhopper private credentials TOML files without returning secrets.",
             optional: true,

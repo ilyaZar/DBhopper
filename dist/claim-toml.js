@@ -1,6 +1,8 @@
 import { stringify } from "smol-toml";
+import { CLAIM_FILE_ROLES } from "./claim-tool-contracts.js";
 import { normalizeTomlKeys, parseToml, renameTomlKeys, } from "./toml.js";
 import { validationErrorFromException } from "./validation-messages.js";
+import { assertNumericId } from "./schema-helpers.js";
 const SALUTATIONS = ["MR", "MS", "DIVERS", "FAMILY"];
 const DISRUPTION_TYPES = ["delay", "cancellation"];
 const SUBSTITUTE_TYPES = [
@@ -8,14 +10,6 @@ const SUBSTITUTE_TYPES = [
     "taxi",
     "sharing",
     "alternative_local",
-];
-const FILE_ROLES = [
-    "base_ticket",
-    "substitute_receipt",
-    "delay_evidence",
-    "submission_pdf",
-    "screenshot",
-    "other",
 ];
 const CLAIM_TOML_ALIASES = {
     "": {
@@ -135,7 +129,7 @@ const ticketSchema = object({
     description: string(),
 });
 const fileSchema = object({
-    role: stringEnum(FILE_ROLES),
+    role: stringEnum(CLAIM_FILE_ROLES),
     path: string(),
     description: string(),
     reusableAsset: boolean(),
@@ -158,8 +152,8 @@ export function parseClaimToml(text, source = "claim.toml") {
 }
 export function parsePrivateProfileToml(text, source = "profile.toml") {
     const parsed = parseTomlDocument(text, privateProfileSchema, source);
-    if (parsed.ID_CLM && !/^\d{2,}$/.test(parsed.ID_CLM)) {
-        throw new Error(`${source}.ID_CLM must be a quoted numeric ID like "01"`);
+    if (parsed.ID_CLM) {
+        assertNumericId(parsed.ID_CLM, `${source}.ID_CLM`);
     }
     return parsed;
 }

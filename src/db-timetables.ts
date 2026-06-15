@@ -5,10 +5,10 @@ import type { DBhopperConfig } from "./types.js";
 import {
   DEFAULT_TIME_ZONE,
   addMinutes,
+  buildPathStops,
   derivePublicCategory,
   localDateTimeToUtc,
   normalizeStationName,
-  stationMatches,
   type ApiProvider,
   type Journey,
   type JourneyStop,
@@ -363,7 +363,7 @@ function stationEventFromTimetableRow(
 }
 
 function buildStopsFromPath(boardingStop: JourneyStop, pathNames: string[]) {
-  const pathStops = pathNames.map<JourneyStop>((name, index) => ({
+  return buildPathStops(boardingStop, pathNames, (name, index) => ({
     station: { name },
     journeyId: boardingStop.journeyId,
     trainCategory: boardingStop.trainCategory,
@@ -377,20 +377,6 @@ function buildStopsFromPath(boardingStop: JourneyStop, pathNames: string[]) {
     operator: boardingStop.operator,
     stopIndex: index,
   }));
-  const boardingIndex = pathStops.findIndex((stop) =>
-    stationMatches(stop.station, boardingStop.station),
-  );
-
-  if (boardingIndex < 0) {
-    return [boardingStop, ...pathStops.map((stop, index) => ({ ...stop, stopIndex: index + 1 }))];
-  }
-
-  pathStops[boardingIndex] = {
-    ...pathStops[boardingIndex],
-    ...boardingStop,
-    stopIndex: boardingIndex,
-  };
-  return pathStops.map((stop, index) => ({ ...stop, stopIndex: index }));
 }
 
 function extractPathNames(node?: Record<string, unknown>) {

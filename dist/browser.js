@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { createTimestampedArtifactDir, safeArtifactSegment, } from "./artifacts.js";
 import { errorMessage } from "./errors.js";
 import { resolveClaimFilePath } from "./workspace.js";
 const FORM_URL = "https://mg.kcm-nrw.de/elmapublic/";
@@ -328,11 +329,8 @@ async function captureStage(page, artifactDir, label, artifacts) {
 }
 async function createArtifactDir(params) {
     const claimId = safeArtifactSegment(path.basename(params.claimDir));
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const artifactRoot = params.artifactRoot || path.join(path.dirname(path.dirname(params.claimDir)), "tmp");
-    const artifactDir = path.join(artifactRoot, `${claimId}-${timestamp}`);
-    await fs.mkdir(artifactDir, { recursive: true });
-    return artifactDir;
+    return createTimestampedArtifactDir(artifactRoot, claimId);
 }
 async function savePageText(page, artifactDir, label) {
     const target = path.join(artifactDir, `${safeArtifactLabel(label)}.txt`);
@@ -347,9 +345,6 @@ async function saveScreenshot(page, artifactDir, label) {
 }
 function safeArtifactLabel(value) {
     return `browser-${safeArtifactSegment(value)}`;
-}
-function safeArtifactSegment(value) {
-    return value.replace(/[^a-z0-9._-]+/gi, "-").replace(/-+/g, "-").toLowerCase();
 }
 function formatEuro(value) {
     if (value === undefined || value === null) {

@@ -2,6 +2,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  ALWAYS_ENABLED_TOOL_NAMES,
+  AUTONOMOUS_TICKET_BUYING_TOOL_NAMES,
+  CLAIM_TOOL_NAMES,
+  DELAY_RETRIEVAL_TOOL_NAMES,
+} from "./tool-contracts.js";
+
 export interface DBhopperFeatureSettings {
   use_delay_retrieval: boolean;
   use_claim_requests: boolean;
@@ -16,29 +23,6 @@ export const DEFAULT_FEATURE_SETTINGS: DBhopperFeatureSettings = {
   use_ticket_buying: false,
 };
 
-export const CLAIM_TOOL_NAMES = [
-  "dbhopper_claim_schema",
-  "dbhopper_list_claims",
-  "dbhopper_prepare_claim",
-  "dbhopper_validate_claim",
-  "dbhopper_browser_probe",
-  "dbhopper_run_claim",
-] as const;
-
-export const DELAY_RETRIEVAL_TOOL_NAMES = [
-  "dbhopper_db_marketplace_access_check",
-  "dbhopper_db_api_credential_probe",
-  "dbhopper_db_delay_research",
-  "dbhopper_query_db_delay",
-] as const;
-
-export const TICKET_BUYING_TOOL_NAMES = [
-  "dbhopper_db_standard_login_check",
-  "dbhopper_ticket_buying_research",
-  "dbhopper_ticket_buying_dry_run",
-  "dbhopper_ticket_checkout_dry_run",
-] as const;
-
 const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SETTINGS_FILE = "settings.yaml";
 const SETTINGS_KEYS = new Set(Object.keys(DEFAULT_FEATURE_SETTINGS));
@@ -47,7 +31,7 @@ const TOOL_FEATURE_SETTINGS = new Map<string, DBhopperFeatureSettingName>([
   ...DELAY_RETRIEVAL_TOOL_NAMES.map(
     (name) => [name, "use_delay_retrieval"] as const,
   ),
-  ...TICKET_BUYING_TOOL_NAMES.map(
+  ...AUTONOMOUS_TICKET_BUYING_TOOL_NAMES.map(
     (name) => [name, "use_ticket_buying"] as const,
   ),
 ]);
@@ -91,11 +75,7 @@ export function parseTopLevelSettings(
 }
 
 export function enabledToolNames(settings: DBhopperFeatureSettings) {
-  const names = new Set<string>([
-    "dbhopper_private_settings_status",
-    "dbhopper_private_settings_select",
-    "dbhopper_credentials_validate",
-  ]);
+  const names = new Set<string>(ALWAYS_ENABLED_TOOL_NAMES);
 
   if (settings.use_delay_retrieval) {
     for (const name of DELAY_RETRIEVAL_TOOL_NAMES) {
@@ -108,7 +88,7 @@ export function enabledToolNames(settings: DBhopperFeatureSettings) {
     }
   }
   if (settings.use_ticket_buying) {
-    for (const name of TICKET_BUYING_TOOL_NAMES) {
+    for (const name of AUTONOMOUS_TICKET_BUYING_TOOL_NAMES) {
       names.add(name);
     }
   }

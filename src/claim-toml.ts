@@ -1,6 +1,7 @@
 import { stringify } from "smol-toml";
 
 import type { DBhopperClaim, ValidationMessage } from "./types.js";
+import { CLAIM_FILE_ROLES } from "./claim-tool-contracts.js";
 import {
   normalizeTomlKeys,
   parseToml,
@@ -8,6 +9,7 @@ import {
   type TomlKeyMapByPath,
 } from "./toml.js";
 import { validationErrorFromException } from "./validation-messages.js";
+import { assertNumericId } from "./schema-helpers.js";
 
 type PrimitiveKind = "string" | "number" | "boolean";
 
@@ -37,14 +39,6 @@ const SUBSTITUTE_TYPES = [
   "taxi",
   "sharing",
   "alternative_local",
-] as const;
-const FILE_ROLES = [
-  "base_ticket",
-  "substitute_receipt",
-  "delay_evidence",
-  "submission_pdf",
-  "screenshot",
-  "other",
 ] as const;
 const CLAIM_TOML_ALIASES: TomlKeyMapByPath = {
   "": {
@@ -179,7 +173,7 @@ const ticketSchema: TomlSchema = object({
 
 const fileSchema: TomlSchema = object(
   {
-    role: stringEnum(FILE_ROLES),
+    role: stringEnum(CLAIM_FILE_ROLES),
     path: string(),
     description: string(),
     reusableAsset: boolean(),
@@ -212,8 +206,8 @@ export function parseClaimToml(text: string, source = "claim.toml") {
 
 export function parsePrivateProfileToml(text: string, source = "profile.toml") {
   const parsed = parseTomlDocument(text, privateProfileSchema, source) as DBhopperClaim;
-  if (parsed.ID_CLM && !/^\d{2,}$/.test(parsed.ID_CLM)) {
-    throw new Error(`${source}.ID_CLM must be a quoted numeric ID like "01"`);
+  if (parsed.ID_CLM) {
+    assertNumericId(parsed.ID_CLM, `${source}.ID_CLM`);
   }
   return parsed;
 }

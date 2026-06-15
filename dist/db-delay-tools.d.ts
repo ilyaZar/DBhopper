@@ -1,8 +1,8 @@
 import type { DBhopperConfig } from "./types.js";
+import { type DBhopperDelayFallbackSetting, type DBhopperDelayProviderSetting, type DBhopperSelectedDelayProvider } from "./delay-provider-options.js";
 import { type Journey, type StationRef } from "./db-delay.js";
-import { type DBhopperDelayFallbackSetting, type DBhopperDelayProviderSetting } from "./private-settings.js";
-export type DbDelayProviderName = "auto" | "db-timetables" | "bahn-web";
-export type SelectedDelayProviderName = "db-timetables" | "bahn-web";
+export type DbDelayProviderName = DBhopperDelayProviderSetting;
+export type SelectedDelayProviderName = DBhopperSelectedDelayProvider;
 export interface DelayProviderRuntimeConfig extends DBhopperConfig {
     fetchImpl?: typeof fetch;
     curlPath?: string;
@@ -13,7 +13,6 @@ export interface DelayProviderChoice {
     reason: string;
     fallbackFrom?: SelectedDelayProviderName;
 }
-export declare const DB_DELAY_TOOL_NAMES: readonly ["dbhopper_db_delay_research", "dbhopper_query_db_delay"];
 export interface DbDelayQueryToolParams {
     provider?: DbDelayProviderName;
     departure_station: string;
@@ -112,7 +111,7 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
 } | {
     ok: boolean;
     operation: string;
-    source_api: SelectedDelayProviderName;
+    source_api: "db-timetables" | "bahn-web";
     source_api_notes: string[];
     credentials: {
         configured: boolean;
@@ -135,11 +134,11 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
     provider_selection: DelayProviderChoice;
     delay_settings: {
         default_provider: "auto" | "db-timetables" | "bahn-web" | undefined;
-        fallback: SelectedDelayProviderName | undefined;
+        fallback: "db-timetables" | "bahn-web" | undefined;
         web_transport: "auto" | "fetch" | "curl" | "browser" | undefined;
     };
     input: {
-        provider: DbDelayProviderName | undefined;
+        provider: "auto" | "db-timetables" | "bahn-web" | undefined;
         departure_station: string;
         arrival_station: string;
         query_time: string;
@@ -687,7 +686,7 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
     };
     ok: boolean;
     operation: string;
-    source_api: SelectedDelayProviderName;
+    source_api: "db-timetables" | "bahn-web";
     source_api_notes: string[];
     credentials: {
         configured: boolean;
@@ -709,11 +708,11 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
     credential_load_error: string | undefined;
     delay_settings: {
         default_provider: "auto" | "db-timetables" | "bahn-web" | undefined;
-        fallback: SelectedDelayProviderName | undefined;
+        fallback: "db-timetables" | "bahn-web" | undefined;
         web_transport: "auto" | "fetch" | "curl" | "browser" | undefined;
     };
     input: {
-        provider: DbDelayProviderName | undefined;
+        provider: "auto" | "db-timetables" | "bahn-web" | undefined;
         departure_station: string;
         arrival_station: string;
         query_time: string;

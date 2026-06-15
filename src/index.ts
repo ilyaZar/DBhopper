@@ -2,8 +2,17 @@ import { Type } from "typebox";
 import { defineToolPlugin } from "openclaw/plugin-sdk/tool-plugin";
 
 import { createAccessToolDefinitions } from "./access-tools.js";
+import {
+  CLAIM_FILE_ROLES,
+  CLAIM_TOOL_CONTRACTS,
+  RUN_CLAIM_MODES,
+} from "./claim-tool-contracts.js";
 import { createCredentialsToolDefinitions } from "./credentials-tools.js";
 import { createDbDelayToolDefinitions } from "./db-delay-tools.js";
+import {
+  BAHN_WEB_TRANSPORTS,
+  DELAY_PROVIDERS,
+} from "./delay-provider-options.js";
 import { createPrivateSettingsToolDefinitions } from "./private-settings-tools.js";
 import { createTicketBuyingToolDefinitions } from "./ticket-buying.js";
 import {
@@ -70,11 +79,7 @@ const configSchema = Type.Object(
       }),
     ),
     delayProvider: Type.Optional(
-      Type.Union([
-        Type.Literal("auto"),
-        Type.Literal("db-timetables"),
-        Type.Literal("bahn-web"),
-      ], {
+      Type.Union(DELAY_PROVIDERS.map((provider) => Type.Literal(provider)), {
         description:
           "Optional delay provider override. Omit to use settings.toml DELAY_PROVIDER.",
       }),
@@ -86,12 +91,7 @@ const configSchema = Type.Object(
       }),
     ),
     bahnWebTransport: Type.Optional(
-      Type.Union([
-        Type.Literal("auto"),
-        Type.Literal("fetch"),
-        Type.Literal("curl"),
-        Type.Literal("browser"),
-      ], {
+      Type.Union(BAHN_WEB_TRANSPORTS.map((transport) => Type.Literal(transport)), {
         description:
           "Optional bahn-web transport override. The settings default uses browser.",
       }),
@@ -255,30 +255,19 @@ function featureDisabledResult(
 function createClaimToolDefinitions(tool: any) {
   return [
     claimToolDefinition(tool, {
-      name: "dbhopper_claim_schema",
-      label: "DBhopper Claim Schema",
-      description:
-        "Return NRW Mobilitätsgarantie claim facts, required evidence, and the DBhopper claim TOML shape.",
+      ...CLAIM_TOOL_CONTRACTS.dbhopper_claim_schema,
       parameters: Type.Object({}, { additionalProperties: false }),
     }),
     claimToolDefinition(tool, {
-      name: "dbhopper_list_claims",
-      label: "DBhopper List Claims",
-      description: "List local DBhopper claims with personal fields redacted.",
+      ...CLAIM_TOOL_CONTRACTS.dbhopper_list_claims,
       parameters: Type.Object({}, { additionalProperties: false }),
     }),
     claimToolDefinition(tool, {
-      name: "dbhopper_prepare_claim",
-      label: "DBhopper Prepare Claim",
-      description:
-        "Create or replace a local claim folder, copy evidence files into it, and write claim.toml.",
+      ...CLAIM_TOOL_CONTRACTS.dbhopper_prepare_claim,
       parameters: prepareClaimParameters(),
     }),
     claimToolDefinition(tool, {
-      name: "dbhopper_validate_claim",
-      label: "DBhopper Validate Claim",
-      description:
-        "Validate deterministic NRW Mobilitätsgarantie eligibility checks for a claim object or claim folder.",
+      ...CLAIM_TOOL_CONTRACTS.dbhopper_validate_claim,
       parameters: Type.Object(
         {
           claimId: Type.Optional(Type.String()),
@@ -293,20 +282,11 @@ function createClaimToolDefinitions(tool: any) {
       ),
     }),
     claimToolDefinition(tool, {
-      name: "dbhopper_browser_probe",
-      label: "DBhopper Browser Probe",
-      description:
-        "Open the NRW Mobilitätsgarantie form and report whether the browser automation surface is reachable.",
+      ...CLAIM_TOOL_CONTRACTS.dbhopper_browser_probe,
       parameters: Type.Object({}, { additionalProperties: false }),
     }),
     claimToolDefinition(tool, {
-      name: "dbhopper_run_claim",
-      label: "DBhopper Run Claim",
-      description:
-        [
-          "Drive the NRW Mobilitätsgarantie browser form for a prepared claim.",
-          "Dry run stops at summary; submit requires confirmSubmit.",
-        ].join(" "),
+      ...CLAIM_TOOL_CONTRACTS.dbhopper_run_claim,
       parameters: Type.Object(
         {
           confirm: Type.Boolean({
@@ -315,7 +295,7 @@ function createClaimToolDefinitions(tool: any) {
           }),
           claimId: Type.String(),
           mode: Type.Optional(
-            Type.Union([Type.Literal("dry_run"), Type.Literal("submit")], {
+            Type.Union(RUN_CLAIM_MODES.map((mode) => Type.Literal(mode)), {
               default: "dry_run",
             }),
           ),
@@ -396,12 +376,7 @@ function prepareClaimParameters() {
           Type.Object(
             {
               role: Type.Union([
-                Type.Literal("base_ticket"),
-                Type.Literal("substitute_receipt"),
-                Type.Literal("delay_evidence"),
-                Type.Literal("submission_pdf"),
-                Type.Literal("screenshot"),
-                Type.Literal("other"),
+                ...CLAIM_FILE_ROLES.map((role) => Type.Literal(role)),
               ]),
               sourcePath: Type.Optional(Type.String()),
               assetName: Type.Optional(Type.String()),

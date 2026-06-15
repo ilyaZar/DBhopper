@@ -1,3 +1,8 @@
+import type {
+  BahnWebTransport,
+  DBhopperDelayProviderSetting,
+} from "./delay-provider-options.js";
+
 export type SubstituteType =
   | "long_distance"
   | "taxi"
@@ -155,9 +160,9 @@ export interface DBhopperConfig {
   dbClientId?: string;
   dbApiKey?: string;
   timetableBaseUrl?: string;
-  delayProvider?: "auto" | "db-timetables" | "bahn-web";
+  delayProvider?: DBhopperDelayProviderSetting;
   bahnWebBaseUrl?: string;
-  bahnWebTransport?: "auto" | "fetch" | "curl" | "browser";
+  bahnWebTransport?: BahnWebTransport;
   requestTimeoutMs?: number;
   delayLookbackMinutes?: number;
   timeZone?: string;

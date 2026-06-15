@@ -7,6 +7,13 @@ import type {
   ValidationMessage,
 } from "./types.js";
 import { resolveSelectedPaymentProfileFile } from "./private-settings.js";
+import {
+  assertKnownKeys,
+  assertNumericIdString,
+  assertSection,
+  assertString,
+  assertTable,
+} from "./schema-helpers.js";
 import { normalizeTomlKeys, parseToml, type TomlKeyMapByPath } from "./toml.js";
 import { validationErrorFromException } from "./validation-messages.js";
 
@@ -206,10 +213,7 @@ function assertPaymentProfileShape(
   if (!("method" in value)) {
     throw new Error(`${source}.method is required`);
   }
-  assertString(value.ID_PYM, `${source}.ID_PYM`);
-  if (!/^\d{2,}$/.test(value.ID_PYM)) {
-    throw new Error(`${source}.ID_PYM must be a quoted numeric ID like "01"`);
-  }
+  assertNumericIdString(value.ID_PYM, `${source}.ID_PYM`);
   assertString(value.method, `${source}.method`);
   const method = normalizePaymentMethod(value.method, `${source}.method`);
 
@@ -380,42 +384,6 @@ function rejectForbiddenPaymentKeys(value: unknown, source: string) {
     }
   };
   visit(value, source);
-}
-
-function assertSection(
-  value: unknown,
-  source: string,
-  allowedKeys: string[],
-): asserts value is Record<string, unknown> {
-  assertTable(value, source);
-  assertKnownKeys(value, new Set(allowedKeys), source);
-}
-
-function assertKnownKeys(
-  value: Record<string, unknown>,
-  allowed: Set<string>,
-  source: string,
-) {
-  for (const key of Object.keys(value)) {
-    if (!allowed.has(key)) {
-      throw new Error(`${source}.${key} is not a supported field`);
-    }
-  }
-}
-
-function assertTable(
-  value: unknown,
-  source: string,
-): asserts value is Record<string, unknown> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error(`${source} must be a TOML table`);
-  }
-}
-
-function assertString(value: unknown, source: string): asserts value is string {
-  if (typeof value !== "string" || value.length === 0) {
-    throw new Error(`${source} must be a non-empty string`);
-  }
 }
 
 function assertOptionalBoolean(value: unknown, source: string) {

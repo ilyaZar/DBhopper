@@ -1,7 +1,7 @@
 import type { DBhopperConfig, ValidationMessage } from "./types.js";
-export type DBhopperDelayProviderSetting = "auto" | "db-timetables" | "bahn-web";
-export type DBhopperDelayFallbackSetting = "none" | "db-timetables" | "bahn-web";
+import { type DBhopperDelayFallbackSetting, type DBhopperDelayProviderSetting } from "./delay-provider-options.js";
 export type DBhopperTicketBuyingMode = "review" | "auto";
+export type { DBhopperDelayFallbackSetting, DBhopperDelayProviderSetting, } from "./delay-provider-options.js";
 export interface DBhopperPrivateSettings {
     ID_USR: string;
     ID_CLM: string;
@@ -43,12 +43,6 @@ export declare function listPaymentProfileIdFiles(config?: DBhopperConfig): Prom
     directoryOk: boolean;
     settings: LoadedPrivateSettings;
 }>;
-export declare function listProfileIdFiles(config?: DBhopperConfig): Promise<{
-    items: PrivateIdFile[];
-    messages: ValidationMessage[];
-    directoryOk: boolean;
-    settings: LoadedPrivateSettings;
-}>;
 export declare function listClaimProfileIdFiles(config?: DBhopperConfig): Promise<{
     items: PrivateIdFile[];
     messages: ValidationMessage[];
@@ -66,10 +60,6 @@ export declare function resolveSelectedCredentialFile(config?: DBhopperConfig): 
     file: PrivateIdFile;
 } | undefined>;
 export declare function resolveSelectedPaymentProfileFile(config?: DBhopperConfig): Promise<{
-    settings: LoadedPrivateSettings;
-    file: PrivateIdFile;
-} | undefined>;
-export declare function resolveSelectedProfileFile(config?: DBhopperConfig): Promise<{
     settings: LoadedPrivateSettings;
     file: PrivateIdFile;
 } | undefined>;
@@ -95,8 +85,8 @@ export declare function privateSettingsStatus(config?: DBhopperConfig): Promise<
         TICKET_BUYING_MODE: DBhopperTicketBuyingMode;
         PATH_CRED: string;
         PATH_PRF: string;
-        DELAY_PROVIDER: DBhopperDelayProviderSetting;
-        DELAY_FALLBACK: DBhopperDelayFallbackSetting;
+        DELAY_PROVIDER: "auto" | "db-timetables" | "bahn-web";
+        DELAY_FALLBACK: "db-timetables" | "bahn-web" | "none";
         credentialsDir: string;
         profilesDir: string;
     };
@@ -145,8 +135,8 @@ export declare function writePrivateSettingsIds(updates: {
         TICKET_BUYING_MODE: DBhopperTicketBuyingMode;
         PATH_CRED: string;
         PATH_PRF: string;
-        DELAY_PROVIDER: DBhopperDelayProviderSetting;
-        DELAY_FALLBACK: DBhopperDelayFallbackSetting;
+        DELAY_PROVIDER: "auto" | "db-timetables" | "bahn-web";
+        DELAY_FALLBACK: "db-timetables" | "bahn-web" | "none";
         credentialsDir: string;
         profilesDir: string;
     };
@@ -177,4 +167,3 @@ export declare function writePrivateSettingsIds(updates: {
     messages: ValidationMessage[];
 }>;
 export declare function normalizePrivateId(value: string, field: PrivateIdField): string;
-export {};

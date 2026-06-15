@@ -2,15 +2,11 @@ import { Type } from "typebox";
 import { runDbApiCredentialProbe } from "./db-api-access.js";
 import { runDbMarketplaceAccessCheck } from "./db-marketplace-access.js";
 import { runDbStandardLoginCheck } from "./db-standard-access.js";
-export const ACCESS_TOOL_NAMES = [
-    "dbhopper_db_standard_login_check",
-    "dbhopper_db_marketplace_access_check",
-    "dbhopper_db_api_credential_probe",
-];
+import { DB_API_CREDENTIAL_PROBE_TOOL_NAME, DB_MARKETPLACE_ACCESS_CHECK_TOOL_NAME, DB_STANDARD_LOGIN_CHECK_TOOL_NAME, } from "./tool-contracts.js";
 export function createAccessToolDefinitions(tool) {
     return [
         tool({
-            name: "dbhopper_db_standard_login_check",
+            name: DB_STANDARD_LOGIN_CHECK_TOOL_NAME,
             label: "DBhopper DB Standard Login Check",
             description: "One-time diagnostic for selected Bahn account credentials and browser profile.",
             optional: true,
@@ -29,7 +25,7 @@ export function createAccessToolDefinitions(tool) {
             execute: async (params, config, context) => runDbStandardLoginCheck(params, config, context.signal),
         }),
         tool({
-            name: "dbhopper_db_marketplace_access_check",
+            name: DB_MARKETPLACE_ACCESS_CHECK_TOOL_NAME,
             label: "DBhopper DB Marketplace Access Check",
             description: "One-time diagnostic for DB API Marketplace browser reachability and login proof.",
             optional: true,
@@ -45,7 +41,7 @@ export function createAccessToolDefinitions(tool) {
             execute: async (params, config, context) => runDbMarketplaceAccessCheck(params, config, context.signal),
         }),
         tool({
-            name: "dbhopper_db_api_credential_probe",
+            name: DB_API_CREDENTIAL_PROBE_TOOL_NAME,
             label: "DBhopper DB API Credential Probe",
             description: "Probe official DB Timetables API credentials without returning secrets.",
             optional: true,

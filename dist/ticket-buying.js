@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { Type } from "typebox";
+import { createTimestampedArtifactDir, safeArtifactSegment, } from "./artifacts.js";
 import { launchBrowser, resolveBrowserExecutablePath } from "./browser.js";
 import { credentialsSummary, readSelectedCredentialsProfile, } from "./credentials.js";
 import { buyingProfileSummary, fareProductLabel, readSelectedBuyingProfile, resolveBuyingFarePreference, travelClassLabel, } from "./buying-profile.js";
@@ -10,12 +11,8 @@ import { errorMessage } from "./errors.js";
 import { readPrivateSettings, } from "./private-settings.js";
 import { resolveCredentialUserDataDir } from "./access-browser.js";
 import { performDbAccountLogin } from "./db-login.js";
+import { TICKET_BUYING_DRY_RUN_TOOL_NAME, TICKET_BUYING_RESEARCH_TOOL_NAME, TICKET_CHECKOUT_DRY_RUN_TOOL_NAME, } from "./tool-contracts.js";
 import { resolveWorkspace } from "./workspace.js";
-export const TICKET_BUYING_TOOL_NAMES = [
-    "dbhopper_ticket_buying_research",
-    "dbhopper_ticket_buying_dry_run",
-    "dbhopper_ticket_checkout_dry_run",
-];
 const DB_HOME_URL = "https://int.bahn.de/en";
 const DEFAULT_BROWSER_TIMEOUT_MS = 60000;
 const DEFAULT_CHECKOUT_DEPARTURE = "Hamm(Westf)Hbf";
@@ -82,7 +79,7 @@ export const TICKET_BUYING_RESEARCH_SUMMARY = {
 export function createTicketBuyingToolDefinitions(tool) {
     return [
         tool({
-            name: "dbhopper_ticket_buying_research",
+            name: TICKET_BUYING_RESEARCH_TOOL_NAME,
             label: "DBhopper Ticket Buying Research",
             description: "Return WIP ticket-buying interface candidates and safety constraints.",
             optional: true,
@@ -94,7 +91,7 @@ export function createTicketBuyingToolDefinitions(tool) {
             }),
         }),
         tool({
-            name: "dbhopper_ticket_buying_dry_run",
+            name: TICKET_BUYING_DRY_RUN_TOOL_NAME,
             label: "DBhopper Ticket Buying Dry Run",
             description: [
                 "Test DB ticket-buying navigation for a replacement train.",
@@ -128,7 +125,7 @@ export function createTicketBuyingToolDefinitions(tool) {
             execute: async (params, config, context) => runTicketBuyingDryRun(params, config, context.signal),
         }),
         tool({
-            name: "dbhopper_ticket_checkout_dry_run",
+            name: TICKET_CHECKOUT_DRY_RUN_TOOL_NAME,
             label: "DBhopper Ticket Checkout Dry Run",
             description: [
                 "Explore DB ticket checkout as far as safely possible.",
@@ -262,23 +259,20 @@ export async function runTicketCheckoutDryRun(params, config = {}, signal) {
         };
     }
 }
-async function readCredentialsForTicketDryRun(params, config) {
+async function readProfileWhenBrowserOpens(params, config, readProfile) {
     if (params.open_browser !== true) {
         return undefined;
     }
-    return readSelectedCredentialsProfile(config);
+    return readProfile(config);
+}
+async function readCredentialsForTicketDryRun(params, config) {
+    return readProfileWhenBrowserOpens(params, config, readSelectedCredentialsProfile);
 }
 async function readBuyingProfileForTicketCheckout(params, config) {
-    if (params.open_browser !== true) {
-        return undefined;
-    }
-    return readSelectedBuyingProfile(config);
+    return readProfileWhenBrowserOpens(params, config, readSelectedBuyingProfile);
 }
 async function readPaymentProfileForTicketCheckout(params, config) {
-    if (params.open_browser !== true) {
-        return undefined;
-    }
-    return readSelectedPaymentProfile(config);
+    return readProfileWhenBrowserOpens(params, config, readSelectedPaymentProfile);
 }
 export function ticketBuyingPlan(params, userDataDir) {
     const departure = normalizeBookingStationName(requiredString(params.departure_station, "departure_station"));
@@ -1130,23 +1124,37 @@ async function applyBookingFor(page, bookingFor) {
         return "not_found";
     });
 }
+async function collectControlSnapshots(page, selector, options = {}) {
+    const { preferInputValue = false } = options;
+    return page.locator(selector).evaluateAll((nodes, browserOptions) => nodes.map((node, index) => {
+        const element = node;
+        const rect = element.getBoundingClientRect();
+        const inputValue = browserOptions.preferInputValue
+            ? node.value
+            : "";
+        return {
+            index,
+            text: (inputValue || element.innerText || node.textContent || "")
+                .trim()
+                .replace(/\s+/g, " "),
+            visible: Boolean(element.offsetWidth ||
+                element.offsetHeight ||
+                node.getClientRects().length),
+            disabled: node.disabled ||
+                element.getAttribute("aria-disabled") === "true",
+            rect: {
+                top: rect.top,
+                left: rect.left,
+                width: rect.width,
+                height: rect.height,
+            },
+        };
+    }), { preferInputValue });
+}
 async function findOfferSelectionContinue(page) {
-    const controls = await page.locator("button, a").evaluateAll((nodes) => nodes.map((node, index) => ({
-        index,
-        text: (node.innerText || node.textContent || "")
-            .trim()
-            .replace(/\s+/g, " "),
-        visible: Boolean(node.offsetWidth ||
-            node.offsetHeight ||
-            node.getClientRects().length),
-        disabled: node.disabled ||
-            node.getAttribute("aria-disabled") === "true",
-    })));
+    const controls = await collectControlSnapshots(page, "button, a");
     const candidate = controls
-        .filter((control) => control.visible &&
-        !control.disabled &&
-        /^Continue$/i.test(control.text) &&
-        !isFinalOrderText(control.text))
+        .filter(isSafeContinueControl)
         .at(-1);
     if (!candidate) {
         return undefined;
@@ -1156,6 +1164,12 @@ async function findOfferSelectionContinue(page) {
         text: candidate.text,
         click: () => locator.click({ timeout: 10000 }),
     };
+}
+function isSafeContinueControl(control) {
+    return control.visible &&
+        !control.disabled &&
+        /^Continue$/i.test(control.text) &&
+        !isFinalOrderText(control.text);
 }
 async function waitForCustomerDataProgress(page) {
     await page.waitForFunction(() => {
@@ -1562,37 +1576,35 @@ async function waitForPaymentMethodForm(page, method) {
     await page.waitForTimeout(500);
 }
 async function fillPaymentInput(page, labels, selectors, value, options = {}) {
+    const input = await findVisiblePaymentInput(page, labels, selectors);
+    if (!input) {
+        return "missing";
+    }
+    return applyPaymentControlValue(input, value, options);
+}
+async function findVisiblePaymentInput(page, labels, selectors) {
     for (const label of labels) {
         const input = page.getByLabel(label).first();
         if (await input.isVisible({ timeout: 500 }).catch(() => false)) {
-            return applyPaymentControlValue(input, value, options);
+            return input;
         }
     }
     for (const selector of selectors) {
         const input = page.locator(selector).first();
         if (await input.isVisible({ timeout: 500 }).catch(() => false)) {
-            return applyPaymentControlValue(input, value, options);
+            return input;
         }
     }
-    return "missing";
+    return undefined;
 }
 async function verifyPaymentInput(page, labels, selectors, value, options = {}) {
     const normalize = options.normalize ?? normalizeUiText;
-    for (const label of labels) {
-        const input = page.getByLabel(label).first();
-        if (await input.isVisible({ timeout: 500 }).catch(() => false)) {
-            const current = await readPaymentControlValue(input);
-            return normalize(current) === normalize(value) ? "matched" : "mismatched";
-        }
+    const input = await findVisiblePaymentInput(page, labels, selectors);
+    if (!input) {
+        return "missing";
     }
-    for (const selector of selectors) {
-        const input = page.locator(selector).first();
-        if (await input.isVisible({ timeout: 500 }).catch(() => false)) {
-            const current = await readPaymentControlValue(input);
-            return normalize(current) === normalize(value) ? "matched" : "mismatched";
-        }
-    }
-    return "missing";
+    const current = await readPaymentControlValue(input);
+    return normalize(current) === normalize(value) ? "matched" : "mismatched";
 }
 async function clickPaymentCheckbox(page, labels) {
     for (const label of labels) {
@@ -2075,60 +2087,6 @@ function extractTrainLabels(value) {
 function extractPrice(value) {
     return /€\s?\d+[,.]\d{2}|\d+[,.]\d{2}\s?€/i.exec(value)?.[0];
 }
-async function advanceCheckoutSafely(page, artifactDir, artifacts) {
-    const steps = [];
-    for (let index = 0; index < 5; index += 1) {
-        const boundary = await detectCheckoutBoundary(page);
-        if (boundary.finalOrderButtonVisible) {
-            return {
-                stage: "final_order_boundary",
-                finalSafetyStop: "final_order_boundary",
-                needsUserAction: false,
-                message: "stopped before a legally binding final order button",
-                steps,
-                boundary,
-            };
-        }
-        if (boundary.paymentBoundaryVisible) {
-            return {
-                stage: "payment_boundary",
-                finalSafetyStop: "payment_boundary",
-                needsUserAction: false,
-                message: "stopped at payment boundary before payment continuation",
-                steps,
-                boundary,
-            };
-        }
-        const next = await findSafeCheckoutNext(page);
-        if (!next) {
-            return {
-                stage: boundary.stage,
-                finalSafetyStop: "no_safe_next_step",
-                needsUserAction: true,
-                message: "no safe checkout continuation control was found",
-                steps,
-                boundary,
-            };
-        }
-        await next.click();
-        steps.push({
-            stage: boundary.stage,
-            action: "clicked_safe_next",
-            clickedText: next.text,
-        });
-        await page.waitForTimeout(5000);
-        await captureTicketStage(page, artifactDir, `checkout-${index + 1}`, artifacts);
-    }
-    const boundary = await detectCheckoutBoundary(page);
-    return {
-        stage: boundary.stage,
-        finalSafetyStop: "step_limit",
-        needsUserAction: true,
-        message: "stopped after safe checkout exploration step limit",
-        steps,
-        boundary,
-    };
-}
 async function detectCheckoutBoundary(page) {
     const body = await page.locator("body").innerText().catch(() => "");
     const visibleButtons = await visibleButtonTexts(page);
@@ -2143,15 +2101,7 @@ async function detectCheckoutBoundary(page) {
     };
 }
 async function findSafeCheckoutNext(page) {
-    const controls = await page.locator("button, a").evaluateAll((nodes) => nodes.map((node, index) => ({
-        index,
-        text: (node.innerText || node.textContent || "")
-            .trim()
-            .replace(/\s+/g, " "),
-        visible: Boolean(node.offsetWidth ||
-            node.offsetHeight ||
-            node.getClientRects().length),
-    })));
+    const controls = await collectControlSnapshots(page, "button, a");
     const candidate = controls.find((control) => control.visible &&
         !isFinalOrderText(control.text) &&
         SAFE_CHECKOUT_NEXT_PATTERNS.some((pattern) => pattern.test(control.text)));
@@ -2166,41 +2116,15 @@ async function findSafeCheckoutNext(page) {
 }
 async function findPaymentPageContinue(page) {
     const selector = "button, a, input[type='submit'], [role='button']";
-    const controls = await page.locator(selector).evaluateAll((nodes) => nodes.map((node, index) => ({
-        index,
-        text: (node.value ||
-            node.innerText ||
-            node.textContent ||
-            "")
-            .trim()
-            .replace(/\s+/g, " "),
-        rect: (() => {
-            const rect = node.getBoundingClientRect();
-            return {
-                top: rect.top,
-                left: rect.left,
-                width: rect.width,
-                height: rect.height,
-            };
-        })(),
-        visible: Boolean(node.offsetWidth ||
-            node.offsetHeight ||
-            node.getClientRects().length),
-        disabled: node.disabled ||
-            node.getAttribute("aria-disabled") === "true",
-    })));
-    const candidate = controls.find((control) => control.visible &&
-        !control.disabled &&
-        /^Continue$/i.test(control.text) &&
-        !isFinalOrderText(control.text));
+    const controls = await collectControlSnapshots(page, selector, {
+        preferInputValue: true,
+    });
+    const candidate = controls.find(isSafeContinueControl);
     if (!candidate) {
         return undefined;
     }
     const ranked = controls
-        .filter((control) => control.visible &&
-        !control.disabled &&
-        /^Continue$/i.test(control.text) &&
-        !isFinalOrderText(control.text))
+        .filter(isSafeContinueControl)
         .sort((left, right) => right.rect.top - left.rect.top ||
         right.rect.left - left.rect.left ||
         right.rect.width * right.rect.height - left.rect.width * left.rect.height);
@@ -2227,17 +2151,10 @@ async function waitForCheckOrFinalOrderProgress(page) {
         .catch(() => undefined);
 }
 async function visibleButtonTexts(page) {
-    return page.locator("button, a").evaluateAll((nodes) => nodes
-        .map((node) => ({
-        text: (node.innerText || node.textContent || "")
-            .trim()
-            .replace(/\s+/g, " "),
-        visible: Boolean(node.offsetWidth ||
-            node.offsetHeight ||
-            node.getClientRects().length),
-    }))
+    const controls = await collectControlSnapshots(page, "button, a");
+    return controls
         .filter((entry) => entry.visible)
-        .map((entry) => entry.text));
+        .map((entry) => entry.text);
 }
 export function isFinalOrderText(value) {
     return FINAL_ORDER_PATTERNS.some((pattern) => pattern.test(value));
@@ -2331,24 +2248,21 @@ export function defaultCheckoutServiceDate(now = new Date()) {
 }
 async function createTicketArtifactDir(config) {
     const workspace = resolveWorkspace(config);
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const artifactRoot = config.artifactRoot || path.join(workspace.root, "tmp");
-    const artifactDir = path.join(artifactRoot, `ticket-buying-dry-run-${timestamp}`);
-    await fs.mkdir(artifactDir, { recursive: true });
-    return artifactDir;
+    return createTimestampedArtifactDir(artifactRoot, "ticket-buying-dry-run");
 }
 async function captureTicketStage(page, artifactDir, label, artifacts) {
     artifacts.push(await saveTicketPageText(page, artifactDir, label));
     artifacts.push(await saveTicketScreenshot(page, artifactDir, label));
 }
 async function saveTicketPageText(page, artifactDir, label) {
-    const target = path.join(artifactDir, `ticket-${safeArtifactLabel(label)}.txt`);
+    const target = path.join(artifactDir, `ticket-${safeArtifactSegment(label)}.txt`);
     const text = await page.locator("body").innerText().catch(() => "");
     await fs.writeFile(target, `${text}\n`, "utf8");
     return target;
 }
 async function saveTicketScreenshot(page, artifactDir, label) {
-    const target = path.join(artifactDir, `ticket-${safeArtifactLabel(label)}.png`);
+    const target = path.join(artifactDir, `ticket-${safeArtifactSegment(label)}.png`);
     await page.screenshot({ path: target, fullPage: true });
     return target;
 }
@@ -2405,9 +2319,6 @@ function requiredString(value, field) {
         throw new Error(`${field} is required`);
     }
     return trimmed;
-}
-function safeArtifactLabel(value) {
-    return value.replace(/[^a-z0-9._-]+/gi, "-").replace(/-+/g, "-").toLowerCase();
 }
 function escapeRegExp(value) {
     return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

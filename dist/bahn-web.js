@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { resolveBrowserExecutablePath } from "./browser.js";
 import { errorMessage } from "./errors.js";
-import { DEFAULT_TIME_ZONE, derivePublicCategory, localDateTimeToUtc, normalizeStationName, stationMatches, } from "./db-delay.js";
+import { DEFAULT_TIME_ZONE, buildPathStops, derivePublicCategory, localDateTimeToUtc, normalizeStationName, stationMatches, } from "./db-delay.js";
 export const BAHN_WEB_SOURCE_API = "bahn-web";
 export const DEFAULT_BAHN_WEB_BASE_URL = "https://int.bahn.de/web/api";
 export const BAHN_WEB_FALLBACK_BASE_URL = "https://www.bahn.de/web/api";
@@ -336,7 +336,7 @@ function stationEventFromBahnWebEntry(raw, boardStation, timeZone) {
     };
 }
 function buildStops(boardingStop, pathNames) {
-    const pathStops = pathNames.map((name, index) => ({
+    return buildPathStops(boardingStop, pathNames, (name, index) => ({
         station: stationMatches({ name }, boardingStop.station)
             ? boardingStop.station
             : { name },
@@ -353,19 +353,6 @@ function buildStops(boardingStop, pathNames) {
         cancelled: boardingStop.cancelled,
         stopIndex: index,
     }));
-    const boardingIndex = pathStops.findIndex((stop) => stationMatches(stop.station, boardingStop.station));
-    if (boardingIndex < 0) {
-        return [
-            { ...boardingStop, stopIndex: 0 },
-            ...pathStops.map((stop, index) => ({ ...stop, stopIndex: index + 1 })),
-        ];
-    }
-    pathStops[boardingIndex] = {
-        ...pathStops[boardingIndex],
-        ...boardingStop,
-        stopIndex: boardingIndex,
-    };
-    return pathStops.map((stop, index) => ({ ...stop, stopIndex: index }));
 }
 function pathNamesFromEntry(entry) {
     const names = [

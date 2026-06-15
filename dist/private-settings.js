@@ -2,6 +2,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { normalizeTomlKeys, parseToml } from "./toml.js";
+import { assertKnownKeys, assertNumericId, assertString, assertTable, } from "./schema-helpers.js";
+import { DELAY_FALLBACKS, DELAY_PROVIDERS, } from "./delay-provider-options.js";
 import { validationError, validationErrorFromException, } from "./validation-messages.js";
 const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SETTINGS_RELATIVE_PATH = path.join("assets", "private", "settings.toml");
@@ -20,6 +22,12 @@ const SETTINGS_KEYS = new Set([
     "DELAY_FALLBACK",
 ]);
 const PRIVATE_ID_ALIASES = {};
+const SIBLING_PRIVATE_ID_FIELDS = {
+    ID_USR: "ID_PYM",
+    ID_PYM: "ID_USR",
+    ID_CLM: "ID_BUY",
+    ID_BUY: "ID_CLM",
+};
 const PRIVATE_SETTINGS_ALIASES = {
     "": {
         ticket_buying_mode: "TICKET_BUYING_MODE",
@@ -29,8 +37,8 @@ const PRIVATE_SETTINGS_ALIASES = {
         delay_fallback: "DELAY_FALLBACK",
     },
 };
-const DELAY_PROVIDER_VALUES = new Set(["auto", "db-timetables", "bahn-web"]);
-const DELAY_FALLBACK_VALUES = new Set(["none", "db-timetables", "bahn-web"]);
+const DELAY_PROVIDER_VALUES = new Set(DELAY_PROVIDERS);
+const DELAY_FALLBACK_VALUES = new Set(DELAY_FALLBACKS);
 const TICKET_BUYING_MODE_VALUES = new Set(["review", "auto"]);
 export function privateSettingsPath(config = {}) {
     return path.join(workspaceRoot(config), SETTINGS_RELATIVE_PATH);
@@ -95,9 +103,6 @@ export async function listCredentialIdFiles(config = {}) {
 export async function listPaymentProfileIdFiles(config = {}) {
     return listConfiguredIdFiles(config, "credentialsDir", "ID_PYM");
 }
-export async function listProfileIdFiles(config = {}) {
-    return listClaimProfileIdFiles(config);
-}
 export async function listClaimProfileIdFiles(config = {}) {
     return listConfiguredIdFiles(config, "profilesDir", "ID_CLM");
 }
@@ -109,9 +114,6 @@ export async function resolveSelectedCredentialFile(config = {}) {
 }
 export async function resolveSelectedPaymentProfileFile(config = {}) {
     return resolveConfiguredIdFile(config, "credentialsDir", "ID_PYM");
-}
-export async function resolveSelectedProfileFile(config = {}) {
-    return resolveSelectedClaimProfileFile(config);
 }
 export async function resolveSelectedClaimProfileFile(config = {}) {
     return resolveConfiguredIdFile(config, "profilesDir", "ID_CLM");
@@ -242,9 +244,7 @@ export async function writePrivateSettingsIds(updates, config = {}) {
 }
 export function normalizePrivateId(value, field) {
     const trimmed = value.trim();
-    if (!/^\d{2,}$/.test(trimmed)) {
-        throw new Error(`${field} must be a quoted numeric ID like "01"`);
-    }
+    assertNumericId(trimmed, field);
     return trimmed;
 }
 function workspaceRoot(config) {
@@ -259,11 +259,7 @@ function normalizePrivateSettings(value, source) {
     const normalizedValue = normalizeTomlKeys(value, source, PRIVATE_SETTINGS_ALIASES, true);
     assertTable(normalizedValue, source);
     const table = normalizedValue;
-    for (const key of Object.keys(table)) {
-        if (!SETTINGS_KEYS.has(key)) {
-            throw new Error(`${source}.${key} is not a supported field`);
-        }
-    }
+    assertKnownKeys(table, SETTINGS_KEYS, source);
     const normalized = {
         ...table,
         TICKET_BUYING_MODE: table.TICKET_BUYING_MODE ?? "review",
@@ -390,29 +386,7 @@ function parseIdDocument(text, source) {
     return parsed;
 }
 function isSiblingProfileFile(parsed, idField) {
-    if (idField === "ID_USR") {
-        return "ID_PYM" in parsed;
-    }
-    if (idField === "ID_PYM") {
-        return "ID_USR" in parsed;
-    }
-    if (idField === "ID_CLM") {
-        return "ID_BUY" in parsed;
-    }
-    if (idField === "ID_BUY") {
-        return "ID_CLM" in parsed;
-    }
-    return false;
-}
-function assertTable(value, source) {
-    if (!value || typeof value !== "object" || Array.isArray(value)) {
-        throw new Error(`${source} must be a TOML table`);
-    }
-}
-function assertString(value, source) {
-    if (typeof value !== "string" || value.length === 0) {
-        throw new Error(`${source} must be a non-empty string`);
-    }
+    return SIBLING_PRIVATE_ID_FIELDS[idField] in parsed;
 }
 function assertOneOf(value, allowed, source) {
     if (typeof value !== "string" || !allowed.has(value)) {
