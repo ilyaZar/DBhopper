@@ -311,12 +311,12 @@ the local machine unless the user chooses to inspect or share them.
 +------------------------------+                +------------------------------+
 | I. Local machine             |                | II. OpenClaw agent + Gateway |
 +------------------------------+                +------------------------------+
-| storage of sensitive data    |                | sees config paths and IDs    |
-|                              |                | sees workflow status/proofs  |
-| 1. profiles in .TOML files   |                | sees local artifact paths    |
-|   - DB logins and API keys   |                | does NOT see sensitive data: |
-|   - claim requests data      |                |  -> no TOML secrets/cookies  |
-| 2. private data in TOML files|                |  -> no profile/payment data  |
+| storage of sensitive data    |                | sees workflow status info:   |
+|                              |                |  -> to drive local machine   |
+| 1. profiles in .TOML files   |                | does NOT see sensitive data: |
+|   - DB logins and API keys   |                |  -> no TOML settings /secrets|
+|   - claim requests data      |                |  -> no profile/payment data  |
+| 2. private data in TOML files|                |  -> no browser/session data  |
 | - ticket and banking data    |                +----+-----+-------------------+
 | - browser profile / cookies  |                     |     ^ redacted, i.e.,
 | - claims, evidence, artifacts|          tool calls |     | processed info
