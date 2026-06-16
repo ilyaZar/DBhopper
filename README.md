@@ -189,7 +189,7 @@ fields are checked but not changed.
 
 ## Usage
 
-### 1. Delay retrieval
+### Delay retrieval
 
 Ask the agent to query train delays and direct replacement options. The main
 tool is `dbhopper_query_db_delay`; setup diagnostics include
@@ -222,7 +222,7 @@ candidate counts and reachability booleans. Timetables and `bahn-web` preserve
 both the public line, such as `RE6`, and the technical identity, such as
 `NX 89718`.
 
-### 2. Autonomous claims
+### Autonomous claims
 
 With `use_claim_requests: true`, the agent can prepare, validate, and file NRW
 Mobilitätsgarantie claims:
@@ -236,7 +236,7 @@ explicit confirmation fields are set. OpenClaw approval hooks can require
 approval for all claim tools or only mutating claim tools, depending on
 `approvalMode`.
 
-### 3. Autonomous ticket buying
+### Autonomous ticket buying
 
 With `use_ticket_purchase = true`, the agent can use ticket-buying workflows for
 a replacement train after delay retrieval identifies a reachable option.
@@ -264,28 +264,40 @@ from screenshots or raw page text.
 ## Security Architecture
 
 DBhopper is designed so the OpenClaw agent can request DB delay, claim, and
-ticket workflows without receiving the private TOML values that execute those
-workflows. The agent and Gateway see tool schemas, approval prompts, selected
-IDs, file/path metadata, boolean presence flags, normalized results, and local
-artifact paths. They should not receive DB account passwords, DB API keys,
-payment values, claimant profile values, bank data, cookies, or raw private
-profile TOML content through normal tool results.
+ticket purchasing workflows without receiving the private/sensitive data of the
+user. The agent and Gateway see tool schemas, approval prompts, selected IDs,
+file/path metadata, boolean presence flags, normalized results, and local
+artifact paths: data that is necessary to orchestrate/drive the workflow via the
+plugin code. They do not receive DB account passwords, DB API keys, payment
+values, claimant profile values, bank data, cookies, or raw private profile TOML
+content through normal tool results. Thus, the openclaw-agent only acts as an
+orchestrator driving the local machine via CLI/tool commands, and manages user
+interaction through exposed channels, usually something like WhatsApp, Signal,
+Telegram, or some web interface.
 
-The local DBhopper plugin process is the boundary layer. It reads
+The local DBhopper plugin process is the actual engine/coding layer. It reads
 `assets/private/settings.toml`, resolves `ID_USR`, `ID_CLM`, `ID_BUY`, and
 `ID_PYM` against the external `path_usr`, `path_clm`, `path_buy`, and `path_pym`
-directories, and loads the selected TOML files locally. DBhopper rejects those
-`path_*` directories when they resolve inside the plugin workspace, so the
-normal setup keeps real credentials and profiles outside the workspace that
-coding agents can inspect.
+directories, and loads information from the selected TOML files locally.
+DBhopper **strictly rejects** those `path_*` directories when they resolve
+inside the plugin workspace which is often exposed to the agent: so the normal
+setup keeps real credentials and profiles outside the workspace that coding
+agents can inspect. Through the configuration, the user is strongly advised to
+set paths outside of the read/write file system access of the agent.
 
 Sensitive values are used inside the plugin process. DB account credentials and
 payment fields are passed to Playwright form controls through DBhopper's
-sensitive input helper, which sets the browser DOM value in the page context and
-returns only generic success/failure state. DB API Marketplace credentials are
-attached as request headers inside the delay-provider code. Claimant and bank
-profile values are merged in memory for validation and browser filing; the draft
-`claims/<claim-id>/claim.toml` must not contain those private fields.
+sensitive input helper, which sets the browser DOM value in the page context: to
+keep the agent informed, it returns only generic success/failure state to it.
+
+DB API Marketplace credentials are attached as request headers inside the
+delay-provider code. Claimant and bank profile values are merged in memory for
+validation and browser filing. This is nothing different than filing a web
+browser form manually. The user is strongly advised to keep banking and user
+credentials in storage places that are secure:
+
+1. not exposed to the agent **and**
+2. not exposed to the internet
 
 Local artifacts are intentionally local and should be treated as sensitive.
 Claim browser runs write screenshots and page text under ignored `tmp/`. Ticket
@@ -296,19 +308,19 @@ artifact paths may be returned to the agent, but the files themselves remain on
 the local machine unless the user chooses to inspect or share them.
 
 ```text
-+----------------------------- +                +------------------------------+
++------------------------------+                +------------------------------+
 | I. Local machine             |                | II. OpenClaw agent + Gateway |
 +------------------------------+                +------------------------------+
 | storage of sensitive data    |                | sees config paths and IDs    |
 |                              |                | sees workflow status/proofs  |
 | 1. profiles in .TOML files   |                | sees local artifact paths    |
 |   - DB logins and API keys   |                | does NOT see sensitive data: |
-|   - claim requests           |                |  -> no TOML secrets/cookies  |
+|   - claim requests data      |                |  -> no TOML secrets/cookies  |
 | 2. private data in TOML files|                |  -> no profile/payment data  |
 | - ticket and banking data    |                +----+-----+-------------------+
 | - browser profile / cookies  |                     |     ^ redacted, i.e.,
-| - claims, evidence, artifacts|                     |     | processed info
-+-------------+----------------+          tool calls v     |
+| - claims, evidence, artifacts|          tool calls |     | processed info
++-----+------------------------+                     v     |
       ^                                 +------------+-----+-------------------+
       |                                 | III. DBhopper plugin process         |
       |                                 +--------------------------------------+
