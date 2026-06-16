@@ -16,67 +16,85 @@ openclaw plugins enable dbhopper
 ```
 
 Configure `plugins.entries.dbhopper.config.workspaceRoot` to this plugin
-directory. DBhopper has two local settings layers:
+directory. DBhopper uses one local settings file:
 
-- `settings.yaml` at the plugin top level controls which workflow tool calls
-  are allowed to run.
-- `assets/private/settings.toml` selects private credential, claim-profile, and
-  buying-profile IDs plus private file paths.
-
-The default `settings.yaml` enables only delay retrieval:
-
-```yaml
-use_delay_retrieval: true
-use_claim_requests: false
-use_ticket_buying: false
+```text
+assets/private/settings.toml
 ```
 
-DBhopper still registers the full public tool contract. When a disabled
-workflow tool is called, it returns a structured `feature_disabled` result
-instead of running browser automation or writing files. To change the enabled
-workflows, edit `settings.yaml` and set the relevant flag to `true`; reload or
-restart the plugin if the running OpenClaw process does not pick up the change.
+This file is user-managed runtime state. It selects external private
+directories with `path_usr`, `path_clm`, `path_buy`, and `path_pym`. Those
+directories must be outside the plugin workspace/package root. The plugin
+process may read them, but coding agents and read/write workspace tools should
+not be granted access to those external directories.
 
-Private profile and credential templates live under `docs/examples/`. Create
-the local private directories, then copy templates into them:
+The repo ignores private runtime files under `assets/private/` through both
+`.gitignore` and `.clawhubignore`, so local settings and purchase-review
+screenshots stay out of git commits, pull requests, and Clawhub packages.
+
+Safe boilerplate TOML files live under `docs/examples/`. Copy only the settings
+example into `assets/private/`; copy real credential/profile templates into an
+external private directory:
 
 ```bash
-mkdir -p assets/private/credentials assets/private/profiles
+mkdir -p assets/private ../dbhopper-private/credentials ../dbhopper-private/profiles
+cp docs/examples/settings.example.toml assets/private/settings.toml
 cp docs/examples/private-profile.example.toml \
-  assets/private/profiles/private-profile-01.toml
+  ../dbhopper-private/profiles/private-profile-01.toml
 cp docs/examples/buying-profile.example.toml \
-  assets/private/profiles/buying-profile-01.toml
+  ../dbhopper-private/profiles/buying-profile-01.toml
 cp docs/examples/credentials.example.toml \
-  assets/private/credentials/credentials-01.toml
+  ../dbhopper-private/credentials/credentials-01.toml
+cp docs/examples/payment-profile.example.toml \
+  ../dbhopper-private/credentials/payment-profile-01.toml
 ```
-
-Keep real profiles and credentials private.
 
 TOML field names are case-sensitive; use the spelling shown in the examples.
 
 ## Configuration
 
-### 1. Delay retrieval
-
-Delay retrieval is enabled by default through top-level `settings.yaml`:
-
-```yaml
-use_delay_retrieval: true
-```
-
-The default provider is controlled in `assets/private/settings.toml`:
+`assets/private/settings.toml` controls workflow gates, selected private IDs,
+profile scan directories, and delay-provider defaults:
 
 ```toml
+use_delay_retrieval = true
+use_claim_requests = false
+use_ticket_purchase = false
+
 ID_USR = "01"
 ID_CLM = "01"
 ID_BUY = "01"
 ID_PYM = "01"
-ticket_buying_mode = "review"
-path_cred = "assets/private/credentials"
-path_prf = "assets/private/profiles"
+purchase_mode = "review"
+path_usr = "../dbhopper-private/credentials"
+path_clm = "../dbhopper-private/profiles"
+path_buy = "../dbhopper-private/profiles"
+path_pym = "../dbhopper-private/credentials"
 delay_provider = "bahn-web"
 delay_fallback = "none"
 ```
+
+The four `path_*` fields are directories to scan for TOML files with matching
+IDs:
+
+- `path_usr` is scanned for files containing `ID_USR`.
+- `path_clm` is scanned for files containing `ID_CLM`.
+- `path_buy` is scanned for files containing `ID_BUY`.
+- `path_pym` is scanned for files containing `ID_PYM`.
+
+The directories may be identical if you want all private TOML files in one
+folder. They may also be split by type. In either case, DBhopper resolves the
+selected file by scanning the configured directory for exactly the matching
+`ID_*` value. DBhopper rejects any `path_*` directory inside the plugin
+workspace, including `assets/private/`.
+
+DBhopper still registers the full public tool contract. When a disabled
+workflow tool is called, it returns a structured `feature_disabled` result
+instead of running browser automation or writing files. To change the enabled
+workflows, edit the relevant `use_*` flag and reload or restart the plugin if
+the running OpenClaw process does not pick up the change.
+
+### 1. Delay retrieval
 
 `bahn-web` uses Deutsche Bahn passenger website JSON retrieval and works without
 DB API Marketplace credentials. It is deterministic after retrieval, but the
@@ -126,8 +144,8 @@ The free Timetables subscription currently offers 60 calls per minute.
 
 Autonomous claim tools are disabled by default. Enable them explicitly:
 
-```yaml
-use_claim_requests: true
+```toml
+use_claim_requests = true
 ```
 
 Claim-specific journey, ticket, and file data is stored in
@@ -137,18 +155,14 @@ successful submit writes `claim_submitted_recipe.toml` next to the downloaded
 confirmation PDF as the joined audit recipe.
 
 Use `assets/private/settings.toml` to select the claim profile and credential
-IDs used for claim filing. `path_cred` and `path_prf` may be relative to the
-plugin directory or absolute paths in the user file system. Claim filing uses
-`ID_CLM` from the shared profiles directory.
-The `assets/private/settings.toml` file itself always stays in that fixed
-location.
+IDs used for claim filing. Claim filing uses `ID_CLM` from `path_clm`.
 
 ### 3. Autonomous ticket buying
 
 Autonomous ticket-buying tools are disabled by default. Enable them explicitly:
 
-```yaml
-use_ticket_buying: true
+```toml
+use_ticket_purchase = true
 ```
 
 Ticket buying uses the selected private IDs from
@@ -157,19 +171,19 @@ Ticket buying uses the selected private IDs from
 - `ID_USR`: Bahn account credentials and browser profile.
 - `ID_BUY`: fare, class, and customer-data choices.
 - `ID_PYM`: payment method and fillable payment fields.
-- `ticket_buying_mode`: final Check-page behavior.
+- `purchase_mode`: final Check-page behavior.
 
-`ticket_buying_mode = "review"` is the default. Checkout may fill the
+`purchase_mode = "review"` is the default. Checkout may fill the
 configured forms and reach DB's final Check page, then it saves a sensitive
 screenshot artifact for user inspection and stops before any final order
 control.
 
-`ticket_buying_mode = "auto"` records that automatic buying was requested, but
-final buying is not enabled yet. The tool still stops with
-`buying_not_enabled` before the final order button.
+`purchase_mode = "auto"` records that automatic buying was requested, but final
+buying is not enabled yet. The tool returns `auto_unavailable` before any final
+order button.
 
 Change the mode with `dbhopper_private_settings_select` by passing
-`ticket_buying_mode: "review"` or `ticket_buying_mode: "auto"`.
+`purchase_mode: "review"` or `purchase_mode: "auto"`.
 
 Buying profiles support `super_sparpreis`, `sparpreis`, `flexpreis`, and
 `cheapest_available`. Payment-profile summaries expose only method and
@@ -227,7 +241,7 @@ approval for all claim tools or only mutating claim tools, depending on
 
 ### 3. Autonomous ticket buying
 
-With `use_ticket_buying: true`, the agent can use ticket-buying workflows for a
+With `use_ticket_purchase = true`, the agent can use ticket-buying workflows for a
 replacement train after delay retrieval identifies a reachable option.
 
 The main ticket tools are:
@@ -241,11 +255,14 @@ The main ticket tools are:
 
 Use these tools after the delay result identifies the target route, service
 date, train label, and departure time. Ticket workflows use deterministic
-browser automation and ignored local artifacts. In review mode, the checkout
-tool returns `reviewScreenshot` for the agent to show to the user. In auto
-mode, final buying still stops with `buying_not_enabled`; there is no final
-purchase click yet. The agent should not infer or invent checkout state from
-screenshots or raw page text.
+browser automation. In review mode, the checkout tool stores the user-facing
+`reviewScreenshot` under ignored `assets/private/purchases/` and returns that
+path for the agent to show to the user. Per-stage page text and screenshot
+trails are test-drive artifacts only; pass `test_drive_purchase: true` when
+explicitly asked to create that numbered comparison trail under ignored `tmp/`.
+In auto mode, final buying still stops with
+`auto_unavailable`; there is no final purchase click yet. The agent should not
+infer or invent checkout state from screenshots or raw page text.
 
 ## Troubleshooting
 
@@ -253,9 +270,9 @@ If an OpenClaw-routed agent can describe the skill but cannot call
 `dbhopper_*`, check the sandbox tool policy. The local config needs DBhopper in
 both `tools.alsoAllow` and `tools.sandbox.tools.alsoAllow`.
 
-If a workflow tool returns `feature_disabled`, check `settings.yaml`, enable the
-matching `use_*` flag, and reload or restart the plugin if the running
-OpenClaw process does not pick up the change.
+If a workflow tool returns `feature_disabled`, check
+`assets/private/settings.toml`, enable the matching `use_*` flag, and reload or
+restart the plugin if the running OpenClaw process does not pick up the change.
 
 ## Development
 

@@ -14,44 +14,51 @@ user-managed local runtime state and is not packaged.
 `settings.toml` has these fields:
 
 ```toml
+use_delay_retrieval = true
+use_claim_requests = false
+use_ticket_purchase = false
+
 ID_USR = "01"
 ID_CLM = "01"
 ID_BUY = "01"
 ID_PYM = "01"
-ticket_buying_mode = "review"
-path_cred = "assets/private/credentials"
-path_prf = "assets/private/profiles"
+purchase_mode = "review"
+path_usr = "../dbhopper-private/credentials"
+path_clm = "../dbhopper-private/profiles"
+path_buy = "../dbhopper-private/profiles"
+path_pym = "../dbhopper-private/credentials"
 delay_provider = "bahn-web"
 delay_fallback = "none"
 ```
 
-- `ID_USR` selects one user credential file from `path_cred`.
-- `ID_CLM` selects one claim profile file from `path_prf`.
-- `ID_BUY` selects one buying profile file from `path_prf`.
-- `ID_PYM` selects one payment profile file from `path_cred`.
-- `ticket_buying_mode` controls the final DB Check-page gate. `"review"` is the
-  default and saves a sensitive screenshot artifact for user inspection.
-  `"auto"` requests automatic buying, but buying is not enabled yet, so the
-  run still aborts before any final order button.
-- `path_cred` points to the directory containing user credential and payment
-  profile TOML files.
-- `path_prf` points to the directory containing claim and buying profile TOML
-  files.
+- `use_delay_retrieval` controls delay-query tools.
+- `use_claim_requests` controls claim-preparation and filing tools.
+- `use_ticket_purchase` controls ticket-purchase dry-run tools.
+- `ID_USR` selects one user credential file from `path_usr`.
+- `ID_CLM` selects one claim profile file from `path_clm`.
+- `ID_BUY` selects one buying profile file from `path_buy`.
+- `ID_PYM` selects one payment profile file from `path_pym`.
+- `purchase_mode` controls the final DB Check-page gate. `"review"` is the
+  default and saves a sensitive screenshot artifact under
+  `assets/private/purchases/` for user inspection. `"auto"` requests automatic
+  buying, but buying is not enabled yet, so the run still aborts before any
+  final order button with `auto_unavailable`.
+- `path_usr`, `path_clm`, `path_buy`, and `path_pym` point to external
+  directories to scan for files with the matching `ID_*` field.
 - `delay_provider` selects the default delay data source for omitted provider
   tool calls.
 - `delay_fallback` controls fallback behavior; `"none"` disables automatic
   fallback.
 
 Paths may be relative to the plugin directory or absolute within the user file
-system. The user owns path values and file contents. OpenClaw agents should
-only change `ID_USR`, `ID_CLM`, `ID_BUY`, `ID_PYM`, and
-`ticket_buying_mode`; they must not change path fields or read private values
-into the conversation.
+system, but every resolved `path_*` directory must be outside the plugin
+workspace/package root. The plugin process may read those directories. Coding
+agents and workspace read/write tools should be denied access to them.
 
-Use either the default private paths or user-chosen private paths inside this
-single settings TOML file; private paths may be relative to the plugin
-directory or absolute within the user file system, while the settings file
-itself always remains at `assets/private/settings.toml`.
+OpenClaw agents should only change `ID_USR`, `ID_CLM`, `ID_BUY`, `ID_PYM`, and
+`purchase_mode`; they must not change path fields or read private values into
+the conversation. The settings file itself always remains at
+`assets/private/settings.toml`.
 
 ## File IDs
 
@@ -136,13 +143,11 @@ visible selectable offer for the configured class.
 
 Supported travel class names are `second` and `first`.
 
-Supported `booking_for` names are `self` and `other`. The `other` value is
-reserved for a later passenger-details profile; current automation supports
-`self`.
+Supported `booking_for` name: `self`.
 
 ## Payment Profile Fields
 
-Payment profiles live under `path_cred` and are selected by `ID_PYM`.
+Payment profiles live under `path_pym` and are selected by `ID_PYM`.
 
 Current top-level fields:
 
@@ -190,12 +195,12 @@ missing.
 Example private files:
 
 ```text
-assets/private/credentials/credentials-01.toml
-assets/private/credentials/credentials-02.toml
-assets/private/credentials/payment-profile-01.toml
-assets/private/profiles/private-profile-01.toml
-assets/private/profiles/private-profile-03.toml
-assets/private/profiles/buying-profile-01.toml
+../dbhopper-private/credentials/credentials-01.toml
+../dbhopper-private/credentials/credentials-02.toml
+../dbhopper-private/credentials/payment-profile-01.toml
+../dbhopper-private/profiles/private-profile-01.toml
+../dbhopper-private/profiles/private-profile-03.toml
+../dbhopper-private/profiles/buying-profile-01.toml
 ```
 
 Safe public credential/profile templates live under `docs/examples/`. Create
@@ -203,7 +208,7 @@ the private directories, then copy those files before adding real account,
 claimant, or bank values.
 
 ```bash
-mkdir -p assets/private/credentials assets/private/profiles
+mkdir -p ../dbhopper-private/credentials ../dbhopper-private/profiles
 ```
 
 ## Tools
@@ -213,5 +218,5 @@ claim, buying, and payment IDs. It returns an error when the selected ID does
 not exist.
 
 Use `dbhopper_private_settings_select` to update `ID_USR`, `ID_CLM`, `ID_BUY`,
-`ID_PYM`, and/or `ticket_buying_mode`. That tool does not accept path fields,
+`ID_PYM`, and/or `purchase_mode`. That tool does not accept path fields,
 so an agent cannot change the directories where private files are stored.

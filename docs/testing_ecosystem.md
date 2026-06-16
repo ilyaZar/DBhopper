@@ -26,20 +26,24 @@ file list.
 Use `dbhopper_private_settings_status` to check the selected credential and
 profile IDs from `assets/private/settings.toml`. The status check must flag:
 
-- `path_cred` or `path_prf` values that are unreadable.
-- `path_cred` or `path_prf` values that point to a file instead of a
-  directory.
+- `path_usr`, `path_clm`, `path_buy`, or `path_pym` values that are unreadable.
+- `path_usr`, `path_clm`, `path_buy`, or `path_pym` values that point to a
+  file instead of a directory.
+- `path_usr`, `path_clm`, `path_buy`, or `path_pym` values that resolve inside
+  the plugin workspace/package root.
 - missing selected `ID_USR`, `ID_CLM`, `ID_BUY`, or `ID_PYM` values.
 
-Use `dbhopper_credentials_validate` to validate user credential and payment
-profile TOML files without returning secrets. It checks TOML syntax, known
-fields, required `ID_USR`/`ID_PYM`, and the credential directory selected by
-`path_cred`.
+Use `dbhopper_credentials_validate` to validate user credential TOML files
+without returning secrets. It checks TOML syntax, known fields, required
+`ID_USR`, and the credential directory selected by `path_usr`.
 
 Credential tools return presence flags such as `hasBahnAPICredentials`,
 `hasBahnAccountCredentials`, `hasBahnAccountAPICredentials`, and
 `hasBrowserUserDataDir`. They must not return usernames, passwords, API keys,
-cookies, browser storage, or full credential file contents.
+credential lengths, cookies, browser storage, or full credential file contents.
+The plugin process may read external private directories selected in
+`assets/private/settings.toml`; coding agents and workspace read/write tools
+should be denied access to those external directories.
 
 ## Browser Profiles
 
@@ -64,6 +68,8 @@ purpose of the check is to prove the selected username/password pair.
 
 The shared DB login helper is responsible for deterministic credential proof.
 It must submit the selected username and password unless DB blocks that path.
+The helper must keep raw values inside the plugin/browser automation process:
+tool results expose only submission booleans and rejection categories.
 An existing saved session is reported as inconclusive proof:
 
 ```text
@@ -168,14 +174,17 @@ Safety rules:
 - Do not store CVC, CVV, CID, PIN, or similar authentication secrets in
   DBhopper files.
 - Do not capture page text after payment-profile fields are filled.
+- Capture per-stage page text and screenshots only when the caller passes
+  `test_drive_purchase: true` for an explicit purchase test drive. Test-drive
+  files under `tmp/` are prefixed with visit numbers such as `01_`.
 - Capture screenshots after payment-profile fields only for the explicit
-  review-mode Check-page artifact. Mark those artifacts sensitive and keep them
-  under ignored runtime artifact paths.
+  review-mode Check-page artifact. Mark those artifacts sensitive and keep the
+  user-facing copy under ignored `assets/private/purchases/`.
 - Treat logged-in DB account identity as fixed. SEPA account-holder name and
   birth date mismatches return sanitized warnings and keep DB's account values;
   IBAN, mandate, and configured address fields remain compare-and-fill fields.
-- After payment `Continue` reaches DB's Check page, use
-  `ticket_buying_mode` from `assets/private/settings.toml`. The default
+- After payment `Continue` reaches DB's Check page, use `purchase_mode` from
+  `assets/private/settings.toml`. The default
   `"review"` mode captures a sensitive screenshot artifact for user inspection
   and stops before any final order button. `"auto"` records that automatic
   buying was requested, but final buying is not implemented yet, so it aborts
@@ -185,7 +194,8 @@ Safety rules:
 `settings.toml` by default. With `open_browser: false`, it returns a
 deterministic plan only. With `open_browser: true`, it opens the official DB
 website, applies the supplied route and outbound date/time, and stops after
-search/results.
+search/results. It writes no page-by-page artifact trail unless
+`test_drive_purchase: true` is set.
 
 When `login_before_search: true`, the dry run logs into the configured
 `[bahn_account]` before searching. `stay_logged_in` defaults to `true`.
@@ -198,9 +208,12 @@ from the selected payment profile, the tool returns a top-level `warnings`
 array so the agent can relay the mismatch without exposing private values.
 When the Check page is reached in review mode, `finalSafetyStop` is
 `check_page_review`, `reviewGate.status` is `awaiting_user_review`, and
-`reviewScreenshot` points to the sensitive local screenshot artifact. In auto
-mode, `reviewGate.status` is `buying_not_enabled`; the plugin does not click
-the final buying button.
+`reviewScreenshot` points to the sensitive local screenshot artifact under
+`assets/private/purchases/`. In auto mode, `reviewGate.status` is
+`auto_unavailable`; the plugin does not click the final buying button. The
+optional `test_drive_purchase: true` flag also records the pre-payment page text
+and screenshots, plus a numbered copy of the review screenshot, in the ignored
+timestamped `tmp/ticket-purchase-test-drive-*` directory.
 
 ## Delay Retrieval Tests
 

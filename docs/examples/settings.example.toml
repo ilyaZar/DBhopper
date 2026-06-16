@@ -1,0 +1,23 @@
+use_delay_retrieval = true
+use_claim_requests = false
+use_ticket_purchase = false
+
+ID_USR = "01"
+ID_CLM = "01"
+ID_BUY = "01"
+ID_PYM = "01"
+
+# external directories scanned for files with matching ID_USR and ID_PYM
+path_usr = "../dbhopper-private/credentials"
+path_pym = "../dbhopper-private/credentials"
+
+# external directories scanned for files with matching ID_CLM and ID_BUY
+path_clm = "../dbhopper-private/profiles"
+path_buy = "../dbhopper-private/profiles"
+
+# provider backend for delay retrieval
+delay_provider = "bahn-web"
+delay_fallback = "none"
+
+# final checkout behavior; only relevant when use_ticket_purchase = true
+purchase_mode = "review"
