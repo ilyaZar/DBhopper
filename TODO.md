@@ -160,9 +160,10 @@ Current storage:
 - There is no settings template file; the live router path is fixed.
 - Public credential template:
   `docs/examples/credentials.example.toml`
-- Real credential files:
-  `assets/private/credentials/*.toml`
-- Real credentials are ignored by git and should stay local.
+- Real credential files live in the external `path_usr` directory selected by
+  `assets/private/settings.toml`.
+- Real credentials should stay outside the plugin workspace and outside coding
+  agent read/write tool access.
 - Credential values are loaded only inside deterministic helper functions.
   Tool results return presence flags, not raw secrets.
 
@@ -171,7 +172,7 @@ Current consumers:
 - `dbhopper_private_settings_status` lists available `ID_USR`, `ID_CLM`,
   `ID_BUY`, and `ID_PYM` values and flags missing selected IDs.
 - `dbhopper_private_settings_select` updates only `ID_USR`, `ID_CLM`,
-  `ID_BUY`, and `ID_PYM`; it does not accept path fields.
+  `ID_BUY`, `ID_PYM`, and `purchase_mode`; it does not accept path fields.
 - `dbhopper_query_db_delay` can load `[bahnAPI]` for DB Timetables credentials.
 - `dbhopper_db_api_credential_probe` can probe `[bahnAPI]` without returning
   secrets.
@@ -192,8 +193,8 @@ Validation:
 - `dbhopper_credentials_validate` checks all local credential TOML files.
 - Unknown fields are rejected to keep output deterministic and avoid LLM
   cleanup.
-- `PATH_CRED` and `PATH_PRF` may point to external directories. Agents should
-  not edit those values.
+- `path_usr`, `path_clm`, `path_buy`, and `path_pym` must point to external
+  directories. Agents should not edit those values.
 
 ## Ticket buying WIP
 

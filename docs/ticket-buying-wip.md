@@ -59,14 +59,16 @@ unless there is a documented and permitted purchasing API.
 ## Testing
 
 Ticket dry-run safety rules and the current testing tool shape are documented
-in `docs/testing_ecosystem.md`.
+in `docs/testing_ecosystem.md`. Per-stage text and screenshots are explicit
+purchase test-drive artifacts, enabled only by `test_drive_purchase: true`; the
+normal review screenshot is stored under `assets/private/purchases/`.
 
 ## Future Work
 
 1. Decide the policy and user-confirmation shape for final purchase-capable
    automation.
 2. Implement final buying only after that policy exists;
-   `ticket_buying_mode = "auto"` currently records intent but still stops
+   `purchase_mode = "auto"` currently records intent but still stops
    before final order controls.
 3. Keep payment profile data private, redacted from tool output, and out of
    browser-run text artifacts after fields are filled.

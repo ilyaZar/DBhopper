@@ -16,9 +16,9 @@ Required claim facts:
 - account owner and IBAN
 
 Sensitive reusable facts such as name, email, address, and bank data should live
-in a local TOML profile under `assets/private/profiles/`. The editable
-`claim.toml` should store only the selected profile name and claim-specific
-journey, ticket, and evidence fields.
+in an external TOML profile selected by `path_clm` and `ID_CLM` from
+`assets/private/settings.toml`. The editable `claim.toml` should store only the
+selected profile name and claim-specific journey, ticket, and evidence fields.
 
 Required evidence:
 

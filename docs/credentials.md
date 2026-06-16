@@ -1,52 +1,55 @@
 # DBhopper Credentials
 
-DBhopper keeps credentials in local TOML files under:
-
-```text
-assets/private/credentials/
-```
-
-or under the directory selected by `path_cred` in:
+DBhopper keeps credentials in local TOML files under the external directory
+selected by `path_usr` in:
 
 ```text
 assets/private/settings.toml
 ```
 
-Credential files are ignored by git and should stay local. Create the private
-credentials directory before copying
-`docs/examples/credentials.example.toml` into it, then set the `ID_USR` value
-that should be selected by settings routing.
+Credential files must stay outside the plugin workspace/package root. The
+plugin process may read them, but coding agents and workspace read/write tools
+should not have access to the external private directory. Create that directory
+before copying `docs/examples/credentials.example.toml` into it, then set the
+`ID_USR` value that should be selected by settings routing.
 
 ## Settings Router
 
 The single settings file is `assets/private/settings.toml`:
 
 ```toml
+use_delay_retrieval = true
+use_claim_requests = false
+use_ticket_purchase = false
+
 ID_USR = "01"
 ID_CLM = "01"
 ID_BUY = "01"
 ID_PYM = "01"
-ticket_buying_mode = "review"
-path_cred = "assets/private/credentials"
-path_prf = "assets/private/profiles"
+purchase_mode = "review"
+path_usr = "../dbhopper-private/credentials"
+path_clm = "../dbhopper-private/profiles"
+path_buy = "../dbhopper-private/profiles"
+path_pym = "../dbhopper-private/credentials"
 delay_provider = "bahn-web"
 delay_fallback = "none"
 ```
 
-`path_cred` and `path_prf` are user-controlled. They may be relative to the
-plugin directory or absolute within the user file system. OpenClaw agents
-should only change `ID_USR`, `ID_CLM`, `ID_BUY`, `ID_PYM`, and
-`ticket_buying_mode` through `dbhopper_private_settings_select`.
+`path_usr`, `path_clm`, `path_buy`, and `path_pym` are user-controlled scan
+directories outside the plugin workspace. They may be relative to the plugin
+directory or absolute within the user file system, but DBhopper rejects paths
+inside the workspace, including `assets/private/`. OpenClaw agents should only
+change `ID_USR`, `ID_CLM`, `ID_BUY`, `ID_PYM`, and `purchase_mode` through
+`dbhopper_private_settings_select`.
 
-`ticket_buying_mode` defaults to `"review"`, which captures a sensitive DB
-Check-page screenshot artifact and stops before final order controls. `"auto"`
-records that automatic buying was requested, but final buying is not enabled
-yet, so checkout still stops before the final order button.
+`purchase_mode` defaults to `"review"`, which captures a sensitive DB
+Check-page screenshot artifact under `assets/private/purchases/` and stops
+before final order controls. `"auto"` records that automatic buying was
+requested, but final buying is not enabled yet, so checkout still stops before
+the final order button.
 
-Use either the default private paths or user-chosen private paths inside this
-single settings TOML file; private paths may be relative to the plugin
-directory or absolute within the user file system, while the settings file
-itself always remains at `assets/private/settings.toml`.
+Use the selected external private paths inside this single settings TOML file.
+The settings file itself always remains at `assets/private/settings.toml`.
 
 `dbhopper_private_settings_status` lists available user credential,
 claim-profile, buying-profile, and payment-profile IDs. It returns an error if
@@ -70,7 +73,7 @@ client_id = "db-api-marketplace-client-id"
 api_key = "db-api-marketplace-api-key"
 
 [browser]
-user_data_dir = "assets/private/browser/db-ticket-buying"
+user_data_dir = "../dbhopper-private/browser/db-ticket-buying"
 ```
 
 Current top-level fields:
@@ -86,7 +89,7 @@ Current credential sections:
 - `[bahn_api].client_id`: DB API Marketplace technical client ID.
 - `[bahn_api].api_key`: DB API Marketplace technical API key.
 - `[browser].user_data_dir`: persistent Chromium profile directory, absolute or
-  relative to the plugin workspace root.
+  relative to the plugin workspace root. Keep it outside the plugin workspace.
 
 All credential sections are optional, but tools that need a section return a
 deterministic configuration error when the selected credential file lacks the
@@ -97,9 +100,9 @@ Store several credentials by giving each private file a different ID, for
 example:
 
 ```text
-assets/private/credentials/credentials-01.toml
-assets/private/credentials/credentials-02.toml
-assets/private/credentials/credentials-03.toml
+../dbhopper-private/credentials/credentials-01.toml
+../dbhopper-private/credentials/credentials-02.toml
+../dbhopper-private/credentials/credentials-03.toml
 ```
 
 Payment profiles live in the same private credentials directory and are
@@ -128,7 +131,10 @@ ID_USR = "02"
 ```
 
 DBhopper tools return only presence flags such as `hasBahnAPICredentials`. They
-do not return the credential values.
+do not return credential values or credential lengths. Browser credential
+submission uses the selected TOML values inside the plugin process and returns
+only structured proof flags such as `usernameSubmitted`,
+`passwordSubmitted`, and `selectedCredentialsSubmitted`.
 
 ## Current Consumers
 

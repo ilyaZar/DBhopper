@@ -14,13 +14,16 @@ North Rhine-Westphalia.
 
 1. Install and enable the `dbhopper` OpenClaw plugin.
 2. Configure `plugins.entries.dbhopper.config.workspaceRoot`.
-3. Keep real tickets, receipts, screenshots, IBANs, and claim PDFs in the local
-   DBhopper `claims/` or `assets/private/` folders, not in chat.
+3. Keep real tickets, receipts, screenshots, IBANs, and claim PDFs in local
+   DBhopper runtime paths, not in chat.
 4. Route claim profiles, buying profiles, credentials, and payment profiles
-   through `assets/private/settings.toml`. Use
+   through `assets/private/settings.toml`. The selected `path_usr`,
+   `path_clm`, `path_buy`, and `path_pym` directories must be outside the
+   plugin workspace, and coding agents should not have read/write tool access
+   to those external directories. Use
    `dbhopper_private_settings_status` to list IDs and
    `dbhopper_private_settings_select` to change only `ID_USR`, `ID_CLM`,
-   `ID_BUY`, `ID_PYM`, and `ticket_buying_mode`.
+   `ID_BUY`, `ID_PYM`, and `purchase_mode`.
 5. Put reusable sensitive personal data in claim profile TOML files selected by
    `ID_CLM`; do not read those files into the conversation.
 6. Put DB API and DB website credentials in private credential TOML files
@@ -57,8 +60,12 @@ North Rhine-Westphalia.
    `dbhopper_ticket_buying_dry_run` for search/results only or
    `dbhopper_ticket_checkout_dry_run` to explore checkout boundaries. These
    tools must not buy a ticket. In default review mode, checkout runs stop on
-   DB's Check page and return a sensitive screenshot artifact for user review.
-   If `ticket_buying_mode` is `auto`, expect `buying_not_enabled` until final
+   DB's Check page and return a sensitive screenshot artifact under
+   `assets/private/purchases/` for user review. Pass
+   `test_drive_purchase: true` only when the user explicitly asks for the
+   numbered per-stage purchase test-drive text and screenshot trail under
+   ignored `tmp/`.
+   If `purchase_mode` is `auto`, expect `auto_unavailable` until final
    purchase-capable automation is deliberately implemented.
 
 ## Guardrails
@@ -77,7 +84,8 @@ North Rhine-Westphalia.
 - Do not inspect credential or payment TOML files unless the user explicitly
   asks. Use `dbhopper_credentials_validate` for shape checks without exposing
   secrets.
-- Do not change `path_cred` or `path_prf`; those paths are user-owned settings.
+- Do not change `path_usr`, `path_clm`, `path_buy`, or `path_pym`; those paths
+  are user-owned settings.
 - If the live site asks for unexpected manual confirmation, captcha, changed
   fields, or unavailable route choices, stop and report the saved artifact path.
 - Do not click final booking or payment controls in the ticket-buying flow.
