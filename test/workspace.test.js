@@ -13,6 +13,7 @@ import {
 } from "../dist/workspace.js";
 import { parseClaimToml, parsePrivateProfileToml } from "../dist/claim-toml.js";
 import {
+  defaultExternalPrivateRoot,
   writePrivateProfileFixture,
   writePrivateSettingsFixture,
 } from "./helpers/private-settings.js";
@@ -63,7 +64,7 @@ describe("dbhopper workspace", () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-profile-"));
     await writePrivateSettingsFixture(root);
     await writePrivateProfileFixture(
-      path.join(root, "assets", "private", "profiles"),
+      path.join(defaultExternalPrivateRoot(root), "profiles"),
       "01",
       "private-profile-01.toml",
       "Maria",
@@ -189,9 +190,11 @@ describe("dbhopper workspace", () => {
 
   it("flags wrong profile TOML value types in workspace validation", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-profile-invalid-"));
-    await fs.mkdir(path.join(root, "assets", "private", "profiles"), { recursive: true });
+    await writePrivateSettingsFixture(root);
+    const profilesDir = path.join(defaultExternalPrivateRoot(root), "profiles");
+    await fs.mkdir(profilesDir, { recursive: true });
     await fs.writeFile(
-      path.join(root, "assets", "private", "profiles", "broken.toml"),
+      path.join(profilesDir, "broken.toml"),
       [
         'ID_CLM = "01"',
         "",
@@ -230,7 +233,7 @@ describe("dbhopper workspace", () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-recipe-"));
     await writePrivateSettingsFixture(root);
     await writePrivateProfileFixture(
-      path.join(root, "assets", "private", "profiles"),
+      path.join(defaultExternalPrivateRoot(root), "profiles"),
       "01",
       "private-profile-01.toml",
       "Maria",

@@ -10,6 +10,7 @@ import {
 import type { DBhopperClaim, DBhopperConfig } from "./types.js";
 import { errorMessage } from "./errors.js";
 import { resolveClaimFilePath } from "./workspace.js";
+import { fillSensitiveTextControl } from "./sensitive-input.js";
 
 export interface BrowserRunParams {
   claim: DBhopperClaim;
@@ -348,7 +349,7 @@ async function fill(page: Page, selector: string, value?: string | number) {
   if (value === undefined || value === null || value === "") {
     return;
   }
-  await (await visibleOrFirst(page, selector)).fill(String(value));
+  await fillSensitiveTextControl(await visibleOrFirst(page, selector), String(value));
 }
 
 async function clickText(page: Page, text: RegExp) {

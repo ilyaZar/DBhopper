@@ -3,10 +3,11 @@ import path from "node:path";
 
 import type { DBhopperConfig, ValidationMessage } from "./types.js";
 import {
+  privateDirectoryLocationError,
   readPrivateSettings,
   resolveSelectedCredentialFile,
 } from "./private-settings.js";
-import { parsePaymentProfileToml } from "./payment-profile.js";
+import { readSelectedPrivateToml } from "./private-profile-loader.js";
 import {
   assertKnownKeys,
   assertNumericIdString,
@@ -17,7 +18,6 @@ import {
 import {
   normalizeTomlKeys,
   parseToml,
-  tryParseToml,
   type TomlKeyMapByPath,
 } from "./toml.js";
 import {
@@ -52,7 +52,6 @@ export interface LoadedCredentialsProfile {
   credentials: DBhopperCredentials;
 }
 
-const CREDENTIALS_DIR = path.join("assets", "private", "credentials");
 const CREDENTIALS_TOML_ALIASES: TomlKeyMapByPath = {
   "": {
     bahn_api: "bahnAPI",
@@ -67,38 +66,43 @@ const CREDENTIALS_TOML_ALIASES: TomlKeyMapByPath = {
     user_data_dir: "userDataDir",
   },
 };
-const PAYMENT_PROFILE_ID_ALIASES: TomlKeyMapByPath = {};
-
-export function credentialsDir(config: DBhopperConfig = {}) {
-  return path.join(resolveWorkspace(config).root, CREDENTIALS_DIR);
-}
 
 export async function readSelectedCredentialsProfile(config: DBhopperConfig = {}) {
-  const resolved = await resolveSelectedCredentialFile(config);
-  if (!resolved) {
+  const selected = await readSelectedPrivateToml(
+    config,
+    resolveSelectedCredentialFile,
+    parseCredentialsToml,
+  );
+  if (!selected) {
     return undefined;
   }
-  const raw = await fs.readFile(resolved.file.filePath, "utf8");
-  const credentials = parseCredentialsToml(raw, resolved.file.filePath);
   return {
-    credentialsName: resolved.file.fileName,
-    credentialsPath: resolved.file.filePath,
-    credentialsId: resolved.file.id,
-    credentials,
+    credentialsName: selected.file.fileName,
+    credentialsPath: selected.file.filePath,
+    credentialsId: selected.file.id,
+    credentials: selected.parsed,
   };
 }
 
 export async function validateCredentialsFiles(config: DBhopperConfig = {}) {
   const settings = await readPrivateSettings(config);
-  if (!settings.exists) {
-    await fs.mkdir(credentialsDir(config), { recursive: true });
-  }
-  const dir = settings.credentialsDir;
+  const dir = settings.userCredentialsDir;
   const messages: ValidationMessage[] = [];
+  const locationError = await privateDirectoryLocationError(
+    dir,
+    "ID_USR",
+    resolveWorkspace(config).root,
+  );
+  if (locationError) {
+    return {
+      ok: false,
+      messages: [locationError],
+    };
+  }
   const stat = await fs.stat(dir).catch((error: NodeJS.ErrnoException) => {
     messages.push(validationError(
       "invalid_credentials_directory",
-      `PATH_CRED ${dir} is not readable: ${error.code ?? error.message}`,
+      `path_usr ${dir} is not readable: ${error.code ?? error.message}`,
     ));
     return undefined;
   });
@@ -112,7 +116,7 @@ export async function validateCredentialsFiles(config: DBhopperConfig = {}) {
   if (!stat.isDirectory()) {
     messages.push(validationError(
       "invalid_credentials_directory",
-      `PATH_CRED ${dir} must point to a directory`,
+      `path_usr ${dir} must point to a directory`,
     ));
     return {
       ok: false,
@@ -129,11 +133,10 @@ export async function validateCredentialsFiles(config: DBhopperConfig = {}) {
     const filePath = path.join(dir, entry.name);
     try {
       const raw = await fs.readFile(filePath, "utf8");
-      if (isPaymentProfileToml(raw)) {
-        parsePaymentProfileToml(raw, filePath);
-      } else {
-        parseCredentialsToml(raw, filePath);
+      if (!isCredentialToml(raw)) {
+        continue;
       }
+      parseCredentialsToml(raw, filePath);
     } catch (error) {
       messages.push(validationErrorFromException("invalid_credentials_toml", error));
     }
@@ -145,19 +148,13 @@ export async function validateCredentialsFiles(config: DBhopperConfig = {}) {
   };
 }
 
-function isPaymentProfileToml(text: string) {
-  const parsedValue = tryParseToml(text);
-  const parsed = normalizeTomlKeys(
-    parsedValue,
-    "credentials.toml",
-    PAYMENT_PROFILE_ID_ALIASES,
-    true,
-  );
+function isCredentialToml(text: string) {
+  const parsed = parseToml(text, "credentials.toml");
   return Boolean(
     parsed &&
       typeof parsed === "object" &&
       !Array.isArray(parsed) &&
-      "ID_PYM" in parsed,
+      "ID_USR" in parsed,
   );
 }
 

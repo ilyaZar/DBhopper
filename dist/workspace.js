@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertClaimTomlShape, mergeClaims, parseClaimToml, parsePrivateProfileToml, profileFieldsInClaim, schemaValidationMessages, stringifyClaimToml, stringifySubmittedRecipeToml, } from "./claim-toml.js";
-import { configuredProfilesDir, listBuyingProfileIdFiles, listClaimProfileIdFiles, listPaymentProfileIdFiles, privateSettingsStatus, resolveSelectedClaimProfileFile, } from "./private-settings.js";
+import { configuredClaimProfilesDir, listBuyingProfileIdFiles, listClaimProfileIdFiles, listPaymentProfileIdFiles, privateSettingsStatus, resolveSelectedClaimProfileFile, } from "./private-settings.js";
 import { parseBuyingProfileToml, schemaValidationMessagesForBuyingProfile, } from "./buying-profile.js";
 import { parsePaymentProfileToml, schemaValidationMessagesForPaymentProfile, } from "./payment-profile.js";
 import { validationErrorFromException } from "./validation-messages.js";
@@ -21,7 +21,7 @@ export async function ensureWorkspace(config = {}) {
     const workspace = resolveWorkspace(config);
     await fs.mkdir(workspace.claimsDir, { recursive: true });
     await fs.mkdir(workspace.assetsDir, { recursive: true });
-    await fs.mkdir(await configuredProfilesDir(config), { recursive: true });
+    await fs.mkdir(await configuredClaimProfilesDir(config), { recursive: true });
     return workspace;
 }
 export function normalizeClaimId(value) {
@@ -120,7 +120,7 @@ export async function prepareClaim(params, config = {}) {
     if (privateFields.length > 0) {
         throw new Error([
             `claim data must not include private fields: ${privateFields.join(", ")}`,
-            "store claimant and bank data in assets/private/profiles/*.toml",
+            "store claimant and bank data in the external path_clm profile directory",
         ].join("; "));
     }
     const profileSelection = await resolveProfileSelection(config);
@@ -298,7 +298,7 @@ async function resolveProfileSelection(config) {
         profileFile: selected.file.fileName,
         profileId: selected.file.id,
         profilePath: selected.file.filePath,
-        profileDir: selected.settings.profilesDir,
+        profileDir: selected.settings.claimProfilesDir,
     };
 }
 async function readPrivateProfile(selection) {

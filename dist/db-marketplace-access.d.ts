@@ -69,13 +69,6 @@ export declare function runDbMarketplaceAccessCheck(params: DbMarketplaceAccessC
         schemaSufficientForBrowserLogin: boolean;
         browserLoginCredentialSource: string;
         schemaRecommendation: string | undefined;
-        credentialsForSubmission: {
-            username: string | undefined;
-            password: string | undefined;
-        } | {
-            username?: undefined;
-            password?: undefined;
-        };
     };
     credentialSubmission: {
         selectedCredentialsSubmitted: boolean;

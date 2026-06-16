@@ -32,9 +32,11 @@ describe("dbhopper access diagnostics", () => {
         step.includes("Timetables product"),
       ),
     );
-    assert.equal(result.credentialSignals.clientIdLength, "client-secret-value".length);
     assert.equal(result.browserLoginDoesNotProveApiKeyValidity, true);
-    assert.doesNotMatch(JSON.stringify(result), /client-secret-value|api-secret-value/);
+    assert.doesNotMatch(
+      JSON.stringify(result),
+      /client-secret-value|api-secret-value|clientIdLength|apiKeyLength/,
+    );
   });
 });
 

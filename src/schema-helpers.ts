@@ -16,6 +16,15 @@ export function assertString(
   }
 }
 
+export function assertBoolean(
+  value: unknown,
+  source: string,
+): asserts value is boolean {
+  if (typeof value !== "boolean") {
+    throw new Error(`${source} must be true or false`);
+  }
+}
+
 export function assertNumericId(value: string, source: string) {
   if (!/^\d{2,}$/.test(value)) {
     throw new Error(`${source} must be a quoted numeric ID like "01"`);

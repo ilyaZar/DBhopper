@@ -144,8 +144,8 @@ function featureDisabledResult(toolName, setting, settings) {
         needs_configuration: true,
         settings: featureSettingsSummary(settings),
         message: [
-            `${featureSettingLabel(setting)} is disabled in settings.yaml.`,
-            `Set ${setting}: true to enable ${toolName}.`,
+            `${featureSettingLabel(setting)} is disabled in assets/private/settings.toml.`,
+            `Set ${setting} = true to enable ${toolName}.`,
         ].join(" "),
     };
 }

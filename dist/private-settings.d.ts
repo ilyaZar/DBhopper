@@ -1,15 +1,20 @@
 import type { DBhopperConfig, ValidationMessage } from "./types.js";
 import { type DBhopperDelayFallbackSetting, type DBhopperDelayProviderSetting } from "./delay-provider-options.js";
-export type DBhopperTicketBuyingMode = "review" | "auto";
+export type DBhopperPurchaseMode = "review" | "auto";
 export type { DBhopperDelayFallbackSetting, DBhopperDelayProviderSetting, } from "./delay-provider-options.js";
 export interface DBhopperPrivateSettings {
+    USE_DELAY_RETRIEVAL: boolean;
+    USE_CLAIM_REQUESTS: boolean;
+    USE_TICKET_PURCHASE: boolean;
     ID_USR: string;
     ID_CLM: string;
     ID_BUY: string;
     ID_PYM: string;
-    TICKET_BUYING_MODE: DBhopperTicketBuyingMode;
-    PATH_CRED: string;
-    PATH_PRF: string;
+    PURCHASE_MODE: DBhopperPurchaseMode;
+    PATH_USR: string;
+    PATH_CLM: string;
+    PATH_BUY: string;
+    PATH_PYM: string;
     DELAY_PROVIDER: DBhopperDelayProviderSetting;
     DELAY_FALLBACK: DBhopperDelayFallbackSetting;
 }
@@ -17,8 +22,10 @@ export interface LoadedPrivateSettings {
     exists: boolean;
     settingsPath: string;
     settings: DBhopperPrivateSettings;
-    credentialsDir: string;
-    profilesDir: string;
+    userCredentialsDir: string;
+    claimProfilesDir: string;
+    buyingProfilesDir: string;
+    paymentProfilesDir: string;
 }
 export interface PrivateIdFile {
     id: string;
@@ -71,24 +78,33 @@ export declare function resolveSelectedBuyingProfileFile(config?: DBhopperConfig
     settings: LoadedPrivateSettings;
     file: PrivateIdFile;
 } | undefined>;
-export declare function configuredCredentialsDir(config?: DBhopperConfig): Promise<string>;
-export declare function configuredProfilesDir(config?: DBhopperConfig): Promise<string>;
+export declare function configuredUserCredentialsDir(config?: DBhopperConfig): Promise<string>;
+export declare function configuredClaimProfilesDir(config?: DBhopperConfig): Promise<string>;
+export declare function configuredBuyingProfilesDir(config?: DBhopperConfig): Promise<string>;
+export declare function configuredPaymentProfilesDir(config?: DBhopperConfig): Promise<string>;
 export declare function privateSettingsStatus(config?: DBhopperConfig): Promise<{
     ok: boolean;
     settings: {
         exists: boolean;
         settingsPath: string;
+        USE_DELAY_RETRIEVAL: boolean;
+        USE_CLAIM_REQUESTS: boolean;
+        USE_TICKET_PURCHASE: boolean;
         ID_USR: string;
         ID_CLM: string;
         ID_BUY: string;
         ID_PYM: string;
-        TICKET_BUYING_MODE: DBhopperTicketBuyingMode;
-        PATH_CRED: string;
-        PATH_PRF: string;
+        PURCHASE_MODE: DBhopperPurchaseMode;
+        PATH_USR: string;
+        PATH_CLM: string;
+        PATH_BUY: string;
+        PATH_PYM: string;
         DELAY_PROVIDER: "auto" | "db-timetables" | "bahn-web";
         DELAY_FALLBACK: "db-timetables" | "bahn-web" | "none";
-        credentialsDir: string;
-        profilesDir: string;
+        userCredentialsDir: string;
+        claimProfilesDir: string;
+        buyingProfilesDir: string;
+        paymentProfilesDir: string;
     };
     credentials: {
         currentId: string;
@@ -122,23 +138,30 @@ export declare function writePrivateSettingsIds(updates: {
     claimProfileId?: string;
     buyingProfileId?: string;
     paymentProfileId?: string;
-    ticketBuyingMode?: DBhopperTicketBuyingMode;
+    purchaseMode?: DBhopperPurchaseMode;
 }, config?: DBhopperConfig): Promise<{
     ok: boolean;
     settings: {
         exists: boolean;
         settingsPath: string;
+        USE_DELAY_RETRIEVAL: boolean;
+        USE_CLAIM_REQUESTS: boolean;
+        USE_TICKET_PURCHASE: boolean;
         ID_USR: string;
         ID_CLM: string;
         ID_BUY: string;
         ID_PYM: string;
-        TICKET_BUYING_MODE: DBhopperTicketBuyingMode;
-        PATH_CRED: string;
-        PATH_PRF: string;
+        PURCHASE_MODE: DBhopperPurchaseMode;
+        PATH_USR: string;
+        PATH_CLM: string;
+        PATH_BUY: string;
+        PATH_PYM: string;
         DELAY_PROVIDER: "auto" | "db-timetables" | "bahn-web";
         DELAY_FALLBACK: "db-timetables" | "bahn-web" | "none";
-        credentialsDir: string;
-        profilesDir: string;
+        userCredentialsDir: string;
+        claimProfilesDir: string;
+        buyingProfilesDir: string;
+        paymentProfilesDir: string;
     };
     credentials: {
         currentId: string;
@@ -167,3 +190,4 @@ export declare function writePrivateSettingsIds(updates: {
     messages: ValidationMessage[];
 }>;
 export declare function normalizePrivateId(value: string, field: PrivateIdField): string;
+export declare function privateDirectoryLocationError(dir: string, idField: PrivateIdField, root: string): Promise<ValidationMessage | undefined>;

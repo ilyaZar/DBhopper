@@ -23,7 +23,6 @@ export interface LoadedCredentialsProfile {
     credentialsId?: string;
     credentials: DBhopperCredentials;
 }
-export declare function credentialsDir(config?: DBhopperConfig): string;
 export declare function readSelectedCredentialsProfile(config?: DBhopperConfig): Promise<{
     credentialsName: string;
     credentialsPath: string;

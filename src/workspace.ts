@@ -14,7 +14,7 @@ import {
   stringifySubmittedRecipeToml,
 } from "./claim-toml.js";
 import {
-  configuredProfilesDir,
+  configuredClaimProfilesDir,
   listBuyingProfileIdFiles,
   listClaimProfileIdFiles,
   listPaymentProfileIdFiles,
@@ -71,7 +71,7 @@ export async function ensureWorkspace(config: DBhopperConfig = {}): Promise<Work
   const workspace = resolveWorkspace(config);
   await fs.mkdir(workspace.claimsDir, { recursive: true });
   await fs.mkdir(workspace.assetsDir, { recursive: true });
-  await fs.mkdir(await configuredProfilesDir(config), { recursive: true });
+  await fs.mkdir(await configuredClaimProfilesDir(config), { recursive: true });
   return workspace;
 }
 
@@ -189,7 +189,7 @@ export async function prepareClaim(
     throw new Error(
       [
         `claim data must not include private fields: ${privateFields.join(", ")}`,
-        "store claimant and bank data in assets/private/profiles/*.toml",
+        "store claimant and bank data in the external path_clm profile directory",
       ].join("; "),
     );
   }
@@ -429,7 +429,7 @@ async function resolveProfileSelection(config: DBhopperConfig): Promise<ProfileS
     profileFile: selected.file.fileName,
     profileId: selected.file.id,
     profilePath: selected.file.filePath,
-    profileDir: selected.settings.profilesDir,
+    profileDir: selected.settings.claimProfilesDir,
   };
 }
 

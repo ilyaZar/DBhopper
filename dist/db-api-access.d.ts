@@ -31,8 +31,6 @@ export declare function runDbApiCredentialProbe(params: DbApiCredentialProbePara
     credentialSignals: {
         hasClientId: boolean;
         hasApiKey: boolean;
-        clientIdLength: number;
-        apiKeyLength: number;
     };
     configStatus: {
         configured: boolean;
@@ -70,8 +68,6 @@ export declare function runDbApiCredentialProbe(params: DbApiCredentialProbePara
     credentialSignals: {
         hasClientId: boolean;
         hasApiKey: boolean;
-        clientIdLength: number;
-        apiKeyLength: number;
     };
     configStatus: {
         configured: boolean;
@@ -123,8 +119,6 @@ export declare function runDbApiCredentialProbe(params: DbApiCredentialProbePara
     credentialSignals: {
         hasClientId: boolean;
         hasApiKey: boolean;
-        clientIdLength: number;
-        apiKeyLength: number;
     };
     configStatus: {
         configured: boolean;
@@ -142,6 +136,4 @@ export declare function runDbApiCredentialProbe(params: DbApiCredentialProbePara
 export declare function bahnAPICredentialSignals(config: DBhopperConfig): {
     hasClientId: boolean;
     hasApiKey: boolean;
-    clientIdLength: number;
-    apiKeyLength: number;
 };

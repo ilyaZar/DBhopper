@@ -22,13 +22,13 @@ describe("dbhopper artifacts", () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-artifacts-"));
     const artifactDir = await createTimestampedArtifactDir(
       root,
-      "ticket-buying-dry-run",
+      "ticket-purchase-test-drive",
       new Date("2026-06-15T12:34:56.789Z"),
     );
 
     assert.equal(
       path.basename(artifactDir),
-      "ticket-buying-dry-run-2026-06-15T12-34-56-789Z",
+      "ticket-purchase-test-drive-2026-06-15T12-34-56-789Z",
     );
     assert.equal(await exists(artifactDir), true);
   });

@@ -3,7 +3,7 @@ import { Type } from "typebox";
 import {
   validateCredentialsFiles,
 } from "./credentials.js";
-import { configuredCredentialsDir } from "./private-settings.js";
+import { configuredUserCredentialsDir } from "./private-settings.js";
 import { CREDENTIALS_VALIDATE_TOOL_NAME } from "./tool-contracts.js";
 import type { DBhopperConfig } from "./types.js";
 
@@ -21,7 +21,7 @@ export function createCredentialsToolDefinitions(tool: any) {
         return {
           ok: result.ok,
           operation: "credentials_validate",
-          credentialsDir: await configuredCredentialsDir(config),
+          userCredentialsDir: await configuredUserCredentialsDir(config),
           messages: result.messages,
         };
       },

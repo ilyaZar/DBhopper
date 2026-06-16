@@ -1,6 +1,6 @@
 import type { Page } from "playwright-core";
 import { type BuyingFarePreference } from "./buying-profile.js";
-import { type DBhopperTicketBuyingMode } from "./private-settings.js";
+import { type DBhopperPurchaseMode } from "./private-settings.js";
 import type { DBhopperBookingFor, DBhopperConfig, DBhopperFareProduct, DBhopperPaymentProfile } from "./types.js";
 export interface TicketBuyingDryRunParams {
     departure_station: string;
@@ -14,6 +14,7 @@ export interface TicketBuyingDryRunParams {
     headless?: boolean;
     include_controls?: boolean;
     review_pause_ms?: number;
+    test_drive_purchase?: boolean;
 }
 export interface TicketCheckoutDryRunParams {
     departure_station?: string;
@@ -28,6 +29,7 @@ export interface TicketCheckoutDryRunParams {
     include_controls?: boolean;
     review_pause_ms?: number;
     continue_after_payment_profile?: boolean;
+    test_drive_purchase?: boolean;
 }
 export declare const TICKET_BUYING_RESEARCH_SUMMARY: {
     status: string;
@@ -88,8 +90,9 @@ export declare function runTicketBuyingDryRun(params: TicketBuyingDryRunParams, 
     browserResult: {
         url: string;
         title: string;
-        artifactDir: string;
+        artifactDir: string | undefined;
         artifacts: string[];
+        testDrivePurchase: boolean;
         login: import("./db-login.js").DBAccountLoginResult | {
             requested: boolean;
         };
@@ -171,8 +174,9 @@ export declare function runTicketBuyingDryRun(params: TicketBuyingDryRunParams, 
         maySubmitPayment: boolean;
     };
     browserResult: {
-        artifactDir: string;
+        artifactDir?: string;
         artifacts: string[];
+        testDrivePurchase: boolean;
         url?: undefined;
         title?: undefined;
         login?: undefined;
@@ -289,18 +293,19 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
     needsUserAction: boolean;
     message: string;
     warnings: PaymentFieldWarning[];
-    ticketBuyingMode: DBhopperTicketBuyingMode;
+    purchaseMode: DBhopperPurchaseMode;
     reviewGate: {
         status: string;
-        ticketBuyingMode: DBhopperTicketBuyingMode;
+        purchaseMode: DBhopperPurchaseMode;
         stage: string;
         finalSafetyStop: string;
         needsUserAction: boolean;
         message: string;
         reviewScreenshot: undefined;
+        confirmationRequest?: undefined;
     } | {
         status: string;
-        ticketBuyingMode: "review";
+        purchaseMode: "review";
         stage: string;
         finalSafetyStop: string;
         needsUserAction: boolean;
@@ -311,6 +316,12 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
             mimeType: string;
             sensitive: boolean;
             purpose: string;
+        };
+        confirmationRequest: {
+            required: boolean;
+            channel: string;
+            screenshotPath: string;
+            message: string;
         };
     };
     reviewScreenshot: {
@@ -412,10 +423,10 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
             travelClass: import("./types.js").DBhopperTravelClass;
             travelClassLabel: string;
             continueToCustomerData: boolean;
-            bookingFor: DBhopperBookingFor;
+            bookingFor: "self";
             continueToPaymentBoundary: boolean;
         };
-        ticketBuyingMode: DBhopperTicketBuyingMode;
+        purchaseMode: DBhopperPurchaseMode;
         finalBuying: {
             requested: boolean;
             enabled: boolean;
@@ -433,8 +444,9 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
     browserResult: {
         url: string;
         title: string;
-        artifactDir: string;
+        artifactDir: string | undefined;
         artifacts: string[];
+        testDrivePurchase: boolean;
         login: import("./db-login.js").DBAccountLoginResult | {
             requested: boolean;
         };
@@ -458,15 +470,16 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
             message: string;
             reviewGate: {
                 status: string;
-                ticketBuyingMode: DBhopperTicketBuyingMode;
+                purchaseMode: DBhopperPurchaseMode;
                 stage: string;
                 finalSafetyStop: string;
                 needsUserAction: boolean;
                 message: string;
                 reviewScreenshot: undefined;
+                confirmationRequest?: undefined;
             } | {
                 status: string;
-                ticketBuyingMode: "review";
+                purchaseMode: "review";
                 stage: string;
                 finalSafetyStop: string;
                 needsUserAction: boolean;
@@ -477,6 +490,12 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
                     mimeType: string;
                     sensitive: boolean;
                     purpose: string;
+                };
+                confirmationRequest: {
+                    required: boolean;
+                    channel: string;
+                    screenshotPath: string;
+                    message: string;
                 };
             };
             steps: ({
@@ -653,10 +672,10 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
             travelClass: import("./types.js").DBhopperTravelClass;
             travelClassLabel: string;
             continueToCustomerData: boolean;
-            bookingFor: DBhopperBookingFor;
+            bookingFor: "self";
             continueToPaymentBoundary: boolean;
         };
-        ticketBuyingMode: DBhopperTicketBuyingMode;
+        purchaseMode: DBhopperPurchaseMode;
         finalBuying: {
             requested: boolean;
             enabled: boolean;
@@ -672,8 +691,9 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
         plannedStages: string[];
     };
     browserResult: {
-        artifactDir: string;
+        artifactDir?: string;
         artifacts: string[];
+        testDrivePurchase: boolean;
         url?: undefined;
         title?: undefined;
         login?: undefined;
@@ -693,7 +713,7 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
         }[];
     };
     warnings?: undefined;
-    ticketBuyingMode?: undefined;
+    purchaseMode?: undefined;
     reviewGate?: undefined;
     reviewScreenshot?: undefined;
 } | {
@@ -771,7 +791,7 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
         hasCardExpiry: boolean;
         hasCvc: boolean;
     };
-    ticketBuyingMode: DBhopperTicketBuyingMode;
+    purchaseMode: DBhopperPurchaseMode;
     plan: {
         startUrl: string;
         target: {
@@ -797,10 +817,10 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
             travelClass: import("./types.js").DBhopperTravelClass;
             travelClassLabel: string;
             continueToCustomerData: boolean;
-            bookingFor: DBhopperBookingFor;
+            bookingFor: "self";
             continueToPaymentBoundary: boolean;
         };
-        ticketBuyingMode: DBhopperTicketBuyingMode;
+        purchaseMode: DBhopperPurchaseMode;
         finalBuying: {
             requested: boolean;
             enabled: boolean;
@@ -901,7 +921,7 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
         hasCardExpiry: boolean;
         hasCvc: boolean;
     };
-    ticketBuyingMode: DBhopperTicketBuyingMode;
+    purchaseMode: DBhopperPurchaseMode;
     research: {
         status: string;
         safety: string;
@@ -934,7 +954,7 @@ export declare function ticketBuyingPlan(params: TicketBuyingDryRunParams, userD
     currentStop: string;
     maySubmitPayment: boolean;
 };
-export declare function ticketCheckoutPlan(params: TicketCheckoutDryRunParams, userDataDir?: string, now?: Date, farePreference?: BuyingFarePreference, ticketBuyingMode?: DBhopperTicketBuyingMode): {
+export declare function ticketCheckoutPlan(params: TicketCheckoutDryRunParams, userDataDir?: string, now?: Date, farePreference?: BuyingFarePreference, purchaseMode?: DBhopperPurchaseMode): {
     startUrl: string;
     target: {
         departureStation: string;
@@ -959,10 +979,10 @@ export declare function ticketCheckoutPlan(params: TicketCheckoutDryRunParams, u
         travelClass: import("./types.js").DBhopperTravelClass;
         travelClassLabel: string;
         continueToCustomerData: boolean;
-        bookingFor: DBhopperBookingFor;
+        bookingFor: "self";
         continueToPaymentBoundary: boolean;
     };
-    ticketBuyingMode: DBhopperTicketBuyingMode;
+    purchaseMode: DBhopperPurchaseMode;
     finalBuying: {
         requested: boolean;
         enabled: boolean;

@@ -31,7 +31,7 @@ describe("dbhopper credentials", () => {
         'password = "account-secret-value"',
         "",
         "[browser]",
-        'user_data_dir = "assets/private/browser/db-ticket-buying"',
+        'user_data_dir = "../dbhopper-private/browser/db-ticket-buying"',
         "",
       ],
     });
@@ -90,11 +90,16 @@ describe("dbhopper credentials", () => {
 
   it("rejects unknown fields", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-creds-bad-"));
-    const credentialsDir = path.join(root, "assets", "private", "credentials");
+    const externalRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), "dbhopper-creds-bad-external-"),
+    );
+    const credentialsDir = path.join(externalRoot, "credentials");
+    await writePrivateSettingsFixture(root, { userCredentialsPath: credentialsDir });
     await fs.mkdir(credentialsDir, { recursive: true });
     await fs.writeFile(
       path.join(credentialsDir, "bad.toml"),
       [
+        'ID_USR = "01"',
         "unexpected = true",
         "",
       ].join("\n"),
@@ -110,18 +115,21 @@ describe("dbhopper credentials", () => {
     );
   });
 
-  it("flags PATH_CRED when credentials validation sees a file", async () => {
+  it("flags path_usr when credentials validation sees a file", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-creds-path-"));
-    const credentialsFile = path.join(root, "credentials-as-file.toml");
+    const externalRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), "dbhopper-creds-path-external-"),
+    );
+    const credentialsFile = path.join(externalRoot, "credentials-as-file.toml");
     await fs.writeFile(credentialsFile, 'ID_USR = "01"\n', "utf8");
-    await writePrivateSettingsFixture(root, { credentialsPath: credentialsFile });
+    await writePrivateSettingsFixture(root, { userCredentialsPath: credentialsFile });
 
     const result = await validateCredentialsFiles({ workspaceRoot: root });
 
     assert.equal(result.ok, false);
     assert.ok(
       result.messages.some((message) =>
-        /PATH_CRED .* must point to a directory/.test(message.message),
+        /path_usr .* must point to a directory/.test(message.message),
       ),
     );
   });

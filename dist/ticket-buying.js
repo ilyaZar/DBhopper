@@ -13,6 +13,7 @@ import { resolveCredentialUserDataDir } from "./access-browser.js";
 import { performDbAccountLogin } from "./db-login.js";
 import { TICKET_BUYING_DRY_RUN_TOOL_NAME, TICKET_BUYING_RESEARCH_TOOL_NAME, TICKET_CHECKOUT_DRY_RUN_TOOL_NAME, } from "./tool-contracts.js";
 import { resolveWorkspace } from "./workspace.js";
+import { fillSensitiveTextControl } from "./sensitive-input.js";
 const DB_HOME_URL = "https://int.bahn.de/en";
 const DEFAULT_BROWSER_TIMEOUT_MS = 60000;
 const DEFAULT_CHECKOUT_DEPARTURE = "Hamm(Westf)Hbf";
@@ -121,6 +122,14 @@ export function createTicketBuyingToolDefinitions(tool) {
                 review_pause_ms: Type.Optional(Type.Number({
                     description: "Optional Abnahme/review pause before closing the browser, in milliseconds.",
                 })),
+                test_drive_purchase: Type.Optional(Type.Boolean({
+                    default: false,
+                    description: [
+                        "When true, save numbered per-stage ticket-purchase text",
+                        "and screenshot artifacts under the ignored tmp/",
+                        "test-drive directory.",
+                    ].join(" "),
+                })),
             }, { additionalProperties: false }),
             execute: async (params, config, context) => runTicketBuyingDryRun(params, config, context.signal),
         }),
@@ -165,6 +174,14 @@ export function createTicketBuyingToolDefinitions(tool) {
                         "When true, click the payment-page Continue button after",
                         "payment-profile fields are handled, then stop on the Check",
                         "page before any final order button.",
+                    ].join(" "),
+                })),
+                test_drive_purchase: Type.Optional(Type.Boolean({
+                    default: false,
+                    description: [
+                        "When true, save numbered per-stage ticket-purchase text",
+                        "and screenshot artifacts under the ignored tmp/",
+                        "test-drive directory.",
                     ].join(" "),
                 })),
             }, { additionalProperties: false }),
@@ -212,16 +229,15 @@ export async function runTicketCheckoutDryRun(params, config = {}, signal) {
     let loadedCredentials = undefined;
     let loadedBuyingProfile = undefined;
     let loadedPaymentProfile = undefined;
-    let ticketBuyingMode = "review";
+    let purchaseMode = "review";
     let stage = "credentials";
     try {
         loadedCredentials = await readCredentialsForTicketDryRun(params, config);
-        ticketBuyingMode = (await readPrivateSettings(config)).settings
-            .TICKET_BUYING_MODE;
+        purchaseMode = (await readPrivateSettings(config)).settings.PURCHASE_MODE;
         loadedBuyingProfile = await readBuyingProfileForTicketCheckout(params, config);
         loadedPaymentProfile = await readPaymentProfileForTicketCheckout(params, config);
         stage = "plan";
-        const plan = ticketCheckoutPlan(params, loadedCredentials?.credentials.browser?.userDataDir, undefined, resolveBuyingFarePreference(loadedBuyingProfile?.buyingProfile), ticketBuyingMode);
+        const plan = ticketCheckoutPlan(params, loadedCredentials?.credentials.browser?.userDataDir, undefined, resolveBuyingFarePreference(loadedBuyingProfile?.buyingProfile), purchaseMode);
         if (params.open_browser !== true) {
             return {
                 ok: true,
@@ -234,12 +250,12 @@ export async function runTicketCheckoutDryRun(params, config = {}, signal) {
                 credentials: credentialsSummary(loadedCredentials),
                 buyingProfile: buyingProfileSummary(loadedBuyingProfile),
                 paymentProfile: paymentProfileSummary(loadedPaymentProfile),
-                ticketBuyingMode,
+                purchaseMode,
                 plan,
                 research: TICKET_BUYING_RESEARCH_SUMMARY,
             };
         }
-        return runBrowserTicketCheckout(params, config, plan, loadedCredentials, loadedBuyingProfile, loadedPaymentProfile, ticketBuyingMode, signal);
+        return runBrowserTicketCheckout(params, config, plan, loadedCredentials, loadedBuyingProfile, loadedPaymentProfile, purchaseMode, signal);
     }
     catch (error) {
         return {
@@ -254,7 +270,7 @@ export async function runTicketCheckoutDryRun(params, config = {}, signal) {
             credentials: credentialsSummary(loadedCredentials),
             buyingProfile: buyingProfileSummary(loadedBuyingProfile),
             paymentProfile: paymentProfileSummary(loadedPaymentProfile),
-            ticketBuyingMode,
+            purchaseMode,
             research: TICKET_BUYING_RESEARCH_SUMMARY,
         };
     }
@@ -305,7 +321,7 @@ export function ticketBuyingPlan(params, userDataDir) {
         maySubmitPayment: false,
     };
 }
-export function ticketCheckoutPlan(params, userDataDir, now = new Date(), farePreference = resolveBuyingFarePreference(), ticketBuyingMode = "review") {
+export function ticketCheckoutPlan(params, userDataDir, now = new Date(), farePreference = resolveBuyingFarePreference(), purchaseMode = "review") {
     const serviceDate = params.service_date || defaultCheckoutServiceDate(now);
     const departure = normalizeBookingStationName(params.departure_station?.trim() || DEFAULT_CHECKOUT_DEPARTURE);
     const arrival = normalizeBookingStationName(params.arrival_station?.trim() || DEFAULT_CHECKOUT_ARRIVAL);
@@ -330,9 +346,9 @@ export function ticketCheckoutPlan(params, userDataDir, now = new Date(), farePr
             stayLoggedIn: params.stay_logged_in !== false,
         },
         fareSelection,
-        ticketBuyingMode,
+        purchaseMode,
         finalBuying: {
-            requested: ticketBuyingMode === "auto",
+            requested: purchaseMode === "auto",
             enabled: false,
         },
         safety: {
@@ -369,8 +385,7 @@ function ticketFareSelectionPlan(farePreference) {
     };
 }
 async function runBrowserTicketSearch(params, config, plan, loadedCredentials, signal) {
-    const artifactDir = await createTicketArtifactDir(config);
-    const artifacts = [];
+    const artifactCapture = createTicketArtifactCapture(params);
     let browser;
     let context;
     let page;
@@ -387,7 +402,7 @@ async function runBrowserTicketSearch(params, config, plan, loadedCredentials, s
         }
         await page.goto(DB_HOME_URL, { waitUntil: "domcontentloaded" });
         await page.waitForTimeout(3000);
-        await captureTicketStage(page, artifactDir, "home", artifacts);
+        await captureTicketStage(page, config, artifactCapture, "home");
         const login = params.login_before_search === true
             ? await performDbAccountLogin(page, loadedCredentials?.credentials.bahnAccount ?? {}, {
                 stayLoggedIn: params.stay_logged_in !== false,
@@ -395,7 +410,7 @@ async function runBrowserTicketSearch(params, config, plan, loadedCredentials, s
             })
             : { requested: false };
         if (params.login_before_search === true) {
-            await captureTicketStage(page, artifactDir, "login", artifacts);
+            await captureTicketStage(page, config, artifactCapture, "login");
         }
         stage = "search_form";
         await fillStation(page, 'input[name="quickFinderBasic-von"]', plan.target.departureStation);
@@ -403,11 +418,11 @@ async function runBrowserTicketSearch(params, config, plan, loadedCredentials, s
         const applied = {
             outboundDateTime: await applyOutboundDateTime(page, params),
         };
-        await captureTicketStage(page, artifactDir, "search-form", artifacts);
+        await captureTicketStage(page, config, artifactCapture, "search-form");
         stage = "search_results";
         await page.getByRole("button", { name: /^Search$/i }).first().click();
         await page.waitForTimeout(8000);
-        await captureTicketStage(page, artifactDir, "search-results", artifacts);
+        await captureTicketStage(page, config, artifactCapture, "search-results");
         const controls = params.include_controls === true ? await visibleTicketControls(page) : undefined;
         return {
             ok: true,
@@ -422,8 +437,9 @@ async function runBrowserTicketSearch(params, config, plan, loadedCredentials, s
             browserResult: {
                 url: page.url(),
                 title: await page.title(),
-                artifactDir,
-                artifacts,
+                artifactDir: artifactCapture.artifactDir,
+                artifacts: artifactCapture.artifacts,
+                testDrivePurchase: artifactCapture.testDrivePurchase,
                 login,
                 applied,
                 controls,
@@ -434,7 +450,7 @@ async function runBrowserTicketSearch(params, config, plan, loadedCredentials, s
     catch (error) {
         if (page) {
             try {
-                await captureTicketStage(page, artifactDir, `blocked-${stage}`, artifacts);
+                await captureTicketStage(page, config, artifactCapture, `blocked-${stage}`);
             }
             catch {
                 // Keep the original browser failure.
@@ -451,8 +467,7 @@ async function runBrowserTicketSearch(params, config, plan, loadedCredentials, s
             credentials: credentialsSummary(loadedCredentials),
             plan,
             browserResult: {
-                artifactDir,
-                artifacts,
+                ...ticketArtifactResult(artifactCapture),
             },
             research: TICKET_BUYING_RESEARCH_SUMMARY,
         };
@@ -462,9 +477,8 @@ async function runBrowserTicketSearch(params, config, plan, loadedCredentials, s
         await browser?.close();
     }
 }
-async function runBrowserTicketCheckout(params, config, plan, loadedCredentials, loadedBuyingProfile, loadedPaymentProfile, ticketBuyingMode, signal) {
-    const artifactDir = await createTicketArtifactDir(config);
-    const artifacts = [];
+async function runBrowserTicketCheckout(params, config, plan, loadedCredentials, loadedBuyingProfile, loadedPaymentProfile, purchaseMode, signal) {
+    const artifactCapture = createTicketArtifactCapture(params);
     let browser;
     let context;
     let page;
@@ -486,7 +500,7 @@ async function runBrowserTicketCheckout(params, config, plan, loadedCredentials,
         }
         await page.goto(DB_HOME_URL, { waitUntil: "domcontentloaded" });
         await page.waitForTimeout(3000);
-        await captureTicketStage(page, artifactDir, "checkout-home", artifacts);
+        await captureTicketStage(page, config, artifactCapture, "checkout-home");
         const login = params.login_before_search !== false
             ? await performDbAccountLogin(page, loadedCredentials?.credentials.bahnAccount ?? {}, {
                 stayLoggedIn: params.stay_logged_in !== false,
@@ -494,7 +508,7 @@ async function runBrowserTicketCheckout(params, config, plan, loadedCredentials,
             })
             : { requested: false };
         if (params.login_before_search !== false) {
-            await captureTicketStage(page, artifactDir, "checkout-login", artifacts);
+            await captureTicketStage(page, config, artifactCapture, "checkout-login");
         }
         stage = "search_form";
         await fillStation(page, 'input[name="quickFinderBasic-von"]', plan.target.departureStation);
@@ -507,31 +521,31 @@ async function runBrowserTicketCheckout(params, config, plan, loadedCredentials,
                 departure_time: plan.target.departureTime,
             }),
         };
-        await captureTicketStage(page, artifactDir, "checkout-search-form", artifacts);
+        await captureTicketStage(page, config, artifactCapture, "checkout-search-form");
         stage = "search_results";
         await page.getByRole("button", { name: /^Search$/i }).first().click();
         await waitForJourneyResults(page, plan.target.trainLabel);
-        await captureTicketStage(page, artifactDir, "checkout-search-results", artifacts);
+        await captureTicketStage(page, config, artifactCapture, "checkout-search-results");
         const selectedJourney = await selectCheckoutJourney(page, {
             trainLabel: plan.target.trainLabel,
         });
         await page.waitForLoadState("domcontentloaded").catch(() => undefined);
         await waitForCheckoutProgress(page);
-        await captureTicketStage(page, artifactDir, "checkout-selected-journey", artifacts);
+        await captureTicketStage(page, config, artifactCapture, "checkout-selected-journey");
         stage = "offer_selection";
         const selectedFare = await selectFareOffer(page, plan.fareSelection);
         await page.waitForTimeout(1000);
-        await captureTicketStage(page, artifactDir, "checkout-selected-fare", artifacts);
+        await captureTicketStage(page, config, artifactCapture, "checkout-selected-fare");
         const offerContinue = plan.fareSelection.continueToCustomerData
-            ? await continueFromOfferSelection(page, artifactDir, artifacts)
+            ? await continueFromOfferSelection(page, config, artifactCapture)
             : undefined;
         let customerDataContinue;
         if (offerContinue && plan.fareSelection.continueToPaymentBoundary) {
-            customerDataContinue = await continueFromCustomerData(page, artifactDir, artifacts, plan.fareSelection.bookingFor);
+            customerDataContinue = await continueFromCustomerData(page, config, artifactCapture, plan.fareSelection.bookingFor);
         }
         let paymentFill;
         if (customerDataContinue) {
-            paymentFill = await fillPaymentProfileAtBoundary(page, artifactDir, artifacts, loadedPaymentProfile?.paymentProfile);
+            paymentFill = await fillPaymentProfileAtBoundary(page, loadedPaymentProfile?.paymentProfile);
             paymentProfileTouched = true;
         }
         const paymentContinue = paymentFill && params.continue_after_payment_profile !== false
@@ -541,7 +555,7 @@ async function runBrowserTicketCheckout(params, config, plan, loadedCredentials,
         const warnings = checkoutWarnings(checkout);
         const checkPageReached = paymentContinue?.action === "clicked_payment_continue" &&
             await isCheckPageReview(page);
-        const reviewGate = await finalTicketBuyingGate(page, artifactDir, artifacts, ticketBuyingMode, checkPageReached);
+        const reviewGate = await finalTicketBuyingGate(page, config, artifactCapture, purchaseMode, checkPageReached);
         const checkoutWithGate = checkPageReached
             ? {
                 ...checkout,
@@ -571,7 +585,7 @@ async function runBrowserTicketCheckout(params, config, plan, loadedCredentials,
             needsUserAction: checkoutWithGate.needsUserAction,
             message: checkoutWithGate.message,
             warnings,
-            ticketBuyingMode,
+            purchaseMode,
             reviewGate,
             reviewScreenshot: reviewGate.reviewScreenshot,
             credentials: credentialsSummary(loadedCredentials),
@@ -581,8 +595,9 @@ async function runBrowserTicketCheckout(params, config, plan, loadedCredentials,
             browserResult: {
                 url: page.url(),
                 title: await page.title(),
-                artifactDir,
-                artifacts,
+                artifactDir: artifactCapture.artifactDir,
+                artifacts: artifactCapture.artifacts,
+                testDrivePurchase: artifactCapture.testDrivePurchase,
                 login,
                 applied,
                 checkout: checkoutWithGate,
@@ -596,7 +611,7 @@ async function runBrowserTicketCheckout(params, config, plan, loadedCredentials,
     catch (error) {
         if (page && !paymentProfileTouched) {
             try {
-                await captureTicketStage(page, artifactDir, `blocked-${stage}`, artifacts);
+                await captureTicketStage(page, config, artifactCapture, `blocked-${stage}`);
             }
             catch { }
         }
@@ -614,8 +629,7 @@ async function runBrowserTicketCheckout(params, config, plan, loadedCredentials,
             paymentProfile: paymentProfileSummary(loadedPaymentProfile),
             plan,
             browserResult: {
-                artifactDir,
-                artifacts,
+                ...ticketArtifactResult(artifactCapture),
             },
             research: TICKET_BUYING_RESEARCH_SUMMARY,
         };
@@ -628,11 +642,11 @@ async function runBrowserTicketCheckout(params, config, plan, loadedCredentials,
 function checkoutWarnings(checkout) {
     return checkout.paymentFill?.warnings ?? [];
 }
-async function finalTicketBuyingGate(page, artifactDir, artifacts, ticketBuyingMode, checkPageReached) {
+async function finalTicketBuyingGate(page, config, artifactCapture, purchaseMode, checkPageReached) {
     if (!checkPageReached) {
         return {
             status: "not_run",
-            ticketBuyingMode,
+            purchaseMode,
             stage: "not_on_check_page",
             finalSafetyStop: "not_on_check_page",
             needsUserAction: false,
@@ -640,27 +654,32 @@ async function finalTicketBuyingGate(page, artifactDir, artifacts, ticketBuyingM
             reviewScreenshot: undefined,
         };
     }
-    if (ticketBuyingMode === "auto") {
+    if (purchaseMode === "auto") {
         return {
-            status: "buying_not_enabled",
-            ticketBuyingMode,
-            stage: "buying_not_enabled",
-            finalSafetyStop: "buying_not_enabled",
+            status: "auto_unavailable",
+            purchaseMode,
+            stage: "auto_unavailable",
+            finalSafetyStop: "auto_unavailable",
             needsUserAction: false,
-            message: "Auto buying was requested, but final ticket purchase is not implemented; stopped before the final order button.",
+            message: '"auto" is currently not available; stopped before the final order button.',
             reviewScreenshot: undefined,
         };
     }
-    const reviewScreenshot = await saveTicketReviewScreenshot(page, artifactDir, "checkout-review");
-    artifacts.push(reviewScreenshot.path);
+    const reviewScreenshot = await saveTicketReviewScreenshot(page, config, artifactCapture, "checkout-review");
     return {
         status: "awaiting_user_review",
-        ticketBuyingMode,
+        purchaseMode,
         stage: "check_page_review",
         finalSafetyStop: "check_page_review",
         needsUserAction: true,
         message: "Stopped on DB Check page for user review; no final order button was clicked.",
         reviewScreenshot,
+        confirmationRequest: {
+            required: true,
+            channel: "chat",
+            screenshotPath: reviewScreenshot.path,
+            message: "Review the checkout screenshot and confirm in chat before any purchase-capable mode is used.",
+        },
     };
 }
 async function isCheckPageReview(page) {
@@ -1044,7 +1063,7 @@ async function selectFareOffer(page, fareSelection) {
         alreadySelected: selected.alreadySelected,
     };
 }
-async function continueFromOfferSelection(page, artifactDir, artifacts) {
+async function continueFromOfferSelection(page, config, artifactCapture) {
     const before = await detectCheckoutBoundary(page);
     if (before.finalOrderButtonVisible || before.paymentBoundaryVisible) {
         return offerContinueResult(before, "not_clicked_boundary_visible");
@@ -1056,10 +1075,10 @@ async function continueFromOfferSelection(page, artifactDir, artifacts) {
     await next.click();
     await page.waitForLoadState("domcontentloaded").catch(() => undefined);
     await waitForCustomerDataProgress(page);
-    await captureTicketStage(page, artifactDir, "checkout-customer-data", artifacts);
+    await captureTicketStage(page, config, artifactCapture, "checkout-customer-data");
     return offerContinueResult(before, "clicked_offer_continue", next.text);
 }
-async function continueFromCustomerData(page, artifactDir, artifacts, bookingFor) {
+async function continueFromCustomerData(page, config, artifactCapture, bookingFor) {
     const before = await detectCheckoutBoundary(page);
     if (before.finalOrderButtonVisible || before.paymentBoundaryVisible) {
         return customerDataContinueResult(before, "not_clicked_boundary_visible", bookingFor);
@@ -1067,7 +1086,7 @@ async function continueFromCustomerData(page, artifactDir, artifacts, bookingFor
     if (before.stage !== "customer_data") {
         return customerDataContinueResult(before, "not_clicked_not_customer_data", bookingFor);
     }
-    const bookingForAction = await applyBookingFor(page, bookingFor);
+    const bookingForAction = await applyBookingFor(page);
     const next = await findSafeCheckoutNext(page);
     if (!next) {
         return customerDataContinueResult(before, "not_clicked_no_customer_data_continue", bookingFor, { bookingForAction });
@@ -1075,14 +1094,11 @@ async function continueFromCustomerData(page, artifactDir, artifacts, bookingFor
     await next.click();
     await page.waitForLoadState("domcontentloaded").catch(() => undefined);
     await page.waitForTimeout(5000);
-    await captureTicketStage(page, artifactDir, "checkout-after-customer-data", artifacts);
+    await captureTicketStage(page, config, artifactCapture, "checkout-after-customer-data");
     const after = await detectCheckoutBoundary(page);
     return customerDataContinueResult(before, "clicked_customer_data_continue", bookingFor, { bookingForAction, clickedText: next.text, after });
 }
-async function applyBookingFor(page, bookingFor) {
-    if (bookingFor !== "self") {
-        throw new Error("bookingFor other requires passenger details and is not implemented");
-    }
+async function applyBookingFor(page) {
     return page.evaluate(() => {
         const compact = (value) => value.replace(/\s+/g, " ").trim();
         const visible = (element) => {
@@ -1191,46 +1207,16 @@ async function waitForCustomerDataProgress(page) {
         return hasCustomerDataInput || hasCustomerDataText || hasPaymentBoundary;
     }, undefined, { timeout: DEFAULT_BROWSER_TIMEOUT_MS });
 }
-async function fillPaymentProfileAtBoundary(page, _artifactDir, _artifacts, paymentProfile) {
+async function fillPaymentProfileAtBoundary(page, paymentProfile) {
     const before = await detectCheckoutBoundary(page);
     if (!paymentProfile) {
-        return {
-            stage: before.stage,
-            action: "not_filled_no_payment_profile",
-            method: undefined,
-            filledFields: [],
-            matchedFields: [],
-            mismatchedFields: [],
-            missingFields: [],
-            boundaryBefore: before,
-            artifactCaptureSkipped: true,
-        };
+        return skippedPaymentFillResult(before, "not_filled_no_payment_profile");
     }
     if (before.finalOrderButtonVisible) {
-        return {
-            stage: before.stage,
-            action: "not_filled_final_order_boundary",
-            method: paymentProfile.method,
-            filledFields: [],
-            matchedFields: [],
-            mismatchedFields: [],
-            missingFields: [],
-            boundaryBefore: before,
-            artifactCaptureSkipped: true,
-        };
+        return skippedPaymentFillResult(before, "not_filled_final_order_boundary", paymentProfile.method);
     }
     if (before.stage !== "payment_boundary") {
-        return {
-            stage: before.stage,
-            action: "not_filled_not_payment_boundary",
-            method: paymentProfile.method,
-            filledFields: [],
-            matchedFields: [],
-            mismatchedFields: [],
-            missingFields: [],
-            boundaryBefore: before,
-            artifactCaptureSkipped: true,
-        };
+        return skippedPaymentFillResult(before, "not_filled_not_payment_boundary", paymentProfile.method);
     }
     let methodAction = await selectPaymentMethod(page, paymentProfile.method);
     await waitForPaymentMethodForm(page, paymentProfile.method);
@@ -1799,6 +1785,19 @@ async function clickCheckboxByVisibleText(page, labels) {
     }
     return result;
 }
+function skippedPaymentFillResult(before, action, method) {
+    return {
+        stage: before.stage,
+        action,
+        method,
+        filledFields: [],
+        matchedFields: [],
+        mismatchedFields: [],
+        missingFields: [],
+        boundaryBefore: before,
+        artifactCaptureSkipped: true,
+    };
+}
 function offerContinueResult(before, action, clickedText) {
     return {
         stage: before.stage,
@@ -1849,18 +1848,9 @@ async function applyPaymentControlValue(control, value, options) {
         }
         return "missing";
     }
-    const filled = await control.fill(value, { timeout: 5000 })
+    const filled = await fillSensitiveTextControl(control, value, { timeout: 5000 })
         .then(() => true)
-        .catch(async () => {
-        try {
-            await control.click({ force: true });
-            await control.pressSequentially(value, { delay: 10 });
-            return true;
-        }
-        catch {
-            return false;
-        }
-    });
+        .catch(() => false);
     return filled ? "filled" : "missing";
 }
 async function readPaymentControlValue(control) {
@@ -2146,6 +2136,7 @@ async function waitForCheckOrFinalOrderProgress(page) {
         const finalOrderPatterns = finalOrderSources.map((source) => new RegExp(source, "i"));
         return /\/(?:pruefen-buchen|prüfen-buchen|check)(?:[/?#]|$)/i.test(url) ||
             /check\s+(?:and\s+)?book|check\s+your\s+booking|review\s+your\s+booking|prüfen\s+und\s+buchen|pruefen\s+und\s+buchen|order\s+overview|booking\s+overview/i.test(text) ||
+            /booking\s+will\s+be\s+made|complete\s+your\s+booking|confirm\s+payment|payment\s+summary/i.test(text) ||
             finalOrderPatterns.some((pattern) => pattern.test(text));
     }, FINAL_ORDER_PATTERNS.map((pattern) => pattern.source), { timeout: DEFAULT_BROWSER_TIMEOUT_MS })
         .catch(() => undefined);
@@ -2249,25 +2240,57 @@ export function defaultCheckoutServiceDate(now = new Date()) {
 async function createTicketArtifactDir(config) {
     const workspace = resolveWorkspace(config);
     const artifactRoot = config.artifactRoot || path.join(workspace.root, "tmp");
-    return createTimestampedArtifactDir(artifactRoot, "ticket-buying-dry-run");
+    return createTimestampedArtifactDir(artifactRoot, "ticket-purchase-test-drive");
 }
-async function captureTicketStage(page, artifactDir, label, artifacts) {
-    artifacts.push(await saveTicketPageText(page, artifactDir, label));
-    artifacts.push(await saveTicketScreenshot(page, artifactDir, label));
+function createTicketArtifactCapture(params) {
+    return {
+        artifacts: [],
+        testDrivePurchase: params.test_drive_purchase === true,
+        nextArtifactIndex: 1,
+    };
 }
-async function saveTicketPageText(page, artifactDir, label) {
-    const target = path.join(artifactDir, `ticket-${safeArtifactSegment(label)}.txt`);
+function ticketArtifactResult(artifactCapture) {
+    return {
+        artifactDir: artifactCapture.artifactDir,
+        artifacts: artifactCapture.artifacts,
+        testDrivePurchase: artifactCapture.testDrivePurchase,
+    };
+}
+async function ensureTicketArtifactDir(config, artifactCapture) {
+    artifactCapture.artifactDir ??= await createTicketArtifactDir(config);
+    return artifactCapture.artifactDir;
+}
+async function captureTicketStage(page, config, artifactCapture, label) {
+    if (!artifactCapture.testDrivePurchase) {
+        return;
+    }
+    const artifactDir = await ensureTicketArtifactDir(config, artifactCapture);
+    const stem = nextTicketArtifactStem(artifactCapture, label);
+    artifactCapture.artifacts.push(await saveTicketPageText(page, artifactDir, stem));
+    artifactCapture.artifacts.push(await saveTicketScreenshot(page, artifactDir, stem));
+}
+function nextTicketArtifactStem(artifactCapture, label) {
+    const index = String(artifactCapture.nextArtifactIndex++).padStart(2, "0");
+    return `${index}_ticket-${safeArtifactSegment(label)}`;
+}
+async function saveTicketPageText(page, artifactDir, stem) {
+    const target = path.join(artifactDir, `${stem}.txt`);
     const text = await page.locator("body").innerText().catch(() => "");
     await fs.writeFile(target, `${text}\n`, "utf8");
     return target;
 }
-async function saveTicketScreenshot(page, artifactDir, label) {
-    const target = path.join(artifactDir, `ticket-${safeArtifactSegment(label)}.png`);
+async function saveTicketScreenshot(page, artifactDir, stem) {
+    const target = path.join(artifactDir, `${stem}.png`);
     await page.screenshot({ path: target, fullPage: true });
     return target;
 }
-async function saveTicketReviewScreenshot(page, artifactDir, label) {
-    const path = await saveTicketScreenshot(page, artifactDir, label);
+async function saveTicketReviewScreenshot(page, config, artifactCapture, label) {
+    const screenshot = await page.screenshot({ fullPage: true });
+    const path = await savePurchaseReviewScreenshot(config, screenshot);
+    artifactCapture.artifacts.push(path);
+    if (artifactCapture.testDrivePurchase) {
+        await saveTicketTestDriveScreenshot(config, artifactCapture, label, screenshot);
+    }
     return {
         captured: true,
         path,
@@ -2275,6 +2298,34 @@ async function saveTicketReviewScreenshot(page, artifactDir, label) {
         sensitive: true,
         purpose: "ticket_checkout_review",
     };
+}
+async function savePurchaseReviewScreenshot(config, screenshot) {
+    const target = path.join(purchaseReviewArtifactDir(config), `ticket-checkout-review-${purchaseReviewTimestamp()}.png`);
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await fs.writeFile(target, screenshot);
+    return target;
+}
+function purchaseReviewArtifactDir(config) {
+    return path.join(resolveWorkspace(config).root, "assets/private/purchases");
+}
+function purchaseReviewTimestamp(now = new Date()) {
+    const pad = (value) => String(value).padStart(2, "0");
+    return [
+        now.getFullYear(),
+        pad(now.getMonth() + 1),
+        pad(now.getDate()),
+    ].join("-") + "-" + [
+        pad(now.getHours()),
+        pad(now.getMinutes()),
+        pad(now.getSeconds()),
+    ].join("-");
+}
+async function saveTicketTestDriveScreenshot(config, artifactCapture, label, screenshot) {
+    const artifactDir = await ensureTicketArtifactDir(config, artifactCapture);
+    const target = path.join(artifactDir, `${nextTicketArtifactStem(artifactCapture, label)}.png`);
+    await fs.writeFile(target, screenshot);
+    artifactCapture.artifacts.push(target);
+    return target;
 }
 async function visibleTicketControls(page) {
     const controls = await page.locator("input, select, textarea, button, a").evaluateAll((nodes) => nodes
