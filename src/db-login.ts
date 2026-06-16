@@ -1,5 +1,7 @@
 import type { Locator, Page } from "playwright-core";
 
+import { fillSensitiveTextControl } from "./sensitive-input.js";
+
 export interface DBAccountCredentials {
   username?: string;
   password?: string;
@@ -552,7 +554,7 @@ async function fillFirstVisible(page: Page, selectors: string[], value: string) 
     const locator = page.locator(selector).first();
     try {
       if ((await locator.count()) > 0 && await locator.isVisible({ timeout: 1000 })) {
-        await locator.fill(value, { timeout: 10000 });
+        await fillSensitiveTextControl(locator, value, { timeout: 10000 });
         return true;
       }
     } catch {}

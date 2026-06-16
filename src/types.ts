@@ -81,7 +81,7 @@ export type DBhopperFareProduct =
   | "cheapest_available";
 
 export type DBhopperTravelClass = "second" | "first";
-export type DBhopperBookingFor = "self" | "other";
+export type DBhopperBookingFor = "self";
 export type DBhopperPaymentMethod = "sepa" | "credit_card" | "paypal";
 
 export interface DBhopperBuyingProfile {

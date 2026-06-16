@@ -155,7 +155,7 @@ export async function runDbMarketplaceAccessCheck(
       startUrl: DB_MARKETPLACE_LOGIN_URL,
       productUrl: DB_MARKETPLACE_TIMETABLES_URL,
       credentials: credentialsSummary(loadedCredentials),
-      credentialModel,
+      credentialModel: credentialModel.public,
       credentialSubmission: {
         selectedCredentialsSubmitted: loginSubmitted,
         proof: loginOk && loginSubmitted
@@ -184,7 +184,7 @@ export async function runDbMarketplaceAccessCheck(
       },
       artifactDir: session.artifactDir,
       artifacts,
-      needsUserAction: !loginOk && credentialModel.schemaSufficientForBrowserLogin,
+      needsUserAction: !loginOk && credentialModel.public.schemaSufficientForBrowserLogin,
       appCreated: false,
       subscriptionChanged: false,
       termsAccepted: false,
@@ -220,7 +220,7 @@ function marketplaceCredentialModel(
   const hasBahnAccountApiCredentials = Boolean(
     credentials.bahnAccountAPI?.username && credentials.bahnAccountAPI?.password,
   );
-  return {
+  const publicModel = {
     apiKeyCredentialsPresent: Boolean(
       credentials.bahnAPI?.clientId && credentials.bahnAPI?.apiKey,
     ),
@@ -231,6 +231,9 @@ function marketplaceCredentialModel(
     schemaRecommendation: hasBahnAccountApiCredentials
       ? undefined
       : "Add bahnAccountAPI.username and bahnAccountAPI.password for Marketplace browser-login proof; bahnAPI clientId/apiKey cannot be typed into the Marketplace login page.",
+  };
+  return {
+    public: publicModel,
     credentialsForSubmission: hasBahnAccountApiCredentials
       ? {
           username: credentials.bahnAccountAPI?.username,

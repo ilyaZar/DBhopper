@@ -1,5 +1,5 @@
-import fs from "node:fs/promises";
 import { resolveSelectedBuyingProfileFile } from "./private-settings.js";
+import { readSelectedPrivateToml } from "./private-profile-loader.js";
 import { assertKnownKeys, assertNumericIdString, assertString, assertTable, } from "./schema-helpers.js";
 import { normalizeTomlKeys, parseToml } from "./toml.js";
 import { validationErrorFromException } from "./validation-messages.js";
@@ -57,9 +57,6 @@ const BOOKING_FOR_ALIASES = new Map([
     ["me", "self"],
     ["for me", "self"],
     ["book for me", "self"],
-    ["other", "other"],
-    ["another person", "other"],
-    ["book for another person", "other"],
 ]);
 const BUYING_PROFILE_TOML_ALIASES = {
     "": {
@@ -72,17 +69,15 @@ const BUYING_PROFILE_TOML_ALIASES = {
     },
 };
 export async function readSelectedBuyingProfile(config = {}) {
-    const resolved = await resolveSelectedBuyingProfileFile(config);
-    if (!resolved) {
+    const selected = await readSelectedPrivateToml(config, resolveSelectedBuyingProfileFile, parseBuyingProfileToml);
+    if (!selected) {
         return undefined;
     }
-    const raw = await fs.readFile(resolved.file.filePath, "utf8");
-    const buyingProfile = parseBuyingProfileToml(raw, resolved.file.filePath);
     return {
-        buyingProfileName: resolved.file.fileName,
-        buyingProfilePath: resolved.file.filePath,
-        buyingProfileId: resolved.file.id,
-        buyingProfile,
+        buyingProfileName: selected.file.fileName,
+        buyingProfilePath: selected.file.filePath,
+        buyingProfileId: selected.file.id,
+        buyingProfile: selected.parsed,
     };
 }
 export function parseBuyingProfileToml(text, source = "buying-profile.toml") {
@@ -228,7 +223,7 @@ function normalizeTravelClass(value, source) {
 function normalizeBookingFor(value, source) {
     const normalized = BOOKING_FOR_ALIASES.get(value.trim().toLowerCase());
     if (!normalized) {
-        throw new Error(`${source} must be one of: self, other`);
+        throw new Error(`${source} must be one of: self`);
     }
     return normalized;
 }

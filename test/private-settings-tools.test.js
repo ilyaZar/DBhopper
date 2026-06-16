@@ -18,5 +18,6 @@ describe("dbhopper private settings tools", () => {
     assert.equal(selectTool.parameters.additionalProperties, false);
     assert.equal("claim_profile_id" in selectTool.parameters.properties, true);
     assert.equal("profile_id" in selectTool.parameters.properties, false);
+    assert.equal("purchase_mode" in selectTool.parameters.properties, true);
   });
 });

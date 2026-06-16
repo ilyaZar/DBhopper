@@ -3,6 +3,7 @@ import path from "node:path";
 import { createTimestampedArtifactDir, safeArtifactSegment, } from "./artifacts.js";
 import { errorMessage } from "./errors.js";
 import { resolveClaimFilePath } from "./workspace.js";
+import { fillSensitiveTextControl } from "./sensitive-input.js";
 const FORM_URL = "https://mg.kcm-nrw.de/elmapublic/";
 const DEFAULT_TIMEOUT_MS = 180000;
 export async function probeBrowser(config = {}) {
@@ -285,7 +286,7 @@ async function fill(page, selector, value) {
     if (value === undefined || value === null || value === "") {
         return;
     }
-    await (await visibleOrFirst(page, selector)).fill(String(value));
+    await fillSensitiveTextControl(await visibleOrFirst(page, selector), String(value));
 }
 async function clickText(page, text) {
     await page.getByText(text).filter({ visible: true }).first().click();

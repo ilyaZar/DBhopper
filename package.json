@@ -22,7 +22,6 @@
     "README.md",
     "dist/",
     "openclaw.plugin.json",
-    "settings.yaml",
     "skills/",
     "src/"
   ],

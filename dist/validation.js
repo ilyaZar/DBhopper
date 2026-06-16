@@ -56,7 +56,7 @@ export function claimSchemaReference() {
         requiredFacts: {
             privateProfile: [
                 "Store reusable sensitive claimant and bank data in",
-                "assets/private/profiles/*.toml and select it with",
+                "the external path_clm profile directory and select it with",
                 "assets/private/settings.toml ID_CLM.",
             ].join(" "),
             privateProfileShape: {

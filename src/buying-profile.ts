@@ -1,5 +1,3 @@
-import fs from "node:fs/promises";
-
 import type {
   DBhopperBuyingProfile,
   DBhopperBookingFor,
@@ -9,6 +7,7 @@ import type {
   ValidationMessage,
 } from "./types.js";
 import { resolveSelectedBuyingProfileFile } from "./private-settings.js";
+import { readSelectedPrivateToml } from "./private-profile-loader.js";
 import {
   assertKnownKeys,
   assertNumericIdString,
@@ -94,9 +93,6 @@ const BOOKING_FOR_ALIASES = new Map<string, DBhopperBookingFor>([
   ["me", "self"],
   ["for me", "self"],
   ["book for me", "self"],
-  ["other", "other"],
-  ["another person", "other"],
-  ["book for another person", "other"],
 ]);
 const BUYING_PROFILE_TOML_ALIASES: TomlKeyMapByPath = {
   "": {
@@ -110,17 +106,19 @@ const BUYING_PROFILE_TOML_ALIASES: TomlKeyMapByPath = {
 };
 
 export async function readSelectedBuyingProfile(config: DBhopperConfig = {}) {
-  const resolved = await resolveSelectedBuyingProfileFile(config);
-  if (!resolved) {
+  const selected = await readSelectedPrivateToml(
+    config,
+    resolveSelectedBuyingProfileFile,
+    parseBuyingProfileToml,
+  );
+  if (!selected) {
     return undefined;
   }
-  const raw = await fs.readFile(resolved.file.filePath, "utf8");
-  const buyingProfile = parseBuyingProfileToml(raw, resolved.file.filePath);
   return {
-    buyingProfileName: resolved.file.fileName,
-    buyingProfilePath: resolved.file.filePath,
-    buyingProfileId: resolved.file.id,
-    buyingProfile,
+    buyingProfileName: selected.file.fileName,
+    buyingProfilePath: selected.file.filePath,
+    buyingProfileId: selected.file.id,
+    buyingProfile: selected.parsed,
   };
 }
 
@@ -300,7 +298,7 @@ function normalizeTravelClass(value: string, source: string): DBhopperTravelClas
 function normalizeBookingFor(value: string, source: string): DBhopperBookingFor {
   const normalized = BOOKING_FOR_ALIASES.get(value.trim().toLowerCase());
   if (!normalized) {
-    throw new Error(`${source} must be one of: self, other`);
+    throw new Error(`${source} must be one of: self`);
   }
   return normalized;
 }

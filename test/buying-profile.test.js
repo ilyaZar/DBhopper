@@ -107,4 +107,19 @@ describe("dbhopper buying profiles", () => {
       /defaultFare must be one of/,
     );
   });
+
+  it("rejects unsupported passenger booking modes", () => {
+    assert.throws(
+      () =>
+        parseBuyingProfileToml(
+          [
+            'ID_BUY = "01"',
+            'default_fare = "super_sparpreis"',
+            'booking_for = "other"',
+            "",
+          ].join("\n"),
+        ),
+      /bookingFor must be one of: self/,
+    );
+  });
 });

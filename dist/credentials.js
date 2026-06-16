@@ -1,12 +1,11 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { readPrivateSettings, resolveSelectedCredentialFile, } from "./private-settings.js";
-import { parsePaymentProfileToml } from "./payment-profile.js";
+import { privateDirectoryLocationError, readPrivateSettings, resolveSelectedCredentialFile, } from "./private-settings.js";
+import { readSelectedPrivateToml } from "./private-profile-loader.js";
 import { assertKnownKeys, assertNumericIdString, assertSection, assertString, assertTable, } from "./schema-helpers.js";
-import { normalizeTomlKeys, parseToml, tryParseToml, } from "./toml.js";
+import { normalizeTomlKeys, parseToml, } from "./toml.js";
 import { validationError, validationErrorFromException, } from "./validation-messages.js";
 import { resolveWorkspace } from "./workspace.js";
-const CREDENTIALS_DIR = path.join("assets", "private", "credentials");
 const CREDENTIALS_TOML_ALIASES = {
     "": {
         bahn_api: "bahnAPI",
@@ -21,33 +20,31 @@ const CREDENTIALS_TOML_ALIASES = {
         user_data_dir: "userDataDir",
     },
 };
-const PAYMENT_PROFILE_ID_ALIASES = {};
-export function credentialsDir(config = {}) {
-    return path.join(resolveWorkspace(config).root, CREDENTIALS_DIR);
-}
 export async function readSelectedCredentialsProfile(config = {}) {
-    const resolved = await resolveSelectedCredentialFile(config);
-    if (!resolved) {
+    const selected = await readSelectedPrivateToml(config, resolveSelectedCredentialFile, parseCredentialsToml);
+    if (!selected) {
         return undefined;
     }
-    const raw = await fs.readFile(resolved.file.filePath, "utf8");
-    const credentials = parseCredentialsToml(raw, resolved.file.filePath);
     return {
-        credentialsName: resolved.file.fileName,
-        credentialsPath: resolved.file.filePath,
-        credentialsId: resolved.file.id,
-        credentials,
+        credentialsName: selected.file.fileName,
+        credentialsPath: selected.file.filePath,
+        credentialsId: selected.file.id,
+        credentials: selected.parsed,
     };
 }
 export async function validateCredentialsFiles(config = {}) {
     const settings = await readPrivateSettings(config);
-    if (!settings.exists) {
-        await fs.mkdir(credentialsDir(config), { recursive: true });
-    }
-    const dir = settings.credentialsDir;
+    const dir = settings.userCredentialsDir;
     const messages = [];
+    const locationError = await privateDirectoryLocationError(dir, "ID_USR", resolveWorkspace(config).root);
+    if (locationError) {
+        return {
+            ok: false,
+            messages: [locationError],
+        };
+    }
     const stat = await fs.stat(dir).catch((error) => {
-        messages.push(validationError("invalid_credentials_directory", `PATH_CRED ${dir} is not readable: ${error.code ?? error.message}`));
+        messages.push(validationError("invalid_credentials_directory", `path_usr ${dir} is not readable: ${error.code ?? error.message}`));
         return undefined;
     });
     if (!stat) {
@@ -57,7 +54,7 @@ export async function validateCredentialsFiles(config = {}) {
         };
     }
     if (!stat.isDirectory()) {
-        messages.push(validationError("invalid_credentials_directory", `PATH_CRED ${dir} must point to a directory`));
+        messages.push(validationError("invalid_credentials_directory", `path_usr ${dir} must point to a directory`));
         return {
             ok: false,
             messages,
@@ -71,12 +68,10 @@ export async function validateCredentialsFiles(config = {}) {
         const filePath = path.join(dir, entry.name);
         try {
             const raw = await fs.readFile(filePath, "utf8");
-            if (isPaymentProfileToml(raw)) {
-                parsePaymentProfileToml(raw, filePath);
+            if (!isCredentialToml(raw)) {
+                continue;
             }
-            else {
-                parseCredentialsToml(raw, filePath);
-            }
+            parseCredentialsToml(raw, filePath);
         }
         catch (error) {
             messages.push(validationErrorFromException("invalid_credentials_toml", error));
@@ -87,13 +82,12 @@ export async function validateCredentialsFiles(config = {}) {
         messages,
     };
 }
-function isPaymentProfileToml(text) {
-    const parsedValue = tryParseToml(text);
-    const parsed = normalizeTomlKeys(parsedValue, "credentials.toml", PAYMENT_PROFILE_ID_ALIASES, true);
+function isCredentialToml(text) {
+    const parsed = parseToml(text, "credentials.toml");
     return Boolean(parsed &&
         typeof parsed === "object" &&
         !Array.isArray(parsed) &&
-        "ID_PYM" in parsed);
+        "ID_USR" in parsed);
 }
 export function applyCredentialsToConfig(config, loaded) {
     const { dbClientId: _dbClientId, dbApiKey: _dbApiKey, ...baseConfig } = config;

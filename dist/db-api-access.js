@@ -98,8 +98,6 @@ export function bahnAPICredentialSignals(config) {
     return {
         hasClientId: Boolean(config.dbClientId),
         hasApiKey: Boolean(config.dbApiKey),
-        clientIdLength: config.dbClientId?.length ?? 0,
-        apiKeyLength: config.dbApiKey?.length ?? 0,
     };
 }
 function normalizeBaseUrl(baseUrl) {

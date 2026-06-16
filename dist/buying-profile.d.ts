@@ -27,7 +27,7 @@ export declare function readSelectedBuyingProfile(config?: DBhopperConfig): Prom
         fallbackFares: DBhopperFareProduct[];
         travelClass: DBhopperTravelClass;
         continueToCustomerData: boolean;
-        bookingFor: DBhopperBookingFor;
+        bookingFor: "self";
         continueToPaymentBoundary: boolean;
     };
 } | undefined>;
@@ -37,7 +37,7 @@ export declare function parseBuyingProfileToml(text: string, source?: string): {
     fallbackFares: DBhopperFareProduct[];
     travelClass: DBhopperTravelClass;
     continueToCustomerData: boolean;
-    bookingFor: DBhopperBookingFor;
+    bookingFor: "self";
     continueToPaymentBoundary: boolean;
 };
 export declare function schemaValidationMessagesForBuyingProfile(value: unknown, source: string): ValidationMessage[];

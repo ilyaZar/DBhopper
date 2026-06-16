@@ -1,5 +1,5 @@
-import fs from "node:fs/promises";
 import { resolveSelectedPaymentProfileFile } from "./private-settings.js";
+import { readSelectedPrivateToml } from "./private-profile-loader.js";
 import { assertKnownKeys, assertNumericIdString, assertSection, assertString, assertTable, } from "./schema-helpers.js";
 import { normalizeTomlKeys, parseToml } from "./toml.js";
 import { validationErrorFromException } from "./validation-messages.js";
@@ -33,17 +33,15 @@ const PAYMENT_PROFILE_TOML_ALIASES = {
     },
 };
 export async function readSelectedPaymentProfile(config = {}) {
-    const resolved = await resolveSelectedPaymentProfileFile(config);
-    if (!resolved) {
+    const selected = await readSelectedPrivateToml(config, resolveSelectedPaymentProfileFile, parsePaymentProfileToml);
+    if (!selected) {
         return undefined;
     }
-    const raw = await fs.readFile(resolved.file.filePath, "utf8");
-    const paymentProfile = parsePaymentProfileToml(raw, resolved.file.filePath);
     return {
-        paymentProfileName: resolved.file.fileName,
-        paymentProfilePath: resolved.file.filePath,
-        paymentProfileId: resolved.file.id,
-        paymentProfile,
+        paymentProfileName: selected.file.fileName,
+        paymentProfilePath: selected.file.filePath,
+        paymentProfileId: selected.file.id,
+        paymentProfile: selected.parsed,
     };
 }
 export function parsePaymentProfileToml(text, source = "payment-profile.toml") {

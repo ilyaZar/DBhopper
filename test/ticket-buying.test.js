@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  createTicketBuyingToolDefinitions,
   defaultCheckoutServiceDate,
   isFinalOrderText,
   runTicketBuyingDryRun,
@@ -9,6 +10,10 @@ import {
   ticketCheckoutPlan,
   ticketBuyingPlan,
 } from "../dist/ticket-buying.js";
+import {
+  TICKET_BUYING_DRY_RUN_TOOL_NAME,
+  TICKET_CHECKOUT_DRY_RUN_TOOL_NAME,
+} from "../dist/tool-contracts.js";
 
 describe("dbhopper ticket buying dry run", () => {
   it("builds a non-purchase plan", () => {
@@ -20,7 +25,7 @@ describe("dbhopper ticket buying dry run", () => {
         departure_time: "19:00",
         train_label: "ICE 123",
       },
-      "assets/private/browser/db-ticket-buying",
+      "../dbhopper-private/browser/db-ticket-buying",
     );
 
     assert.equal(plan.target.departureStation, "Hamm(Westf)Hbf");
@@ -54,7 +59,7 @@ describe("dbhopper ticket buying dry run", () => {
   it("builds a checkout plan with a one-week default date and hard stop flags", () => {
     const plan = ticketCheckoutPlan(
       {},
-      "assets/private/browser/db-ticket-buying",
+      "../dbhopper-private/browser/db-ticket-buying",
       new Date("2026-06-11T12:00:00.000Z"),
     );
 
@@ -71,7 +76,7 @@ describe("dbhopper ticket buying dry run", () => {
     assert.equal(plan.fareSelection.continueToCustomerData, true);
     assert.equal(plan.fareSelection.bookingFor, "self");
     assert.equal(plan.fareSelection.continueToPaymentBoundary, true);
-    assert.equal(plan.ticketBuyingMode, "review");
+    assert.equal(plan.purchaseMode, "review");
     assert.equal(plan.finalBuying.requested, false);
     assert.equal(plan.finalBuying.enabled, false);
     assert.equal(plan.safety.mayEnterPaymentProfileData, true);
@@ -90,7 +95,7 @@ describe("dbhopper ticket buying dry run", () => {
       "auto",
     );
 
-    assert.equal(plan.ticketBuyingMode, "auto");
+    assert.equal(plan.purchaseMode, "auto");
     assert.equal(plan.finalBuying.requested, true);
     assert.equal(plan.finalBuying.enabled, false);
     assert.equal(plan.safety.mayClickFinalOrder, false);
@@ -108,7 +113,22 @@ describe("dbhopper ticket buying dry run", () => {
     assert.equal(result.operation, "ticket_checkout_dry_run");
     assert.equal(result.purchaseSubmitted, false);
     assert.equal(result.finalSafetyStop, "not_started");
-    assert.equal(result.ticketBuyingMode, "review");
+    assert.equal(result.purchaseMode, "review");
+  });
+
+  it("requires an explicit snake_case flag for purchase test-drive artifacts", () => {
+    const definitions = createTicketBuyingToolDefinitions((definition) => definition);
+    for (const toolName of [
+      TICKET_BUYING_DRY_RUN_TOOL_NAME,
+      TICKET_CHECKOUT_DRY_RUN_TOOL_NAME,
+    ]) {
+      const definition = definitions.find((tool) => tool.name === toolName);
+
+      assert.ok(definition);
+      assert.equal(definition.parameters.additionalProperties, false);
+      assert.equal("test_drive_purchase" in definition.parameters.properties, true);
+      assert.equal("test-drive-purchase" in definition.parameters.properties, false);
+    }
   });
 
   it("recognizes final order button text", () => {

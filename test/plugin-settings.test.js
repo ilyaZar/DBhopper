@@ -1,6 +1,5 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import fs from "node:fs/promises";
 
 import {
   DEFAULT_FEATURE_SETTINGS,
@@ -17,10 +16,8 @@ import {
 } from "../dist/tool-contracts.js";
 
 describe("dbhopper top-level settings", () => {
-  it("defaults to delay retrieval only", async () => {
-    const settings = parseTopLevelSettings(
-      await fs.readFile("settings.yaml", "utf8"),
-    );
+  it("defaults to delay retrieval only", () => {
+    const settings = parseTopLevelSettings(settingsToml());
 
     assert.deepEqual(settings, DEFAULT_FEATURE_SETTINGS);
 
@@ -31,12 +28,11 @@ describe("dbhopper top-level settings", () => {
   });
 
   it("enables claim and ticket tool groups explicitly", () => {
-    const settings = parseTopLevelSettings([
-      "use_delay_retrieval: false",
-      "use_claim_requests: true",
-      "use_ticket_buying: true",
-      "",
-    ].join("\n"));
+    const settings = parseTopLevelSettings(settingsToml({
+      useDelayRetrieval: false,
+      useClaimRequests: true,
+      useTicketPurchase: true,
+    }));
     const tools = enabledToolNames(settings);
 
     assert.equal(tools.has(QUERY_DB_DELAY_TOOL_NAME), false);
@@ -48,8 +44,8 @@ describe("dbhopper top-level settings", () => {
 
   it("rejects unknown top-level settings", () => {
     assert.throws(
-      () => parseTopLevelSettings("use_ticket_buying_now: true\n"),
-      /unknown setting use_ticket_buying_now/,
+      () => parseTopLevelSettings(`${settingsToml()}use_ticket_purchase_now = true\n`),
+      /use_ticket_purchase_now is not a supported field/,
     );
   });
 
@@ -64,7 +60,7 @@ describe("dbhopper top-level settings", () => {
     );
     assert.equal(
       featureSettingForToolName(TICKET_CHECKOUT_DRY_RUN_TOOL_NAME),
-      "use_ticket_buying",
+      "use_ticket_purchase",
     );
     assert.equal(
       featureSettingForToolName(PRIVATE_SETTINGS_STATUS_TOOL_NAME),
@@ -72,3 +68,28 @@ describe("dbhopper top-level settings", () => {
     );
   });
 });
+
+function settingsToml({
+  useDelayRetrieval = true,
+  useClaimRequests = false,
+  useTicketPurchase = false,
+} = {}) {
+  return [
+    `use_delay_retrieval = ${useDelayRetrieval}`,
+    `use_claim_requests = ${useClaimRequests}`,
+    `use_ticket_purchase = ${useTicketPurchase}`,
+    "",
+    'ID_USR = "01"',
+    'ID_CLM = "01"',
+    'ID_BUY = "01"',
+    'ID_PYM = "01"',
+    'purchase_mode = "review"',
+    'path_usr = "../dbhopper-private/credentials"',
+    'path_clm = "../dbhopper-private/profiles"',
+    'path_buy = "../dbhopper-private/profiles"',
+    'path_pym = "../dbhopper-private/credentials"',
+    'delay_provider = "bahn-web"',
+    'delay_fallback = "none"',
+    "",
+  ].join("\n");
+}

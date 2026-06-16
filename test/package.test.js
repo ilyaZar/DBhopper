@@ -24,7 +24,6 @@ describe("dbhopper package metadata", () => {
       minHostVersion: ">=2026.6.2",
     });
     assert.deepEqual(manifest.skills, ["./skills"]);
-    assert.ok(pkg.files.includes("settings.yaml"));
     assert.deepEqual(manifest.contracts.tools, [...PUBLIC_TOOL_NAMES]);
     for (const toolName of manifest.contracts.tools) {
       assert.equal(manifest.toolMetadata[toolName].optional, true);
@@ -35,6 +34,7 @@ describe("dbhopper package metadata", () => {
     const pkg = JSON.parse(await fs.readFile("package.json", "utf8"));
     assert.ok(pkg.files.includes("assets/dbhopper_banner.png"));
     assert.ok(pkg.files.includes("docs/"));
+    assert.equal(pkg.files.includes("assets/private/settings.toml"), false);
     for (const filePath of [
       "claims/.gitkeep",
       "assets/.gitkeep",
@@ -52,7 +52,6 @@ describe("dbhopper package metadata", () => {
       pkg.files.includes("assets/private/profiles/private-profile.example.toml"),
       false,
     );
-    assert.equal(pkg.files.includes("assets/private/settings.toml"), false);
     assert.equal(pkg.files.includes("claims/"), false);
     assert.equal(pkg.files.includes("tmp/"), false);
   });
@@ -63,11 +62,13 @@ describe("dbhopper package metadata", () => {
 
     assert.match(gitignore, /^tmp\/$/m);
     assert.match(gitignore, /^claims\/$/m);
-    assert.match(gitignore, /^assets\/private\/$/m);
+    assert.match(gitignore, /^assets\/private\/\*$/m);
+    assert.match(gitignore, /^!assets\/private\/purchases\/$/m);
+    assert.match(gitignore, /^assets\/private\/purchases\/\*$/m);
+    assert.match(gitignore, /^!assets\/private\/purchases\/\.gitkeep$/m);
     assert.match(gitignore, /^assets\/psc\/$/m);
     assert.doesNotMatch(gitignore, /!tmp\//);
     assert.doesNotMatch(gitignore, /!claims\//);
-    assert.doesNotMatch(gitignore, /!assets\/private\//);
     assert.match(clawhubignore, /^tmp\/$/m);
     assert.match(clawhubignore, /^claims\/$/m);
     assert.match(clawhubignore, /^assets\/private\/$/m);
@@ -79,9 +80,11 @@ describe("dbhopper package metadata", () => {
       "assets/private/credentials/payment-01.toml",
       "assets/private/profiles/private-profile-01.toml",
       "assets/private/profiles/buying-profile-01.toml",
+      "assets/private/purchases/ticket-checkout-review-2026-06-16-09-00-00.png",
       "claims/real-claim/claim.toml",
       "tmp/browser/db-ticket-buying/Default/Cookies",
-      "tmp/ticket-buying-dry-run/review.png",
+      "tmp/ticket-purchase-test-drive-2026-06-16T09-00-00-000Z/01_ticket-checkout-home.txt",
+      "tmp/ticket-purchase-test-drive-2026-06-16T09-00-00-000Z/09_ticket-checkout-review.png",
       "assets/psc/scan-report.zip",
       ".env",
       "local.pem",
@@ -94,6 +97,9 @@ describe("dbhopper package metadata", () => {
     assert.deepEqual(
       ignoredStdout.trim().split("\n").sort(),
       ignoredPaths.sort(),
+    );
+    await assert.rejects(
+      execFileAsync("git", ["check-ignore", "assets/private/purchases/.gitkeep"]),
     );
 
     const { stdout } = await execFileAsync(
@@ -112,6 +118,7 @@ describe("dbhopper package metadata", () => {
       "tmp/.gitkeep",
       "claims/.gitkeep",
       "assets/private/.gitkeep",
+      "assets/private/purchases/.gitkeep",
     ]) {
       assert.equal(paths.includes(filePath), false);
     }

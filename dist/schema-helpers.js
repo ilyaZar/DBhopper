@@ -8,6 +8,11 @@ export function assertString(value, source) {
         throw new Error(`${source} must be a non-empty string`);
     }
 }
+export function assertBoolean(value, source) {
+    if (typeof value !== "boolean") {
+        throw new Error(`${source} must be true or false`);
+    }
+}
 export function assertNumericId(value, source) {
     if (!/^\d{2,}$/.test(value)) {
         throw new Error(`${source} must be a quoted numeric ID like "01"`);

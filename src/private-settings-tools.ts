@@ -3,7 +3,7 @@ import { Type } from "typebox";
 import {
   privateSettingsStatus,
   writePrivateSettingsIds,
-  type DBhopperTicketBuyingMode,
+  type DBhopperPurchaseMode,
 } from "./private-settings.js";
 import {
   PRIVATE_SETTINGS_SELECT_TOOL_NAME,
@@ -36,7 +36,7 @@ export function createPrivateSettingsToolDefinitions(tool: any) {
       description:
         [
           "Update ID_USR, ID_CLM, ID_BUY, ID_PYM, and/or",
-          "TICKET_BUYING_MODE in assets/private/settings.toml.",
+          "purchase_mode in assets/private/settings.toml.",
         ].join(" "),
       optional: true,
       parameters: Type.Object(
@@ -61,7 +61,7 @@ export function createPrivateSettingsToolDefinitions(tool: any) {
               description: 'Payment profile ID_PYM to select, for example "01".',
             }),
           ),
-          ticket_buying_mode: Type.Optional(
+          purchase_mode: Type.Optional(
             Type.Union([Type.Literal("review"), Type.Literal("auto")], {
               description:
                 "Final Check-page gate mode. Default is review; auto is not purchase-enabled yet.",
@@ -76,7 +76,7 @@ export function createPrivateSettingsToolDefinitions(tool: any) {
           claim_profile_id?: string;
           buying_profile_id?: string;
           payment_profile_id?: string;
-          ticket_buying_mode?: DBhopperTicketBuyingMode;
+          purchase_mode?: DBhopperPurchaseMode;
         },
         config: DBhopperConfig = {},
       ) => {
@@ -90,7 +90,7 @@ export function createPrivateSettingsToolDefinitions(tool: any) {
                 claimProfileId: params.claim_profile_id,
                 buyingProfileId: params.buying_profile_id,
                 paymentProfileId: params.payment_profile_id,
-                ticketBuyingMode: params.ticket_buying_mode,
+                purchaseMode: params.purchase_mode,
               },
               config,
             ),

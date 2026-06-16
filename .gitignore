@@ -17,6 +17,9 @@ lcov.info
 !specs/**
 
 claims/
-assets/private/
+assets/private/*
+!assets/private/purchases/
+assets/private/purchases/*
+!assets/private/purchases/.gitkeep
 assets/psc/
 tmp/
