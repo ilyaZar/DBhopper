@@ -2,6 +2,7 @@ import { CLAIM_TOOL_NAMES } from "./claim-tool-contracts.js";
 export { CLAIM_TOOL_NAMES } from "./claim-tool-contracts.js";
 export const PRIVATE_SETTINGS_STATUS_TOOL_NAME = "dbhopper_private_settings_status";
 export const PRIVATE_SETTINGS_SELECT_TOOL_NAME = "dbhopper_private_settings_select";
+export const PRIVATE_SETTINGS_CONFIGURE_TOOL_NAME = "dbhopper_private_settings_configure";
 export const CREDENTIALS_VALIDATE_TOOL_NAME = "dbhopper_credentials_validate";
 export const DB_STANDARD_LOGIN_CHECK_TOOL_NAME = "dbhopper_db_standard_login_check";
 export const DB_MARKETPLACE_ACCESS_CHECK_TOOL_NAME = "dbhopper_db_marketplace_access_check";
@@ -14,6 +15,7 @@ export const TICKET_CHECKOUT_DRY_RUN_TOOL_NAME = "dbhopper_ticket_checkout_dry_r
 export const ALWAYS_ENABLED_TOOL_NAMES = [
     PRIVATE_SETTINGS_STATUS_TOOL_NAME,
     PRIVATE_SETTINGS_SELECT_TOOL_NAME,
+    PRIVATE_SETTINGS_CONFIGURE_TOOL_NAME,
     CREDENTIALS_VALIDATE_TOOL_NAME,
 ];
 export const TICKET_BUYING_ACCESS_TOOL_NAMES = [

@@ -20,4 +20,5 @@ delay_provider = "bahn-web"
 delay_fallback = "none"
 
 # final checkout behavior; only relevant when use_ticket_purchase = true
+path_prc = "../dbhopper-private/purchases"
 purchase_mode = "review"

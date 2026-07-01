@@ -14,10 +14,12 @@ import {
   DELAY_PROVIDERS,
 } from "./delay-provider-options.js";
 import { createPrivateSettingsToolDefinitions } from "./private-settings-tools.js";
+import { PRIVATE_SETTINGS_CONFIGURE_TOOL_NAME } from "./tool-contracts.js";
 import { createTicketBuyingToolDefinitions } from "./ticket-buying.js";
 import {
   type DBhopperFeatureSettings,
   type DBhopperFeatureSettingName,
+  featureSettingEnableSuggestion,
   featureSettingForToolName,
   featureSettingLabel,
   featureSettingsSummary,
@@ -245,9 +247,10 @@ function featureDisabledResult(
     requiredSetting: setting,
     needs_configuration: true,
     settings: featureSettingsSummary(settings),
+    ...featureSettingEnableSuggestion(setting),
     message: [
       `${featureSettingLabel(setting)} is disabled in assets/private/settings.toml.`,
-      `Set ${setting} = true to enable ${toolName}.`,
+      `Ask to set ${setting} = true with ${PRIVATE_SETTINGS_CONFIGURE_TOOL_NAME} to enable ${toolName}.`,
     ].join(" "),
   };
 }
