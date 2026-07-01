@@ -116,7 +116,7 @@ describe("dbhopper ticket buying dry run", () => {
     assert.equal(result.purchaseMode, "review");
   });
 
-  it("requires an explicit snake_case flag for purchase test-drive artifacts", () => {
+  it("keeps purchase test-run artifacts controlled by settings", () => {
     const definitions = createTicketBuyingToolDefinitions((definition) => definition);
     for (const toolName of [
       TICKET_BUYING_DRY_RUN_TOOL_NAME,
@@ -126,7 +126,8 @@ describe("dbhopper ticket buying dry run", () => {
 
       assert.ok(definition);
       assert.equal(definition.parameters.additionalProperties, false);
-      assert.equal("test_drive_purchase" in definition.parameters.properties, true);
+      assert.equal("test_run_purchase" in definition.parameters.properties, false);
+      assert.equal("test_drive_purchase" in definition.parameters.properties, false);
       assert.equal("test-drive-purchase" in definition.parameters.properties, false);
     }
   });

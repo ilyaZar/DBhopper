@@ -17,11 +17,14 @@ user-managed local runtime state and is not packaged.
 use_delay_retrieval = true
 use_claim_requests = false
 use_ticket_purchase = false
+test_run_claim_request = false
+test_run_purchase = false
 
 ID_USR = "01"
 ID_CLM = "01"
 ID_BUY = "01"
 ID_PYM = "01"
+claim_request_mode = "review"
 purchase_mode = "review"
 path_usr = "../dbhopper-private/credentials"
 path_clm = "../dbhopper-private/claims"
@@ -35,6 +38,16 @@ delay_fallback = "none"
 - `use_delay_retrieval` controls delay-query tools.
 - `use_claim_requests` controls claim-preparation and filing tools.
 - `use_ticket_purchase` controls ticket-purchase dry-run tools.
+- `test_run_claim_request` controls page-by-page claim browser text and
+  screenshots. Keep it `false` for normal runs; the final summary screenshot is
+  still saved for user review.
+- `test_run_purchase` controls numbered purchase browser text and screenshots.
+  Keep it `false` for normal runs; the final checkout review screenshot is
+  still saved under `path_prc`.
+- `claim_request_mode` controls the final Mobilitätsgarantie claim filing gate.
+  `"review"` is the default and always stops at the summary page with a
+  `summaryScreenshot`. `"auto"` allows submit mode only when the tool call also
+  passes `mode: "submit"` and `confirmSubmit: true`.
 - `ID_USR` selects one user credential file from `path_usr`.
 - `ID_CLM` selects one claim TOML from `path_clm` when a routed claim file
   contains the same `ID_CLM` field.
@@ -296,6 +309,13 @@ Use `dbhopper_private_settings_configure` to update important runtime choices:
   filing tools.
 - `use_ticket_purchase`: enables or disables ticket search and checkout dry-run
   tools.
+- `test_run_claim_request`: enables or disables page-by-page claim browser text
+  and screenshots. Normal runs still save the final summary review screenshot.
+- `test_run_purchase`: enables or disables numbered purchase browser text and
+  screenshots. Normal review runs still save the Check-page review screenshot.
+- `claim_request_mode`: chooses `"review"` to stop on the claim summary page
+  with a review screenshot, or `"auto"` to allow explicitly confirmed submit
+  mode.
 - `delay_provider`: chooses `"bahn-web"` website retrieval, `"db-timetables"`
   official DB API calls, or `"auto"` provider selection.
 - `delay_fallback`: chooses a retry backend after provider failure, or `"none"`

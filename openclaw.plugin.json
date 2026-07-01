@@ -20,7 +20,7 @@
     },
     "artifactRoot": {
       "label": "Artifact Root",
-      "help": "Directory for browser-run screenshots and text captures."
+      "help": "External directory for claim browser-run artifacts."
     },
     "headless": {
       "label": "Headless Browser",
@@ -40,7 +40,7 @@
       },
       "artifactRoot": {
         "type": "string",
-        "description": "Optional directory for ignored local browser-run artifacts."
+        "description": "Optional external directory for claim browser-run artifacts."
       },
       "headless": {
         "type": "boolean",

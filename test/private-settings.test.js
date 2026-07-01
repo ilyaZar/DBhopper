@@ -68,6 +68,7 @@ describe("dbhopper private settings", () => {
     assert.equal(status.buyingProfiles.selected.fileName, "buying-profile-01.toml");
     assert.equal(status.settings.DELAY_PROVIDER, "bahn-web");
     assert.equal(status.settings.DELAY_FALLBACK, "none");
+    assert.equal(status.settings.CLAIM_REQUEST_MODE, "review");
     assert.equal(status.settings.PURCHASE_MODE, "review");
     assert.equal(status.settings.purchaseArtifactsDir, purchaseArtifactsDir);
     assert.equal(
@@ -166,6 +167,7 @@ describe("dbhopper private settings", () => {
     assert.match(settings, /ID_CLM = "03"/);
     assert.match(settings, /ID_BUY = "02"/);
     assert.match(settings, /ID_PYM = "02"/);
+    assert.match(settings, /claim_request_mode = "review"/);
     assert.match(settings, /purchase_mode = "review"/);
     assert.match(settings, new RegExp(escapeRegExp(`path_usr = "${credentialsDir}"`)));
     assert.match(settings, new RegExp(escapeRegExp(`path_pym = "${credentialsDir}"`)));
@@ -181,7 +183,7 @@ describe("dbhopper private settings", () => {
     );
 
     const result = await writePrivateSettingsRuntimeConfig(
-      { purchase_mode: "auto" },
+      { claim_request_mode: "auto", purchase_mode: "auto" },
       configWithPrivateSettings(root),
     );
     const settings = await fs.readFile(
@@ -190,6 +192,7 @@ describe("dbhopper private settings", () => {
     );
 
     assert.equal(result.preview.needsUserAction, true);
+    assert.match(settings, /claim_request_mode = "auto"/);
     assert.match(settings, /purchase_mode = "auto"/);
     assert.match(settings, new RegExp(escapeRegExp(`path_usr = "${credentialsDir}"`)));
     assert.match(settings, new RegExp(escapeRegExp(`path_clm = "${profilesDir}"`)));

@@ -295,12 +295,16 @@ Do not expose account owner or IBAN values in tool output.
 
 At the summary page:
 
-- capture page text and a screenshot artifact
+- capture the final summary screenshot artifact
 - return the artifact path to the agent
 - stop before `Angaben absenden`
 
 The user should inspect the screenshot and explicitly confirm any later final
 submission path. This spec does not require implementing the final click.
+
+`claim_request_mode = "review"` always stops here. `claim_request_mode =
+"auto"` allows final submission only when the tool call also passes
+`mode: "submit"` and `confirmSubmit: true`.
 
 ## Validation Requirements
 
@@ -358,6 +362,12 @@ There must also be a live test-drive record from the plugin itself:
 - record which screenshot step is reached, which fields are filled, and the
   exact first blocker if the run stops before screenshot 11
 - keep the generated artifacts local and ignored
+
+Normal claim runs save only the final summary screenshot for user review.
+Set `test_run_claim_request = true` in `settings.toml` only when an explicit
+test run needs page-by-page text and screenshots. Normal review screenshots are
+stored under `path_clm/<claim-id>/review/`; claim test-run trails are stored
+under `path_clm/<claim-id>/test-runs/`.
 
 ### Latest Local Live Test-Drive
 

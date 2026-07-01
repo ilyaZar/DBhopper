@@ -14,7 +14,6 @@ export interface TicketBuyingDryRunParams {
     headless?: boolean;
     include_controls?: boolean;
     review_pause_ms?: number;
-    test_drive_purchase?: boolean;
 }
 export interface TicketCheckoutDryRunParams {
     departure_station?: string;
@@ -29,7 +28,6 @@ export interface TicketCheckoutDryRunParams {
     include_controls?: boolean;
     review_pause_ms?: number;
     continue_after_payment_profile?: boolean;
-    test_drive_purchase?: boolean;
 }
 export declare const TICKET_BUYING_RESEARCH_SUMMARY: {
     status: string;
@@ -92,7 +90,7 @@ export declare function runTicketBuyingDryRun(params: TicketBuyingDryRunParams, 
         title: string;
         artifactDir: string | undefined;
         artifacts: string[];
-        testDrivePurchase: boolean;
+        testRunPurchase: boolean;
         login: import("./db-login.js").DBAccountLoginResult | {
             requested: boolean;
         };
@@ -176,7 +174,7 @@ export declare function runTicketBuyingDryRun(params: TicketBuyingDryRunParams, 
     browserResult: {
         artifactDir?: string;
         artifacts: string[];
-        testDrivePurchase: boolean;
+        testRunPurchase: boolean;
         url?: undefined;
         title?: undefined;
         login?: undefined;
@@ -446,7 +444,7 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
         title: string;
         artifactDir: string | undefined;
         artifacts: string[];
-        testDrivePurchase: boolean;
+        testRunPurchase: boolean;
         login: import("./db-login.js").DBAccountLoginResult | {
             requested: boolean;
         };
@@ -693,7 +691,7 @@ export declare function runTicketCheckoutDryRun(params: TicketCheckoutDryRunPara
     browserResult: {
         artifactDir?: string;
         artifacts: string[];
-        testDrivePurchase: boolean;
+        testRunPurchase: boolean;
         url?: undefined;
         title?: undefined;
         login?: undefined;

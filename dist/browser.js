@@ -42,6 +42,7 @@ export async function runBrowserClaim(params) {
     const started = Date.now();
     const artifacts = [];
     const stationSelections = [];
+    const testRunClaimRequest = params.testRunClaimRequest === true;
     let entryFlow = defaultEntryFlow();
     const artifactDir = await createArtifactDir(params);
     let browser;
@@ -57,16 +58,16 @@ export async function runBrowserClaim(params) {
         page.setDefaultTimeout(Math.min(30000, timeoutMs));
         page.setDefaultNavigationTimeout(Math.min(45000, timeoutMs));
         stage = "entry";
-        entryFlow = await openClaimForm(page, artifactDir, artifacts);
-        await captureStage(page, artifactDir, "open-form", artifacts);
+        entryFlow = await openClaimForm(page, artifactDir, artifacts, testRunClaimRequest);
+        await captureDebugStage(page, artifactDir, "open-form", artifacts, testRunClaimRequest);
         stage = "legal";
         await checkRequiredLegalQuestion(page);
         await clickVisibleSave(page);
-        await captureStage(page, artifactDir, "legal", artifacts);
+        await captureDebugStage(page, artifactDir, "legal", artifacts, testRunClaimRequest);
         stage = "claimant";
         await fillClaimant(page, params.claim);
         await clickVisibleSave(page);
-        await captureStage(page, artifactDir, "claimant", artifacts);
+        await captureDebugStage(page, artifactDir, "claimant", artifacts, testRunClaimRequest);
         stage = "journey";
         const defaultBahnhofSuffixCheck = params.checkBahnhofSuffix || "both";
         const journeyResult = await fillJourney(page, params.claim, {
@@ -77,7 +78,7 @@ export async function runBrowserClaim(params) {
         }, params.stopAfterStationResolution === true);
         stationSelections.push(...journeyResult.stationSelections);
         if (journeyResult.stoppedAfterStationResolution) {
-            await captureStage(page, artifactDir, "station-resolution", artifacts);
+            await captureDebugStage(page, artifactDir, "station-resolution", artifacts, testRunClaimRequest);
             return {
                 ok: true,
                 mode,
@@ -93,18 +94,18 @@ export async function runBrowserClaim(params) {
             };
         }
         await clickVisibleSave(page);
-        await captureStage(page, artifactDir, "journey", artifacts);
+        await captureDebugStage(page, artifactDir, "journey", artifacts, testRunClaimRequest);
         stage = "ticket";
         await fillTicket(page, params.claim, params.claimDir);
         await clickVisibleSave(page);
-        await captureStage(page, artifactDir, "ticket", artifacts);
+        await captureDebugStage(page, artifactDir, "ticket", artifacts, testRunClaimRequest);
         stage = "bank";
         await fillBank(page, params.claim);
         await clickVisibleSave(page);
-        await captureStage(page, artifactDir, "bank", artifacts);
+        await captureDebugStage(page, artifactDir, "bank", artifacts, testRunClaimRequest);
         stage = "summary";
-        await captureStage(page, artifactDir, "summary", artifacts);
-        const summaryScreenshot = artifacts.find((artifact) => artifact.endsWith("browser-summary.png"));
+        const summaryScreenshot = await saveScreenshot(page, artifactDir, "summary");
+        artifacts.push(summaryScreenshot);
         if (Date.now() - started > timeoutMs) {
             throw new Error("browser run timed out");
         }
@@ -129,7 +130,7 @@ export async function runBrowserClaim(params) {
         if (download) {
             artifacts.push(download);
         }
-        await captureStage(page, artifactDir, "submitted", artifacts);
+        await captureDebugStage(page, artifactDir, "submitted", artifacts, testRunClaimRequest);
         return {
             ok: true,
             mode,
@@ -148,7 +149,7 @@ export async function runBrowserClaim(params) {
     catch (error) {
         if (page) {
             try {
-                await captureStage(page, artifactDir, `blocked-${stage}`, artifacts);
+                await captureDebugStage(page, artifactDir, `blocked-${stage}`, artifacts, testRunClaimRequest);
             }
             catch {
                 // Keep the original browser failure.
@@ -181,7 +182,7 @@ function defaultEntryFlow() {
         acceptedFormConsent: false,
     };
 }
-async function openClaimForm(page, artifactDir, artifacts) {
+async function openClaimForm(page, artifactDir, artifacts, testRunClaimRequest) {
     const entryFlow = defaultEntryFlow();
     await page.goto(ENTRY_URL, { waitUntil: "domcontentloaded" });
     entryFlow.startedAtPublicEntry = true;
@@ -190,13 +191,13 @@ async function openClaimForm(page, artifactDir, artifacts) {
     if (entryFlow.storedEntryCookieServices) {
         await page.waitForTimeout(1000);
     }
-    await captureStage(page, artifactDir, "entry", artifacts);
+    await captureDebugStage(page, artifactDir, "entry", artifacts, testRunClaimRequest);
     await openPublicFormPage(page);
     await page.waitForLoadState("domcontentloaded", { timeout: 10000 }).catch(() => undefined);
     entryFlow.storedEntryCookieServices =
         await storeDefaultCookieServicesIfVisible(page) ||
             entryFlow.storedEntryCookieServices;
-    await captureStage(page, artifactDir, "consent", artifacts);
+    await captureDebugStage(page, artifactDir, "consent", artifacts, testRunClaimRequest);
     entryFlow.acceptedFormConsent = await acceptConsentUntilFormVisible(page);
     await waitForFormCreator(page);
     return entryFlow;
@@ -744,10 +745,20 @@ async function captureStage(page, artifactDir, label, artifacts) {
     artifacts.push(await savePageText(page, artifactDir, label));
     artifacts.push(await saveScreenshot(page, artifactDir, label));
 }
+async function captureDebugStage(page, artifactDir, label, artifacts, enabled) {
+    if (!enabled) {
+        return;
+    }
+    await captureStage(page, artifactDir, label, artifacts);
+}
 async function createArtifactDir(params) {
-    const claimId = safeArtifactSegment(path.basename(params.claimDir));
-    const artifactRoot = params.artifactRoot || path.join(path.dirname(path.dirname(params.claimDir)), "tmp");
-    return createTimestampedArtifactDir(artifactRoot, claimId);
+    const root = params.testRunClaimRequest === true
+        ? path.join(params.claimDir, "test-runs")
+        : path.join(params.claimDir, "review");
+    const prefix = params.testRunClaimRequest === true
+        ? "claim-browser-test-run"
+        : "claim-review";
+    return createTimestampedArtifactDir(root, prefix);
 }
 async function savePageText(page, artifactDir, label) {
     const target = path.join(artifactDir, `${safeArtifactLabel(label)}.txt`);

@@ -61,11 +61,14 @@ profile scan directories, and delay-provider defaults:
 use_delay_retrieval = true
 use_claim_requests = false
 use_ticket_purchase = false
+test_run_claim_request = false
+test_run_purchase = false
 
 ID_USR = "01"
 ID_CLM = "01"
 ID_BUY = "01"
 ID_PYM = "01"
+claim_request_mode = "review"
 purchase_mode = "review"
 path_usr = "../dbhopper-private/credentials"
 path_clm = "../dbhopper-private/profiles"
@@ -161,6 +164,11 @@ confirmation PDF as the joined audit recipe.
 Use `assets/private/settings.toml` to select the claim profile and credential
 IDs used for claim filing. Claim filing uses `ID_CLM` from `path_clm`.
 
+`claim_request_mode = "review"` is the default. Claim filing stops at the
+Mobilitätsgarantie summary page, returns `summaryScreenshot`, and does not click
+`Angaben absenden`. `claim_request_mode = "auto"` allows submit mode only when
+the tool call also passes `mode: "submit"` and `confirmSubmit: true`.
+
 ### 3. Autonomous ticket buying
 
 Autonomous ticket-buying tools are disabled by default. Enable them explicitly:
@@ -174,6 +182,7 @@ Ticket buying uses the selected private IDs from `assets/private/settings.toml`:
 - `ID_USR`: Bahn account credentials and browser profile.
 - `ID_BUY`: fare, class, and customer-data choices.
 - `ID_PYM`: payment method and fillable payment fields.
+- `claim_request_mode`: final Mobilitätsgarantie summary-page behavior.
 - `purchase_mode`: final Check-page behavior.
 
 `purchase_mode = "review"` is the default. Checkout may fill the configured
@@ -269,9 +278,10 @@ Use these tools after the delay result identifies the target route, service
 date, train label, and departure time. Ticket workflows use deterministic
 browser automation. In review mode, the checkout tool stores the user-facing
 `reviewScreenshot` under configured `path_prc` and returns that path for the
-agent to show to the user. Per-stage page text and screenshot
-trails are test-drive artifacts only; pass `test_drive_purchase: true` when
-explicitly asked to create that numbered comparison trail under ignored `tmp/`.
+agent to show to the user. Per-stage page text and screenshot trails are
+test-run artifacts only; set `test_run_purchase = true` in `settings.toml` when
+explicitly asked to create that numbered comparison trail under external
+`path_prc/test-runs`.
 In auto mode, final buying still stops with `auto_unavailable`; there is no
 final purchase click yet. The agent should not infer or invent checkout state
 from screenshots or raw page text.
@@ -293,8 +303,9 @@ Telegram, or some web interface.
 The local DBhopper plugin process is the actual engine/coding layer. It reads
 `assets/private/settings.toml`, resolves `ID_USR`, `ID_CLM`, `ID_BUY`, and
 `ID_PYM` against the external `path_usr`, `path_clm`, `path_buy`, and `path_pym`
-directories, stores purchase review screenshots under `path_prc`, and loads
-information from the selected TOML files locally. DBhopper **strictly rejects**
+directories, stores claim review screenshots under the selected claim folder,
+stores purchase review screenshots under `path_prc`, and loads information from
+the selected TOML files locally. DBhopper **strictly rejects**
 those `path_*` directories when they resolve inside the plugin workspace which
 is often exposed to the agent: so the normal setup keeps real credentials,
 profiles, and purchase artifacts outside the workspace that coding agents can
@@ -316,10 +327,11 @@ credentials in storage places that are secure:
 2. not exposed to the internet
 
 Local artifacts are intentionally local and should be treated as sensitive.
-Claim browser runs write screenshots and page text under ignored `tmp/`. Ticket
-checkout review mode writes the final user-review screenshot under configured
-`path_prc`; numbered per-stage ticket page text and screenshots are created only
-when `test_drive_purchase: true` is explicitly passed. These artifact paths may
+Claim browser runs save only the final summary screenshot under the external
+claim folder by default. Ticket checkout review mode writes the final
+user-review screenshot under configured `path_prc`. Page-by-page text and
+screenshot trails are created only when `test_run_claim_request = true` or
+`test_run_purchase = true` is set in `settings.toml`. These artifact paths may
 be returned to the agent, but the files themselves remain on the local machine
 unless the user chooses to inspect or share them.
 

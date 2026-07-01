@@ -12,7 +12,6 @@ import { configuredPurchaseArtifactsDir, readPrivateSettings, } from "./private-
 import { resolveCredentialUserDataDir } from "./access-browser.js";
 import { performDbAccountLogin } from "./db-login.js";
 import { TICKET_BUYING_DRY_RUN_TOOL_NAME, TICKET_BUYING_RESEARCH_TOOL_NAME, TICKET_CHECKOUT_DRY_RUN_TOOL_NAME, } from "./tool-contracts.js";
-import { resolveWorkspace } from "./workspace.js";
 import { fillSensitiveTextControl } from "./sensitive-input.js";
 const DB_HOME_URL = "https://int.bahn.de/en";
 const DEFAULT_BROWSER_TIMEOUT_MS = 60000;
@@ -122,14 +121,6 @@ export function createTicketBuyingToolDefinitions(tool) {
                 review_pause_ms: Type.Optional(Type.Number({
                     description: "Optional Abnahme/review pause before closing the browser, in milliseconds.",
                 })),
-                test_drive_purchase: Type.Optional(Type.Boolean({
-                    default: false,
-                    description: [
-                        "When true, save numbered per-stage ticket-purchase text",
-                        "and screenshot artifacts under the ignored tmp/",
-                        "test-drive directory.",
-                    ].join(" "),
-                })),
             }, { additionalProperties: false }),
             execute: async (params, config, context) => runTicketBuyingDryRun(params, config, context.signal),
         }),
@@ -176,14 +167,6 @@ export function createTicketBuyingToolDefinitions(tool) {
                         "page before any final order button.",
                     ].join(" "),
                 })),
-                test_drive_purchase: Type.Optional(Type.Boolean({
-                    default: false,
-                    description: [
-                        "When true, save numbered per-stage ticket-purchase text",
-                        "and screenshot artifacts under the ignored tmp/",
-                        "test-drive directory.",
-                    ].join(" "),
-                })),
             }, { additionalProperties: false }),
             execute: async (params, config, context) => runTicketCheckoutDryRun(params, config, context.signal),
         }),
@@ -193,6 +176,7 @@ export async function runTicketBuyingDryRun(params, config = {}, signal) {
     let loadedCredentials = undefined;
     let stage = "credentials";
     try {
+        const testRunPurchase = (await readPrivateSettings(config)).settings.TEST_RUN_PURCHASE;
         loadedCredentials = await readCredentialsForTicketDryRun(params, config);
         stage = "plan";
         const plan = ticketBuyingPlan(params, loadedCredentials?.credentials.browser?.userDataDir);
@@ -209,7 +193,7 @@ export async function runTicketBuyingDryRun(params, config = {}, signal) {
                 research: TICKET_BUYING_RESEARCH_SUMMARY,
             };
         }
-        return runBrowserTicketSearch(params, config, plan, loadedCredentials, signal);
+        return runBrowserTicketSearch(params, config, plan, loadedCredentials, testRunPurchase, signal);
     }
     catch (error) {
         return {
@@ -230,10 +214,13 @@ export async function runTicketCheckoutDryRun(params, config = {}, signal) {
     let loadedBuyingProfile = undefined;
     let loadedPaymentProfile = undefined;
     let purchaseMode = "review";
+    let testRunPurchase = false;
     let stage = "credentials";
     try {
         loadedCredentials = await readCredentialsForTicketDryRun(params, config);
-        purchaseMode = (await readPrivateSettings(config)).settings.PURCHASE_MODE;
+        const privateSettings = await readPrivateSettings(config);
+        purchaseMode = privateSettings.settings.PURCHASE_MODE;
+        testRunPurchase = privateSettings.settings.TEST_RUN_PURCHASE;
         loadedBuyingProfile = await readBuyingProfileForTicketCheckout(params, config);
         loadedPaymentProfile = await readPaymentProfileForTicketCheckout(params, config);
         stage = "plan";
@@ -255,7 +242,7 @@ export async function runTicketCheckoutDryRun(params, config = {}, signal) {
                 research: TICKET_BUYING_RESEARCH_SUMMARY,
             };
         }
-        return runBrowserTicketCheckout(params, config, plan, loadedCredentials, loadedBuyingProfile, loadedPaymentProfile, purchaseMode, signal);
+        return runBrowserTicketCheckout(params, config, plan, loadedCredentials, loadedBuyingProfile, loadedPaymentProfile, purchaseMode, testRunPurchase, signal);
     }
     catch (error) {
         return {
@@ -384,8 +371,8 @@ function ticketFareSelectionPlan(farePreference) {
         continueToPaymentBoundary: farePreference.continueToPaymentBoundary,
     };
 }
-async function runBrowserTicketSearch(params, config, plan, loadedCredentials, signal) {
-    const artifactCapture = createTicketArtifactCapture(params);
+async function runBrowserTicketSearch(params, config, plan, loadedCredentials, testRunPurchase, signal) {
+    const artifactCapture = createTicketArtifactCapture(testRunPurchase);
     let browser;
     let context;
     let page;
@@ -439,7 +426,7 @@ async function runBrowserTicketSearch(params, config, plan, loadedCredentials, s
                 title: await page.title(),
                 artifactDir: artifactCapture.artifactDir,
                 artifacts: artifactCapture.artifacts,
-                testDrivePurchase: artifactCapture.testDrivePurchase,
+                testRunPurchase: artifactCapture.testRunPurchase,
                 login,
                 applied,
                 controls,
@@ -477,8 +464,8 @@ async function runBrowserTicketSearch(params, config, plan, loadedCredentials, s
         await browser?.close();
     }
 }
-async function runBrowserTicketCheckout(params, config, plan, loadedCredentials, loadedBuyingProfile, loadedPaymentProfile, purchaseMode, signal) {
-    const artifactCapture = createTicketArtifactCapture(params);
+async function runBrowserTicketCheckout(params, config, plan, loadedCredentials, loadedBuyingProfile, loadedPaymentProfile, purchaseMode, testRunPurchase, signal) {
+    const artifactCapture = createTicketArtifactCapture(testRunPurchase);
     let browser;
     let context;
     let page;
@@ -597,7 +584,7 @@ async function runBrowserTicketCheckout(params, config, plan, loadedCredentials,
                 title: await page.title(),
                 artifactDir: artifactCapture.artifactDir,
                 artifacts: artifactCapture.artifacts,
-                testDrivePurchase: artifactCapture.testDrivePurchase,
+                testRunPurchase: artifactCapture.testRunPurchase,
                 login,
                 applied,
                 checkout: checkoutWithGate,
@@ -2238,14 +2225,13 @@ export function defaultCheckoutServiceDate(now = new Date()) {
     }).format(target);
 }
 async function createTicketArtifactDir(config) {
-    const workspace = resolveWorkspace(config);
-    const artifactRoot = config.artifactRoot || path.join(workspace.root, "tmp");
-    return createTimestampedArtifactDir(artifactRoot, "ticket-purchase-test-drive");
+    const artifactRoot = path.join(await configuredPurchaseArtifactsDir(config), "test-runs");
+    return createTimestampedArtifactDir(artifactRoot, "ticket-purchase-test-run");
 }
-function createTicketArtifactCapture(params) {
+function createTicketArtifactCapture(testRunPurchase) {
     return {
         artifacts: [],
-        testDrivePurchase: params.test_drive_purchase === true,
+        testRunPurchase,
         nextArtifactIndex: 1,
     };
 }
@@ -2253,7 +2239,7 @@ function ticketArtifactResult(artifactCapture) {
     return {
         artifactDir: artifactCapture.artifactDir,
         artifacts: artifactCapture.artifacts,
-        testDrivePurchase: artifactCapture.testDrivePurchase,
+        testRunPurchase: artifactCapture.testRunPurchase,
     };
 }
 async function ensureTicketArtifactDir(config, artifactCapture) {
@@ -2261,7 +2247,7 @@ async function ensureTicketArtifactDir(config, artifactCapture) {
     return artifactCapture.artifactDir;
 }
 async function captureTicketStage(page, config, artifactCapture, label) {
-    if (!artifactCapture.testDrivePurchase) {
+    if (!artifactCapture.testRunPurchase) {
         return;
     }
     const artifactDir = await ensureTicketArtifactDir(config, artifactCapture);
@@ -2288,7 +2274,7 @@ async function saveTicketReviewScreenshot(page, config, artifactCapture, label) 
     const screenshot = await page.screenshot({ fullPage: true });
     const path = await savePurchaseReviewScreenshot(config, screenshot);
     artifactCapture.artifacts.push(path);
-    if (artifactCapture.testDrivePurchase) {
+    if (artifactCapture.testRunPurchase) {
         await saveTicketTestDriveScreenshot(config, artifactCapture, label, screenshot);
     }
     return {
