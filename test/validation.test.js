@@ -87,4 +87,43 @@ describe("dbhopper validation", () => {
     assert.ok(result.messages.some((message) => message.code === "excluded_reason"));
     assert.ok(result.messages.some((message) => message.code === "used_delayed_vehicle"));
   });
+
+  it("accepts delay evidence paths arrays up to three files", () => {
+    const claim = validClaim();
+    claim.files = [
+      { role: "base_ticket", path: "ticket.pdf" },
+      { role: "substitute_receipt", path: "ice.pdf" },
+      {
+        role: "delay_evidence",
+        paths: ["delay-1.png", "delay-2.png", "delay-3.png"],
+      },
+    ];
+
+    const result = validateClaim(claim, {
+      now: new Date("2026-06-08T12:00:00Z"),
+    });
+
+    assert.equal(result.ok, true);
+  });
+
+  it("rejects more than three delay evidence files", () => {
+    const claim = validClaim();
+    claim.files = [
+      { role: "base_ticket", path: "ticket.pdf" },
+      { role: "substitute_receipt", path: "ice.pdf" },
+      {
+        role: "delay_evidence",
+        paths: ["delay-1.png", "delay-2.png", "delay-3.png", "delay-4.png"],
+      },
+    ];
+
+    const result = validateClaim(claim, {
+      now: new Date("2026-06-08T12:00:00Z"),
+    });
+
+    assert.equal(result.ok, false);
+    assert.ok(
+      result.messages.some((message) => message.code === "too_many_delay_evidence_files"),
+    );
+  });
 });

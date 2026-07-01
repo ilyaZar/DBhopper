@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import type { Dirent } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -167,7 +168,11 @@ const DELAY_FALLBACK_VALUES = new Set<string>(DELAY_FALLBACKS);
 const PURCHASE_MODE_VALUES = new Set(["review", "auto"]);
 
 export function privateSettingsPath(config: DBhopperConfig = {}) {
-  return path.join(workspaceRoot(config), SETTINGS_RELATIVE_PATH);
+  return path.resolve(config.settingsPath || path.join(PACKAGE_ROOT, SETTINGS_RELATIVE_PATH));
+}
+
+export function privateSettingsRoot(config: DBhopperConfig = {}) {
+  return settingsRootFromPath(privateSettingsPath(config));
 }
 
 export function defaultPrivateSettings(): DBhopperPrivateSettings {
@@ -211,11 +216,11 @@ export async function readPrivateSettings(
     exists,
     settingsPath,
     settings,
-    userCredentialsDir: resolveConfiguredPath(config, settings.PATH_USR),
-    claimProfilesDir: resolveConfiguredPath(config, settings.PATH_CLM),
-    buyingProfilesDir: resolveConfiguredPath(config, settings.PATH_BUY),
-    paymentProfilesDir: resolveConfiguredPath(config, settings.PATH_PYM),
-    purchaseArtifactsDir: resolveConfiguredPath(config, settings.PATH_PRC),
+    userCredentialsDir: resolveConfiguredPath(settingsPath, settings.PATH_USR),
+    claimProfilesDir: resolveConfiguredPath(settingsPath, settings.PATH_CLM),
+    buyingProfilesDir: resolveConfiguredPath(settingsPath, settings.PATH_BUY),
+    paymentProfilesDir: resolveConfiguredPath(settingsPath, settings.PATH_PYM),
+    purchaseArtifactsDir: resolveConfiguredPath(settingsPath, settings.PATH_PRC),
   };
 }
 
@@ -289,7 +294,7 @@ async function listConfiguredIdFiles(
   const slot = privateSlotForIdField(idField);
   return {
     settings: loaded,
-    ...(await listIdFiles(loaded[slot.directoryField], idField, workspaceRoot(config))),
+    ...(await listIdFiles(loaded[slot.directoryField], idField, privateSettingsRoot(config))),
   };
 }
 
@@ -308,7 +313,7 @@ async function resolveConfiguredIdFile(
       loaded[slot.directoryField],
       idField,
       loaded.settings[idField],
-      workspaceRoot(config),
+      privateSettingsRoot(config),
     ),
   };
 }
@@ -334,7 +339,7 @@ export async function configuredPurchaseArtifactsDir(config: DBhopperConfig = {}
   let locationError = await privatePathLocationError(
     settings.purchaseArtifactsDir,
     "path_prc",
-    workspaceRoot(config),
+    privateSettingsRoot(config),
   );
   if (locationError) {
     throw new Error(locationError.message);
@@ -343,7 +348,7 @@ export async function configuredPurchaseArtifactsDir(config: DBhopperConfig = {}
   locationError = await privatePathLocationError(
     settings.purchaseArtifactsDir,
     "path_prc",
-    workspaceRoot(config),
+    privateSettingsRoot(config),
   );
   if (locationError) {
     throw new Error(locationError.message);
@@ -353,7 +358,7 @@ export async function configuredPurchaseArtifactsDir(config: DBhopperConfig = {}
 
 export async function privateSettingsStatus(config: DBhopperConfig = {}) {
   const settings = await readPrivateSettings(config);
-  const root = workspaceRoot(config);
+  const root = privateSettingsRoot(config);
   const credentials = await listConfiguredStatusFiles(settings, "ID_USR", root);
   const paymentProfiles = await listConfiguredStatusFiles(settings, "ID_PYM", root);
   const claimProfiles = await listConfiguredStatusFiles(settings, "ID_CLM", root);
@@ -485,7 +490,7 @@ export async function writePrivateSettingsIds(
       : loaded.settings.ID_PYM,
   };
 
-  const root = workspaceRoot(config);
+  const root = privateSettingsRoot(config);
   for (const idField of PRIVATE_ID_FIELDS) {
     const slot = privateSlotForIdField(idField);
     await resolveIdFile(loaded[slot.directoryField], idField, updated[idField], root);
@@ -557,14 +562,24 @@ export function normalizePrivateId(
   return trimmed;
 }
 
-function workspaceRoot(config: DBhopperConfig) {
-  return path.resolve(config.workspaceRoot || PACKAGE_ROOT);
-}
-
-function resolveConfiguredPath(config: DBhopperConfig, value: string) {
+function resolveConfiguredPath(settingsPath: string, value: string) {
   return path.isAbsolute(value)
     ? path.resolve(value)
-    : path.resolve(workspaceRoot(config), value);
+    : path.resolve(settingsRootFromPath(settingsPath), value);
+}
+
+function settingsRootFromPath(settingsPath: string) {
+  const resolved = path.resolve(settingsPath);
+  const privateDir = path.dirname(resolved);
+  const assetsDir = path.dirname(privateDir);
+  if (
+    path.basename(resolved) === "settings.toml" &&
+    path.basename(privateDir) === "private" &&
+    path.basename(assetsDir) === "assets"
+  ) {
+    return path.dirname(assetsDir);
+  }
+  return privateDir;
 }
 
 function normalizePrivateSettings(
@@ -815,6 +830,30 @@ async function listIdFiles(
   const entries = await fs.readdir(dir, { withFileTypes: true });
 
   for (const entry of entries) {
+    const claimPath = idField === "ID_CLM"
+      ? privateClaimCandidatePath(dir, entry)
+      : undefined;
+    if (claimPath) {
+      if (await fileExists(claimPath)) {
+        try {
+          const parsed = parseIdDocument(await fs.readFile(claimPath, "utf8"), claimPath);
+          if (!parsed.ID_CLM) {
+            continue;
+          }
+          const id = normalizePrivateId(String(parsed.ID_CLM), idField);
+          items.push({
+            id,
+            fileName: entry.isDirectory()
+              ? path.join(entry.name, "claim.toml")
+              : entry.name,
+            filePath: claimPath,
+          });
+        } catch (error) {
+          messages.push(validationErrorFromException("invalid_private_id_file", error));
+        }
+      }
+      continue;
+    }
     if (!entry.isFile() || !entry.name.endsWith(".toml")) {
       continue;
     }
@@ -850,6 +889,25 @@ async function listIdFiles(
     ));
   }
   return { items, messages, directoryOk: true };
+}
+
+function privateClaimCandidatePath(dir: string, entry: Dirent) {
+  if (entry.isDirectory()) {
+    return path.join(dir, entry.name, "claim.toml");
+  }
+  if (entry.isFile() && entry.name.endsWith(".toml")) {
+    return path.join(dir, entry.name);
+  }
+  return undefined;
+}
+
+async function fileExists(filePath: string) {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function listConfiguredStatusFiles(

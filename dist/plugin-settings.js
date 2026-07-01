@@ -16,7 +16,9 @@ const TOOL_FEATURE_SETTINGS = new Map([
     ...AUTONOMOUS_TICKET_BUYING_TOOL_NAMES.map((name) => [name, "use_ticket_purchase"]),
 ]);
 export function readTopLevelSettings(packageRoot = PACKAGE_ROOT) {
-    const settingsPath = privateSettingsPath({ workspaceRoot: packageRoot });
+    const settingsPath = privateSettingsPath({
+        settingsPath: path.join(packageRoot, SETTINGS_FILE),
+    });
     if (!fs.existsSync(settingsPath)) {
         return { ...DEFAULT_FEATURE_SETTINGS };
     }

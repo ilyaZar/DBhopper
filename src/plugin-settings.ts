@@ -44,7 +44,9 @@ const TOOL_FEATURE_SETTINGS = new Map<string, DBhopperFeatureSettingName>([
 export function readTopLevelSettings(
   packageRoot = PACKAGE_ROOT,
 ): DBhopperFeatureSettings {
-  const settingsPath = privateSettingsPath({ workspaceRoot: packageRoot });
+  const settingsPath = privateSettingsPath({
+    settingsPath: path.join(packageRoot, SETTINGS_FILE),
+  });
   if (!fs.existsSync(settingsPath)) {
     return { ...DEFAULT_FEATURE_SETTINGS };
   }

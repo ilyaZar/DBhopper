@@ -3,7 +3,7 @@ import { PRIVATE_SETTINGS_CONFIGURE_TOOL_NAME } from "./tool-contracts.js";
 import { probeBrowser, runBrowserClaim } from "./browser.js";
 import { claimSchemaReference, validateClaim } from "./validation.js";
 import { errorMessage } from "./errors.js";
-import { claimPaths, listClaims, prepareClaim, readClaim, redactEmail, validateWorkspaceTomlFiles, writeSubmittedRecipe, } from "./workspace.js";
+import { listClaims, prepareClaim, readClaim, redactEmail, validateWorkspaceTomlFiles, writeSubmittedRecipe, } from "./workspace.js";
 const SIDE_EFFECT_TOOL_NAMES = new Set([
     ...SIDE_EFFECT_CLAIM_TOOL_NAMES,
     PRIVATE_SETTINGS_CONFIGURE_TOOL_NAME,
@@ -249,10 +249,9 @@ function runClaimTool() {
                         message: "claim has warnings; resolve them before submit mode",
                     });
                 }
-                const paths = claimPaths(prepared.claimId, this.config);
                 const result = await runBrowserClaim({
                     claim: prepared.claim,
-                    claimDir: paths.claimDir,
+                    claimDir: prepared.claimDir,
                     mode: params.mode || "dry_run",
                     confirmSubmit: params.confirmSubmit,
                     headless: params.headless ?? this.config.headless,

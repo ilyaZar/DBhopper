@@ -8,6 +8,7 @@ import {
   createPrivateSettingsToolDefinitions,
 } from "../dist/private-settings-tools.js";
 import {
+  configWithPrivateSettings,
   writeBuyingProfileFixture,
   writeCredentialsFixture,
   writePaymentProfileFixture,
@@ -61,7 +62,7 @@ describe("dbhopper private settings tools", () => {
         delay_provider: "db-timetables",
         purchase_mode: "auto",
       },
-      { workspaceRoot: root, approvalMode: "none" },
+      configWithPrivateSettings(root, { approvalMode: "none" }),
     );
     const after = await readSettings(root);
 
@@ -129,7 +130,7 @@ describe("dbhopper private settings tools", () => {
         purchase_mode: "auto",
         confirm: true,
       },
-      { workspaceRoot: root },
+      configWithPrivateSettings(root),
     );
     const settings = await readSettings(root);
 
@@ -167,7 +168,7 @@ describe("dbhopper private settings tools", () => {
 
     await configureTool.execute(
       { use_claim_requests: true, confirm: true },
-      { workspaceRoot: root },
+      configWithPrivateSettings(root),
     );
     const settings = await readSettings(root);
 
@@ -186,11 +187,11 @@ describe("dbhopper private settings tools", () => {
 
     const invalidProvider = await configureTool.execute(
       { delay_provider: "browser", confirm: true },
-      { workspaceRoot: root },
+      configWithPrivateSettings(root),
     );
     const invalidPurchaseMode = await configureTool.execute(
       { purchase_mode: "execute", confirm: true },
-      { workspaceRoot: root },
+      configWithPrivateSettings(root),
     );
 
     assert.equal(invalidProvider.ok, false);

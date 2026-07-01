@@ -6,6 +6,7 @@ import path from "node:path";
 
 import { runDbApiCredentialProbe } from "../dist/db-api-access.js";
 import {
+  configWithPrivateSettings,
   writeCredentialsFixture,
   writePrivateSettingsFixture,
 } from "./helpers/private-settings.js";
@@ -18,7 +19,7 @@ describe("dbhopper access diagnostics", () => {
 
     const result = await runDbApiCredentialProbe(
       {},
-      { workspaceRoot: root },
+      configWithPrivateSettings(root),
       { fetchImpl: fakeUnauthorizedFetch },
     );
 

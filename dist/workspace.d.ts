@@ -29,6 +29,14 @@ export declare function claimPaths(claimId: string, config?: DBhopperConfig): {
     claimPath: string;
     recipePath: string;
 };
+export declare function resolveClaimPaths(claimId: string, config?: DBhopperConfig): Promise<{
+    workspace: WorkspacePaths;
+    claimRoot: string;
+    claimId: string;
+    claimDir: string;
+    claimPath: string;
+    recipePath: string;
+}>;
 export declare function readClaim(claimId: string, config?: DBhopperConfig): Promise<PreparedClaim>;
 export declare function listClaims(config?: DBhopperConfig): Promise<({
     claimId: string;

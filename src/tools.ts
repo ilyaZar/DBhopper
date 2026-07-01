@@ -310,10 +310,9 @@ function runClaimTool() {
           });
         }
 
-        const paths = claimPaths(prepared.claimId, this.config);
         const result = await runBrowserClaim({
           claim: prepared.claim,
-          claimDir: paths.claimDir,
+          claimDir: prepared.claimDir,
           mode: params.mode || "dry_run",
           confirmSubmit: params.confirmSubmit,
           headless: params.headless ?? this.config.headless,

@@ -24,7 +24,7 @@ ID_BUY = "01"
 ID_PYM = "01"
 purchase_mode = "review"
 path_usr = "../dbhopper-private/credentials"
-path_clm = "../dbhopper-private/profiles"
+path_clm = "../dbhopper-private/claims"
 path_buy = "../dbhopper-private/profiles"
 path_pym = "../dbhopper-private/credentials"
 path_prc = "../dbhopper-private/purchases"
@@ -36,15 +36,17 @@ delay_fallback = "none"
 - `use_claim_requests` controls claim-preparation and filing tools.
 - `use_ticket_purchase` controls ticket-purchase dry-run tools.
 - `ID_USR` selects one user credential file from `path_usr`.
-- `ID_CLM` selects one claim profile file from `path_clm`.
+- `ID_CLM` selects one claim TOML from `path_clm` when matching routed claim
+  files contain an `ID_CLM` field.
 - `ID_BUY` selects one buying profile file from `path_buy`.
 - `ID_PYM` selects one payment profile file from `path_pym`.
 - `purchase_mode` controls the final DB Check-page gate. `"review"` is the
   default and saves a sensitive screenshot artifact under `path_prc` for user
   inspection. `"auto"` requests automatic buying, but buying is not enabled yet,
   so the run still aborts before any final order button with `auto_unavailable`.
-- `path_usr`, `path_clm`, `path_buy`, and `path_pym` point to external
-  directories to scan for files with the matching `ID_*` field.
+- `path_usr`, `path_buy`, and `path_pym` point to external directories to scan
+  for files with the matching `ID_*` field. `path_clm` points to external claim
+  TOML storage and supports both `<claim-id>/claim.toml` and `<claim-id>.toml`.
 - `path_prc` points to an external directory for sensitive purchase review
   screenshot artifacts.
 - `delay_provider` selects the default delay data source for omitted provider
@@ -73,7 +75,7 @@ Every routed credential file needs an `ID_USR`:
 ID_USR = "01"
 ```
 
-Every routed claim profile file needs an `ID_CLM`:
+Every claim TOML that should be selectable by `ID_CLM` needs an `ID_CLM`:
 
 ```toml
 ID_CLM = "01"
@@ -93,13 +95,13 @@ ID_PYM = "01"
 
 IDs are quoted numeric strings such as `"01"`, `"02"`, and `"03"`.
 
-## Claim Profile Fields
+## Claim Fields
 
 Current top-level fields:
 
-- `ID_CLM`: required quoted numeric claim profile ID, for example `"01"`.
+- `ID_CLM`: optional quoted numeric claim routing ID, for example `"01"`.
 
-Current claim profile sections:
+Current sensitive claim sections:
 
 - `[claimant].salutation`: one of `MR`, `MS`, `DIVERS`, or `FAMILY`.
 - `[claimant].first_name`: claimant first name.

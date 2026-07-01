@@ -7,6 +7,7 @@ import path from "node:path";
 import {
   configuredPurchaseArtifactsDir,
   parsePrivateSettingsToml,
+  privateSettingsPath,
   privateSettingsStatus,
   writePrivateSettingsIds,
   writePrivateSettingsRuntimeConfig,
@@ -16,6 +17,7 @@ import { readSelectedBuyingProfile } from "../dist/buying-profile.js";
 import { readSelectedPaymentProfile } from "../dist/payment-profile.js";
 import { prepareClaim } from "../dist/workspace.js";
 import {
+  configWithPrivateSettings,
   writeBuyingProfileFixture,
   writePaymentProfileFixture,
   writePrivateProfileFixture,
@@ -23,6 +25,20 @@ import {
 } from "./helpers/private-settings.js";
 
 describe("dbhopper private settings", () => {
+  it("keeps settings in the plugin unless settingsPath is explicit", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-settings-path-split-"));
+    const explicitSettingsPath = await writePrivateSettingsFixture(root);
+
+    assert.equal(
+      privateSettingsPath({ workspaceRoot: root }),
+      path.resolve("assets", "private", "settings.toml"),
+    );
+    assert.equal(
+      privateSettingsPath(configWithPrivateSettings(root)),
+      explicitSettingsPath,
+    );
+  });
+
   it("routes credentials and profiles through selected IDs", async () => {
     const { root, credentialsDir, profilesDir, purchaseArtifactsDir } = await createSettingsWorkspace(
       "dbhopper-settings-",
@@ -40,7 +56,7 @@ describe("dbhopper private settings", () => {
     await writePrivateProfileFixture(profilesDir, "03", "private-profile-03.toml", "Third");
     await writeBuyingProfileFixture(profilesDir, "01", "buying-profile-01.toml");
 
-    const status = await privateSettingsStatus({ workspaceRoot: root });
+    const status = await privateSettingsStatus(configWithPrivateSettings(root));
     assert.equal(status.ok, true);
     assert.deepEqual(status.credentials.availableIds, ["01", "02"]);
     assert.deepEqual(status.paymentProfiles.availableIds, ["01"]);
@@ -55,7 +71,7 @@ describe("dbhopper private settings", () => {
     assert.equal(status.settings.PURCHASE_MODE, "review");
     assert.equal(status.settings.purchaseArtifactsDir, purchaseArtifactsDir);
     assert.equal(
-      await configuredPurchaseArtifactsDir({ workspaceRoot: root }),
+      await configuredPurchaseArtifactsDir(configWithPrivateSettings(root)),
       purchaseArtifactsDir,
     );
     assert.doesNotMatch(
@@ -63,7 +79,7 @@ describe("dbhopper private settings", () => {
       /client-02|key-02|user-02@example|password-02|Account Owner|DE00000000000000000000|First|Third/,
     );
 
-    const credentials = await readSelectedCredentialsProfile({ workspaceRoot: root });
+    const credentials = await readSelectedCredentialsProfile(configWithPrivateSettings(root));
     assert.equal(credentials.credentialsId, "02");
     assert.equal(credentials.credentials.bahnAPI.clientId, "client-02");
 
@@ -78,7 +94,7 @@ describe("dbhopper private settings", () => {
           },
         },
       },
-      { workspaceRoot: root },
+      configWithPrivateSettings(root),
     );
 
     assert.equal(prepared.profileId, "03");
@@ -99,7 +115,7 @@ describe("dbhopper private settings", () => {
     await writePrivateProfileFixture(profilesDir, "01", "private-profile-01.toml", "First");
     await writeBuyingProfileFixture(profilesDir, "01", "buying-profile-01.toml");
 
-    const status = await privateSettingsStatus({ workspaceRoot: root });
+    const status = await privateSettingsStatus(configWithPrivateSettings(root));
     assert.equal(status.ok, false);
     assert.equal(status.credentials.selected, undefined);
     assert.ok(
@@ -113,7 +129,7 @@ describe("dbhopper private settings", () => {
       ),
     );
     await assert.rejects(
-      () => readSelectedCredentialsProfile({ workspaceRoot: root }),
+      () => readSelectedCredentialsProfile(configWithPrivateSettings(root)),
       /ID_USR 01 does not exist/,
     );
   });
@@ -138,7 +154,7 @@ describe("dbhopper private settings", () => {
         buyingProfileId: "02",
         paymentProfileId: "02",
       },
-      { workspaceRoot: root },
+      configWithPrivateSettings(root),
     );
     const settings = await fs.readFile(
       path.join(root, "assets", "private", "settings.toml"),
@@ -166,7 +182,7 @@ describe("dbhopper private settings", () => {
 
     const result = await writePrivateSettingsRuntimeConfig(
       { purchase_mode: "auto" },
-      { workspaceRoot: root },
+      configWithPrivateSettings(root),
     );
     const settings = await fs.readFile(
       path.join(root, "assets", "private", "settings.toml"),
@@ -237,7 +253,7 @@ describe("dbhopper private settings", () => {
       purchaseArtifactsPath: path.join(root, "assets", "private", "purchases"),
     });
 
-    const status = await privateSettingsStatus({ workspaceRoot: root });
+    const status = await privateSettingsStatus(configWithPrivateSettings(root));
 
     assert.equal(status.ok, false);
     for (const field of ["path_usr", "path_pym", "path_clm", "path_buy", "path_prc"]) {
@@ -250,15 +266,15 @@ describe("dbhopper private settings", () => {
       );
     }
     await assert.rejects(
-      () => readSelectedCredentialsProfile({ workspaceRoot: root }),
+      () => readSelectedCredentialsProfile(configWithPrivateSettings(root)),
       /path_usr .* outside the plugin workspace/,
     );
     await assert.rejects(
-      () => readSelectedPaymentProfile({ workspaceRoot: root }),
+      () => readSelectedPaymentProfile(configWithPrivateSettings(root)),
       /path_pym .* outside the plugin workspace/,
     );
     await assert.rejects(
-      () => readSelectedBuyingProfile({ workspaceRoot: root }),
+      () => readSelectedBuyingProfile(configWithPrivateSettings(root)),
       /path_buy .* outside the plugin workspace/,
     );
     await assert.rejects(
@@ -274,12 +290,12 @@ describe("dbhopper private settings", () => {
               },
             },
           },
-          { workspaceRoot: root },
+          configWithPrivateSettings(root),
         ),
       /path_clm .* outside the plugin workspace/,
     );
     await assert.rejects(
-      () => configuredPurchaseArtifactsDir({ workspaceRoot: root }),
+      () => configuredPurchaseArtifactsDir(configWithPrivateSettings(root)),
       /path_prc .* outside the plugin workspace/,
     );
   });
@@ -296,7 +312,7 @@ describe("dbhopper private settings", () => {
       purchaseArtifactsPath: path.join(linkPath, "purchases"),
     });
 
-    const status = await privateSettingsStatus({ workspaceRoot: root });
+    const status = await privateSettingsStatus(configWithPrivateSettings(root));
 
     assert.equal(status.ok, false);
     assert.ok(
@@ -306,7 +322,7 @@ describe("dbhopper private settings", () => {
       ),
     );
     await assert.rejects(
-      () => configuredPurchaseArtifactsDir({ workspaceRoot: root }),
+      () => configuredPurchaseArtifactsDir(configWithPrivateSettings(root)),
       /path_prc .* inside the plugin workspace/,
     );
   });
@@ -347,7 +363,7 @@ describe("dbhopper private settings", () => {
           },
         },
       },
-      { workspaceRoot: root },
+      configWithPrivateSettings(root),
     );
 
     assert.equal(prepared.claim.claimant.firstName, "External");
@@ -377,7 +393,7 @@ describe("dbhopper private settings", () => {
     );
     await writePrivateProfileFixture(profilesDir, "01", "private-profile-01.toml", "First");
 
-    const credentials = await readSelectedCredentialsProfile({ workspaceRoot: root });
+    const credentials = await readSelectedCredentialsProfile(configWithPrivateSettings(root));
 
     assert.equal(credentials.credentials.bahnAPI.clientId, "external-client");
   });
@@ -394,7 +410,7 @@ describe("dbhopper private settings", () => {
     await writePrivateProfileFixture(profilesDir, "01", "private-profile-01.toml", "First");
     await writeBuyingProfileFixture(profilesDir, "01", "buying-profile-01.toml");
 
-    const status = await privateSettingsStatus({ workspaceRoot: root });
+    const status = await privateSettingsStatus(configWithPrivateSettings(root));
 
     assert.equal(status.ok, false);
     assert.ok(
@@ -409,7 +425,7 @@ describe("dbhopper private settings", () => {
       false,
     );
     await assert.rejects(
-      () => readSelectedCredentialsProfile({ workspaceRoot: root }),
+      () => readSelectedCredentialsProfile(configWithPrivateSettings(root)),
       /path_usr .* must point to a directory/,
     );
   });
@@ -429,7 +445,7 @@ describe("dbhopper private settings", () => {
     await writePrivateProfileFixture(profilesDir, "01", "private-profile-01.toml", "First");
     await writeBuyingProfileFixture(profilesDir, "01", "buying-profile-01.toml");
 
-    const status = await privateSettingsStatus({ workspaceRoot: root });
+    const status = await privateSettingsStatus(configWithPrivateSettings(root));
 
     assert.equal(status.ok, false);
     assert.ok(
