@@ -100,7 +100,10 @@ export interface CleanedDelayTableRow {
   delay_minutes: number | null;
   reachable: boolean | null;
   planned_boarding_time?: string;
+  planned_boarding_time_local?: string;
   realtime_boarding_time?: string;
+  realtime_boarding_time_local?: string;
+  local_time_zone: string;
   boarding_station: string;
   destination_station: string;
   platform?: string;
@@ -481,6 +484,7 @@ async function runDbDelayQueryWithProvider(
       departure_station: stationRefOutput(departure),
       arrival_station: stationRefOutput(arrival),
       query_time: query.queryTime.toISOString(),
+      query_time_local: localDateTime(query.queryTime, query.timeZone),
       time_zone: query.timeZone,
       window_width_minutes: query.windowWidthMinutes,
       delay_threshold_minutes: query.delayThresholdMinutes,
@@ -490,22 +494,47 @@ async function runDbDelayQueryWithProvider(
     },
     window: {
       lower_bound: query.lowerBound.toISOString(),
+      lower_bound_local: localDateTime(query.lowerBound, query.timeZone),
       query_time: query.queryTime.toISOString(),
+      query_time_local: localDateTime(query.queryTime, query.timeZone),
       upper_bound: query.upperBound.toISOString(),
+      upper_bound_local: localDateTime(query.upperBound, query.timeZone),
+      local_time_zone: query.timeZone,
       inclusive: true,
     },
+    local_time: {
+      time_zone: query.timeZone,
+      query_time: localDateTime(query.queryTime, query.timeZone),
+      window_lower_bound: localDateTime(query.lowerBound, query.timeZone),
+      window_upper_bound: localDateTime(query.upperBound, query.timeZone),
+      note:
+        "UTC fields are canonical; *_local fields are the user-facing clock times in time_zone.",
+    },
     delayed_regional_candidates: regional.candidates.map((candidate) =>
-      candidateOutput(candidate, longDistance.replacements, params.include_raw === true),
+      candidateOutput(
+        candidate,
+        longDistance.replacements,
+        params.include_raw === true,
+        query.timeZone,
+      ),
     ),
     replacement_candidates: longDistance.replacements.map((replacement) =>
-      replacementOutput(replacement, params.include_raw === true),
+      replacementOutput(replacement, params.include_raw === true, query.timeZone),
     ),
-    table_rows: cleanedTableRows(regional.candidates, longDistance.replacements),
+    table_rows: cleanedTableRows(regional.candidates, longDistance.replacements, query.timeZone),
     cleaned_summary: {
       delayed_regional_count: regional.candidates.length,
       replacement_count: longDistance.replacements.length,
       has_delayed_regional_candidates: regional.candidates.length > 0,
       has_reachable_replacements: longDistance.replacements.length > 0,
+      candidate_roles: {
+        delayed_regional:
+          "regional/local delayed services that meet route, window, and delay filters",
+        reachable_replacement:
+          "direct ICE/IC/EC replacement candidates that meet route, window, and reachability filters",
+      },
+      replacements_without_delayed_regional:
+        regional.candidates.length === 0 && longDistance.replacements.length > 0,
     },
     discarded_near_misses:
       params.include_discarded === false
@@ -513,10 +542,14 @@ async function runDbDelayQueryWithProvider(
         : {
             regional: regional.discarded
               .slice(0, 50)
-              .map((entry) => discardedOutput(entry, params.include_raw === true)),
+              .map((entry) =>
+                discardedOutput(entry, params.include_raw === true, query.timeZone),
+              ),
             replacements: longDistance.discarded
               .slice(0, 50)
-              .map((entry) => discardedOutput(entry, params.include_raw === true)),
+              .map((entry) =>
+                discardedOutput(entry, params.include_raw === true, query.timeZone),
+              ),
           },
     station_matches: {
       departure: departureMatches.slice(0, 10).map(stationRefOutput),
@@ -782,6 +815,7 @@ function paritySideOutput(
 function cleanedTableRows(
   regionalCandidates: CandidateResult[],
   replacements: ReplacementResult[],
+  timeZone: string,
 ): CleanedDelayTableRow[] {
   return [
     ...regionalCandidates.map((candidate) => ({
@@ -798,7 +832,10 @@ function cleanedTableRows(
       delay_minutes: candidate.boardingDelayMinutes,
       reachable: null,
       planned_boarding_time: candidate.plannedBoardingTime,
+      planned_boarding_time_local: localDateTime(candidate.plannedBoardingTime, timeZone),
       realtime_boarding_time: candidate.realtimeBoardingTime,
+      realtime_boarding_time_local: localDateTime(candidate.realtimeBoardingTime, timeZone),
+      local_time_zone: timeZone,
       boarding_station: candidate.boardingStop.station.name,
       destination_station: candidate.destinationStop.station.name,
       platform: candidate.boardingStop.realtimePlatform ?? candidate.boardingStop.platform,
@@ -821,7 +858,10 @@ function cleanedTableRows(
       delay_minutes: null,
       reachable: replacement.reachable,
       planned_boarding_time: replacement.plannedBoardingTime,
+      planned_boarding_time_local: localDateTime(replacement.plannedBoardingTime, timeZone),
       realtime_boarding_time: replacement.realtimeBoardingTime,
+      realtime_boarding_time_local: localDateTime(replacement.realtimeBoardingTime, timeZone),
+      local_time_zone: timeZone,
       boarding_station: replacement.boardingStop.station.name,
       destination_station: replacement.destinationStop.station.name,
       platform: replacement.boardingStop.realtimePlatform ?? replacement.boardingStop.platform,
@@ -837,41 +877,61 @@ function candidateOutput(
   candidate: CandidateResult,
   replacements: ReplacementResult[],
   includeRaw: boolean,
+  timeZone: string,
 ) {
   return {
-    journey: journeyOutput(candidate.journey, includeRaw),
+    journey: journeyOutput(candidate.journey, includeRaw, timeZone),
     boarding_delay_minutes: candidate.boardingDelayMinutes,
     planned_boarding_time: candidate.plannedBoardingTime,
+    planned_boarding_time_local: localDateTime(candidate.plannedBoardingTime, timeZone),
     realtime_boarding_time: candidate.realtimeBoardingTime,
-    boarding_station: stopOutput(candidate.boardingStop, includeRaw),
-    destination_station: stopOutput(candidate.destinationStop, includeRaw),
+    realtime_boarding_time_local: localDateTime(candidate.realtimeBoardingTime, timeZone),
+    local_time_zone: timeZone,
+    boarding_station: stopOutput(candidate.boardingStop, includeRaw, timeZone),
+    destination_station: stopOutput(candidate.destinationStop, includeRaw, timeZone),
     matched_by: candidate.matchedBy,
     replacement_candidates: replacements.map((replacement) =>
-      replacementOutput(replacement, includeRaw),
+      replacementOutput(replacement, includeRaw, timeZone),
     ),
   };
 }
 
-function replacementOutput(replacement: ReplacementResult, includeRaw: boolean) {
+function replacementOutput(
+  replacement: ReplacementResult,
+  includeRaw: boolean,
+  timeZone: string,
+) {
   return {
-    journey: journeyOutput(replacement.journey, includeRaw),
+    journey: journeyOutput(replacement.journey, includeRaw, timeZone),
     reachable: replacement.reachable,
     planned_boarding_time: replacement.plannedBoardingTime,
+    planned_boarding_time_local: localDateTime(replacement.plannedBoardingTime, timeZone),
     realtime_boarding_time: replacement.realtimeBoardingTime,
-    boarding_station: stopOutput(replacement.boardingStop, includeRaw),
-    destination_station: stopOutput(replacement.destinationStop, includeRaw),
+    realtime_boarding_time_local: localDateTime(replacement.realtimeBoardingTime, timeZone),
+    local_time_zone: timeZone,
+    boarding_station: stopOutput(replacement.boardingStop, includeRaw, timeZone),
+    destination_station: stopOutput(replacement.destinationStop, includeRaw, timeZone),
     matched_by: replacement.matchedBy,
   };
 }
 
-function discardedOutput(discarded: DiscardedJourney, includeRaw: boolean) {
+function discardedOutput(
+  discarded: DiscardedJourney,
+  includeRaw: boolean,
+  timeZone: string,
+) {
   return {
-    journey: journeyOutput(discarded.journey, includeRaw, true),
+    journey: journeyOutput(discarded.journey, includeRaw, timeZone, true),
     reasons: discarded.reasons,
   };
 }
 
-function journeyOutput(journey: Journey, includeRaw: boolean, compact = false) {
+function journeyOutput(
+  journey: Journey,
+  includeRaw: boolean,
+  timeZone: string,
+  compact = false,
+) {
   return {
     id: journey.id,
     label: journey.label,
@@ -888,18 +948,27 @@ function journeyOutput(journey: Journey, includeRaw: boolean, compact = false) {
     route_confidence: journey.routeConfidence,
     stops: compact
       ? journey.stops.map((stop) => stop.station.name)
-      : journey.stops.map((stop) => stopOutput(stop, includeRaw)),
+      : journey.stops.map((stop) => stopOutput(stop, includeRaw, timeZone)),
     ...(includeRaw ? { raw: journey.raw } : {}),
   };
 }
 
-function stopOutput(stop: JourneyStop | StationEvent, includeRaw: boolean) {
+function stopOutput(
+  stop: JourneyStop | StationEvent,
+  includeRaw: boolean,
+  timeZone: string,
+) {
   return {
     station: stationRefOutput(stop.station),
     planned_arrival: stop.plannedArrival,
+    planned_arrival_local: localDateTime(stop.plannedArrival, timeZone),
     planned_departure: stop.plannedDeparture,
+    planned_departure_local: localDateTime(stop.plannedDeparture, timeZone),
     realtime_arrival: stop.realtimeArrival,
+    realtime_arrival_local: localDateTime(stop.realtimeArrival, timeZone),
     realtime_departure: stop.realtimeDeparture,
+    realtime_departure_local: localDateTime(stop.realtimeDeparture, timeZone),
+    local_time_zone: timeZone,
     platform: stop.platform,
     realtime_platform: stop.realtimePlatform,
     display_label: stop.displayLabel ?? stop.label,
@@ -912,6 +981,54 @@ function stopOutput(stop: JourneyStop | StationEvent, includeRaw: boolean) {
     cancelled: stop.cancelled === true,
     ...(includeRaw ? { raw: stop.raw } : {}),
   };
+}
+
+function localDateTime(value: string | Date | undefined, timeZone: string) {
+  if (!value) {
+    return undefined;
+  }
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return undefined;
+  }
+  return formatLocalIsoWithOffset(date, timeZone);
+}
+
+function formatLocalIsoWithOffset(date: Date, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const value = (type: string) => {
+    const part = parts.find((entry) => entry.type === type)?.value;
+    if (!part) {
+      throw new Error(`missing ${type} in local time conversion`);
+    }
+    return part;
+  };
+  const asUtc = Date.UTC(
+    Number(value("year")),
+    Number(value("month")) - 1,
+    Number(value("day")),
+    Number(value("hour")),
+    Number(value("minute")),
+    Number(value("second")),
+  );
+  const offsetMinutes = Math.round((asUtc - date.getTime()) / 60000);
+  const sign = offsetMinutes >= 0 ? "+" : "-";
+  const abs = Math.abs(offsetMinutes);
+  const offsetHours = String(Math.floor(abs / 60)).padStart(2, "0");
+  const offsetRemainder = String(abs % 60).padStart(2, "0");
+  return [
+    `${value("year")}-${value("month")}-${value("day")}`,
+    `${value("hour")}:${value("minute")}:${value("second")}${sign}${offsetHours}:${offsetRemainder}`,
+  ].join("T");
 }
 
 function stationRefOutput(station: StationRef) {

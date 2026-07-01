@@ -23,10 +23,10 @@ assets/private/settings.toml
 ```
 
 This file is user-managed runtime state. It selects external private directories
-with `path_usr`, `path_clm`, `path_buy`, and `path_pym`. Those directories must
-be outside the plugin workspace/package root. The plugin process may read them,
-but coding agents and read/write workspace tools should not be granted access to
-those external directories.
+with `path_usr`, `path_clm`, `path_buy`, `path_pym`, and `path_prc`. Those
+directories must be outside the plugin workspace/package root. The plugin
+process may read and write them, but coding agents and read/write workspace
+tools should not be granted access to those external directories.
 
 The repo ignores private runtime files under `assets/private/` through both
 `.gitignore` and `.clawhubignore`, so local settings and purchase-review
@@ -37,7 +37,8 @@ example into `assets/private/`; copy real credential/profile templates into an
 external private directory:
 
 ```bash
-mkdir -p assets/private ../dbhopper-private/credentials ../dbhopper-private/profiles
+mkdir -p assets/private ../dbhopper-private/credentials \
+  ../dbhopper-private/profiles ../dbhopper-private/purchases
 cp docs/examples/settings.example.toml assets/private/settings.toml
 cp docs/examples/private-profile.example.toml \
   ../dbhopper-private/profiles/private-profile-01.toml
@@ -70,6 +71,7 @@ path_usr = "../dbhopper-private/credentials"
 path_clm = "../dbhopper-private/profiles"
 path_buy = "../dbhopper-private/profiles"
 path_pym = "../dbhopper-private/credentials"
+path_prc = "../dbhopper-private/purchases"
 delay_provider = "bahn-web"
 delay_fallback = "none"
 ```
@@ -81,6 +83,7 @@ IDs:
 - `path_clm` is scanned for files containing `ID_CLM`.
 - `path_buy` is scanned for files containing `ID_BUY`.
 - `path_pym` is scanned for files containing `ID_PYM`.
+- `path_prc` stores sensitive ticket checkout review screenshots.
 
 The directories may be identical if you want all private TOML files in one
 folder. They may also be split by type. In either case, DBhopper resolves the
@@ -90,9 +93,10 @@ workspace, including `assets/private/`.
 
 DBhopper still registers the full public tool contract. When a disabled workflow
 tool is called, it returns a structured `feature_disabled` result instead of
-running browser automation or writing files. To change the enabled workflows,
-edit the relevant `use_*` flag and reload or restart the plugin if the running
-OpenClaw process does not pick up the change.
+running browser automation or writing files. You can edit `settings.toml`
+manually, or ask the agent to use `dbhopper_private_settings_configure`.
+Important runtime settings changes are previewed first and written only after
+explicit confirmation with `confirm: true`.
 
 ### 1. Delay retrieval
 
@@ -101,9 +105,10 @@ DB API Marketplace credentials. It is deterministic after retrieval, but the
 website endpoint is unofficial and may change.
 
 To change the default delay provider, edit `delay_provider` in
-`assets/private/settings.toml`. Supported values are `"bahn-web"`,
-`"db-timetables"`, and `"auto"`. Keep `delay_fallback = "none"` unless the agent
-should automatically retry with the other provider after a provider failure.
+`assets/private/settings.toml` or use `dbhopper_private_settings_configure`.
+Supported values are `"bahn-web"`, `"db-timetables"`, and `"auto"`. Keep
+`delay_fallback = "none"` unless the agent should automatically retry with the
+other provider after a provider failure.
 
 For the official provider, create a DB API Marketplace application, subscribe it
 to the Timetables product, and put the technical credentials in `[bahn_api]` of
@@ -179,8 +184,9 @@ artifact for user inspection and stops before any final order control.
 buying is not enabled yet. The tool returns `auto_unavailable` before any final
 order button.
 
-Change the mode with `dbhopper_private_settings_select` by passing
-`purchase_mode: "review"` or `purchase_mode: "auto"`.
+Change the mode with `dbhopper_private_settings_configure` by passing
+`purchase_mode: "review"` or `purchase_mode: "auto"`. The tool previews the
+meaning of the change and requires explicit confirmation before writing.
 
 Buying profiles support `super_sparpreis`, `sparpreis`, `flexpreis`, and
 `cheapest_available`. Payment-profile summaries expose only method and
@@ -222,6 +228,15 @@ candidate counts and reachability booleans. Timetables and `bahn-web` preserve
 both the public line, such as `RE6`, and the technical identity, such as
 `NX 89718`.
 
+Time fields ending in `_time` are canonical UTC ISO timestamps. User-facing
+answers should use `normalized_input.query_time_local`, the `window.*_local`
+fields, row-level `_time_local` fields, and `local_time_zone`. Do not present
+the UTC `Z` fields as local clock times. Rows use
+`role = "delayed_regional"` for delayed regional services and
+`role = "reachable_replacement"` for direct ICE/IC/EC replacement candidates.
+`cleaned_summary.replacements_without_delayed_regional` is true when replacement
+trains were found but no delayed regional candidate matched the query.
+
 ### Autonomous claims
 
 With `use_claim_requests: true`, the agent can prepare, validate, and file NRW
@@ -253,8 +268,8 @@ The main ticket tools are:
 Use these tools after the delay result identifies the target route, service
 date, train label, and departure time. Ticket workflows use deterministic
 browser automation. In review mode, the checkout tool stores the user-facing
-`reviewScreenshot` under ignored `assets/private/purchases/` and returns that
-path for the agent to show to the user. Per-stage page text and screenshot
+`reviewScreenshot` under configured `path_prc` and returns that path for the
+agent to show to the user. Per-stage page text and screenshot
 trails are test-drive artifacts only; pass `test_drive_purchase: true` when
 explicitly asked to create that numbered comparison trail under ignored `tmp/`.
 In auto mode, final buying still stops with `auto_unavailable`; there is no
@@ -278,12 +293,13 @@ Telegram, or some web interface.
 The local DBhopper plugin process is the actual engine/coding layer. It reads
 `assets/private/settings.toml`, resolves `ID_USR`, `ID_CLM`, `ID_BUY`, and
 `ID_PYM` against the external `path_usr`, `path_clm`, `path_buy`, and `path_pym`
-directories, and loads information from the selected TOML files locally.
-DBhopper **strictly rejects** those `path_*` directories when they resolve
-inside the plugin workspace which is often exposed to the agent: so the normal
-setup keeps real credentials and profiles outside the workspace that coding
-agents can inspect. Through the configuration, the user is strongly advised to
-set paths outside of the read/write file system access of the agent.
+directories, stores purchase review screenshots under `path_prc`, and loads
+information from the selected TOML files locally. DBhopper **strictly rejects**
+those `path_*` directories when they resolve inside the plugin workspace which
+is often exposed to the agent: so the normal setup keeps real credentials,
+profiles, and purchase artifacts outside the workspace that coding agents can
+inspect. Through the configuration, the user is strongly advised to set paths
+outside of the read/write file system access of the agent.
 
 Sensitive values are used inside the plugin process. DB account credentials and
 payment fields are passed to Playwright form controls through DBhopper's
@@ -301,11 +317,11 @@ credentials in storage places that are secure:
 
 Local artifacts are intentionally local and should be treated as sensitive.
 Claim browser runs write screenshots and page text under ignored `tmp/`. Ticket
-checkout review mode writes the final user-review screenshot under ignored
-`assets/private/purchases/`; numbered per-stage ticket page text and screenshots
-are created only when `test_drive_purchase: true` is explicitly passed. These
-artifact paths may be returned to the agent, but the files themselves remain on
-the local machine unless the user chooses to inspect or share them.
+checkout review mode writes the final user-review screenshot under configured
+`path_prc`; numbered per-stage ticket page text and screenshots are created only
+when `test_drive_purchase: true` is explicitly passed. These artifact paths may
+be returned to the agent, but the files themselves remain on the local machine
+unless the user chooses to inspect or share them.
 
 ```text
 +------------------------------+                +------------------------------+
@@ -350,8 +366,9 @@ check the sandbox tool policy. The local config needs DBhopper in both
 `tools.alsoAllow` and `tools.sandbox.tools.alsoAllow`.
 
 If a workflow tool returns `feature_disabled`, check
-`assets/private/settings.toml`, enable the matching `use_*` flag, and reload or
-restart the plugin if the running OpenClaw process does not pick up the change.
+`assets/private/settings.toml` or ask the agent to use
+`dbhopper_private_settings_configure` for the suggested `use_*` change. The
+configure tool previews the change and writes only after explicit confirmation.
 
 ## Development
 

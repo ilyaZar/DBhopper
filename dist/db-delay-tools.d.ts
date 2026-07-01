@@ -45,7 +45,10 @@ export interface CleanedDelayTableRow {
     delay_minutes: number | null;
     reachable: boolean | null;
     planned_boarding_time?: string;
+    planned_boarding_time_local?: string;
     realtime_boarding_time?: string;
+    realtime_boarding_time_local?: string;
+    local_time_zone: string;
     boarding_station: string;
     destination_station: string;
     platform?: string;
@@ -102,6 +105,7 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
     input?: undefined;
     normalized_input?: undefined;
     window?: undefined;
+    local_time?: undefined;
     delayed_regional_candidates?: undefined;
     replacement_candidates?: undefined;
     table_rows?: undefined;
@@ -160,6 +164,7 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
             source: string | undefined;
         };
         query_time: string;
+        query_time_local: string | undefined;
         time_zone: string;
         window_width_minutes: number;
         delay_threshold_minutes: number;
@@ -169,9 +174,20 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
     };
     window: {
         lower_bound: string;
+        lower_bound_local: string | undefined;
         query_time: string;
+        query_time_local: string | undefined;
         upper_bound: string;
+        upper_bound_local: string | undefined;
+        local_time_zone: string;
         inclusive: boolean;
+    };
+    local_time: {
+        time_zone: string;
+        query_time: string | undefined;
+        window_lower_bound: string | undefined;
+        window_upper_bound: string | undefined;
+        note: string;
     };
     delayed_regional_candidates: {
         journey: {
@@ -199,9 +215,14 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                     source: string | undefined;
                 };
                 planned_arrival: string | undefined;
+                planned_arrival_local: string | undefined;
                 planned_departure: string | undefined;
+                planned_departure_local: string | undefined;
                 realtime_arrival: string | undefined;
+                realtime_arrival_local: string | undefined;
                 realtime_departure: string | undefined;
+                realtime_departure_local: string | undefined;
+                local_time_zone: string;
                 platform: string | undefined;
                 realtime_platform: string | undefined;
                 display_label: string | undefined;
@@ -216,7 +237,10 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
         };
         boarding_delay_minutes: number | null;
         planned_boarding_time: string | undefined;
+        planned_boarding_time_local: string | undefined;
         realtime_boarding_time: string | undefined;
+        realtime_boarding_time_local: string | undefined;
+        local_time_zone: string;
         boarding_station: {
             raw?: unknown;
             station: {
@@ -227,9 +251,14 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                 source: string | undefined;
             };
             planned_arrival: string | undefined;
+            planned_arrival_local: string | undefined;
             planned_departure: string | undefined;
+            planned_departure_local: string | undefined;
             realtime_arrival: string | undefined;
+            realtime_arrival_local: string | undefined;
             realtime_departure: string | undefined;
+            realtime_departure_local: string | undefined;
+            local_time_zone: string;
             platform: string | undefined;
             realtime_platform: string | undefined;
             display_label: string | undefined;
@@ -251,9 +280,14 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                 source: string | undefined;
             };
             planned_arrival: string | undefined;
+            planned_arrival_local: string | undefined;
             planned_departure: string | undefined;
+            planned_departure_local: string | undefined;
             realtime_arrival: string | undefined;
+            realtime_arrival_local: string | undefined;
             realtime_departure: string | undefined;
+            realtime_departure_local: string | undefined;
+            local_time_zone: string;
             platform: string | undefined;
             realtime_platform: string | undefined;
             display_label: string | undefined;
@@ -292,9 +326,14 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                         source: string | undefined;
                     };
                     planned_arrival: string | undefined;
+                    planned_arrival_local: string | undefined;
                     planned_departure: string | undefined;
+                    planned_departure_local: string | undefined;
                     realtime_arrival: string | undefined;
+                    realtime_arrival_local: string | undefined;
                     realtime_departure: string | undefined;
+                    realtime_departure_local: string | undefined;
+                    local_time_zone: string;
                     platform: string | undefined;
                     realtime_platform: string | undefined;
                     display_label: string | undefined;
@@ -309,7 +348,10 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
             };
             reachable: boolean;
             planned_boarding_time: string | undefined;
+            planned_boarding_time_local: string | undefined;
             realtime_boarding_time: string | undefined;
+            realtime_boarding_time_local: string | undefined;
+            local_time_zone: string;
             boarding_station: {
                 raw?: unknown;
                 station: {
@@ -320,9 +362,14 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                     source: string | undefined;
                 };
                 planned_arrival: string | undefined;
+                planned_arrival_local: string | undefined;
                 planned_departure: string | undefined;
+                planned_departure_local: string | undefined;
                 realtime_arrival: string | undefined;
+                realtime_arrival_local: string | undefined;
                 realtime_departure: string | undefined;
+                realtime_departure_local: string | undefined;
+                local_time_zone: string;
                 platform: string | undefined;
                 realtime_platform: string | undefined;
                 display_label: string | undefined;
@@ -344,9 +391,14 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                     source: string | undefined;
                 };
                 planned_arrival: string | undefined;
+                planned_arrival_local: string | undefined;
                 planned_departure: string | undefined;
+                planned_departure_local: string | undefined;
                 realtime_arrival: string | undefined;
+                realtime_arrival_local: string | undefined;
                 realtime_departure: string | undefined;
+                realtime_departure_local: string | undefined;
+                local_time_zone: string;
                 platform: string | undefined;
                 realtime_platform: string | undefined;
                 display_label: string | undefined;
@@ -387,9 +439,14 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                     source: string | undefined;
                 };
                 planned_arrival: string | undefined;
+                planned_arrival_local: string | undefined;
                 planned_departure: string | undefined;
+                planned_departure_local: string | undefined;
                 realtime_arrival: string | undefined;
+                realtime_arrival_local: string | undefined;
                 realtime_departure: string | undefined;
+                realtime_departure_local: string | undefined;
+                local_time_zone: string;
                 platform: string | undefined;
                 realtime_platform: string | undefined;
                 display_label: string | undefined;
@@ -404,7 +461,10 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
         };
         reachable: boolean;
         planned_boarding_time: string | undefined;
+        planned_boarding_time_local: string | undefined;
         realtime_boarding_time: string | undefined;
+        realtime_boarding_time_local: string | undefined;
+        local_time_zone: string;
         boarding_station: {
             raw?: unknown;
             station: {
@@ -415,9 +475,14 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                 source: string | undefined;
             };
             planned_arrival: string | undefined;
+            planned_arrival_local: string | undefined;
             planned_departure: string | undefined;
+            planned_departure_local: string | undefined;
             realtime_arrival: string | undefined;
+            realtime_arrival_local: string | undefined;
             realtime_departure: string | undefined;
+            realtime_departure_local: string | undefined;
+            local_time_zone: string;
             platform: string | undefined;
             realtime_platform: string | undefined;
             display_label: string | undefined;
@@ -439,9 +504,14 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                 source: string | undefined;
             };
             planned_arrival: string | undefined;
+            planned_arrival_local: string | undefined;
             planned_departure: string | undefined;
+            planned_departure_local: string | undefined;
             realtime_arrival: string | undefined;
+            realtime_arrival_local: string | undefined;
             realtime_departure: string | undefined;
+            realtime_departure_local: string | undefined;
+            local_time_zone: string;
             platform: string | undefined;
             realtime_platform: string | undefined;
             display_label: string | undefined;
@@ -461,6 +531,11 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
         replacement_count: number;
         has_delayed_regional_candidates: boolean;
         has_reachable_replacements: boolean;
+        candidate_roles: {
+            delayed_regional: string;
+            reachable_replacement: string;
+        };
+        replacements_without_delayed_regional: boolean;
     };
     discarded_near_misses: {
         regional: {
@@ -489,9 +564,14 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                         source: string | undefined;
                     };
                     planned_arrival: string | undefined;
+                    planned_arrival_local: string | undefined;
                     planned_departure: string | undefined;
+                    planned_departure_local: string | undefined;
                     realtime_arrival: string | undefined;
+                    realtime_arrival_local: string | undefined;
                     realtime_departure: string | undefined;
+                    realtime_departure_local: string | undefined;
+                    local_time_zone: string;
                     platform: string | undefined;
                     realtime_platform: string | undefined;
                     display_label: string | undefined;
@@ -532,9 +612,14 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                         source: string | undefined;
                     };
                     planned_arrival: string | undefined;
+                    planned_arrival_local: string | undefined;
                     planned_departure: string | undefined;
+                    planned_departure_local: string | undefined;
                     realtime_arrival: string | undefined;
+                    realtime_arrival_local: string | undefined;
                     realtime_departure: string | undefined;
+                    realtime_departure_local: string | undefined;
+                    local_time_zone: string;
                     platform: string | undefined;
                     realtime_platform: string | undefined;
                     display_label: string | undefined;
@@ -661,6 +746,7 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
     input?: undefined;
     normalized_input?: undefined;
     window?: undefined;
+    local_time?: undefined;
     delayed_regional_candidates?: undefined;
     replacement_candidates?: undefined;
     table_rows?: undefined;
@@ -734,6 +820,7 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
             source: string | undefined;
         };
         query_time: string;
+        query_time_local: string | undefined;
         time_zone: string;
         window_width_minutes: number;
         delay_threshold_minutes: number;
@@ -743,9 +830,20 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
     };
     window: {
         lower_bound: string;
+        lower_bound_local: string | undefined;
         query_time: string;
+        query_time_local: string | undefined;
         upper_bound: string;
+        upper_bound_local: string | undefined;
+        local_time_zone: string;
         inclusive: boolean;
+    };
+    local_time: {
+        time_zone: string;
+        query_time: string | undefined;
+        window_lower_bound: string | undefined;
+        window_upper_bound: string | undefined;
+        note: string;
     };
     delayed_regional_candidates: {
         journey: {
@@ -773,9 +871,14 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                     source: string | undefined;
                 };
                 planned_arrival: string | undefined;
+                planned_arrival_local: string | undefined;
                 planned_departure: string | undefined;
+                planned_departure_local: string | undefined;
                 realtime_arrival: string | undefined;
+                realtime_arrival_local: string | undefined;
                 realtime_departure: string | undefined;
+                realtime_departure_local: string | undefined;
+                local_time_zone: string;
                 platform: string | undefined;
                 realtime_platform: string | undefined;
                 display_label: string | undefined;
@@ -790,7 +893,10 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
         };
         boarding_delay_minutes: number | null;
         planned_boarding_time: string | undefined;
+        planned_boarding_time_local: string | undefined;
         realtime_boarding_time: string | undefined;
+        realtime_boarding_time_local: string | undefined;
+        local_time_zone: string;
         boarding_station: {
             raw?: unknown;
             station: {
@@ -801,9 +907,14 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                 source: string | undefined;
             };
             planned_arrival: string | undefined;
+            planned_arrival_local: string | undefined;
             planned_departure: string | undefined;
+            planned_departure_local: string | undefined;
             realtime_arrival: string | undefined;
+            realtime_arrival_local: string | undefined;
             realtime_departure: string | undefined;
+            realtime_departure_local: string | undefined;
+            local_time_zone: string;
             platform: string | undefined;
             realtime_platform: string | undefined;
             display_label: string | undefined;
@@ -825,9 +936,14 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                 source: string | undefined;
             };
             planned_arrival: string | undefined;
+            planned_arrival_local: string | undefined;
             planned_departure: string | undefined;
+            planned_departure_local: string | undefined;
             realtime_arrival: string | undefined;
+            realtime_arrival_local: string | undefined;
             realtime_departure: string | undefined;
+            realtime_departure_local: string | undefined;
+            local_time_zone: string;
             platform: string | undefined;
             realtime_platform: string | undefined;
             display_label: string | undefined;
@@ -866,9 +982,14 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                         source: string | undefined;
                     };
                     planned_arrival: string | undefined;
+                    planned_arrival_local: string | undefined;
                     planned_departure: string | undefined;
+                    planned_departure_local: string | undefined;
                     realtime_arrival: string | undefined;
+                    realtime_arrival_local: string | undefined;
                     realtime_departure: string | undefined;
+                    realtime_departure_local: string | undefined;
+                    local_time_zone: string;
                     platform: string | undefined;
                     realtime_platform: string | undefined;
                     display_label: string | undefined;
@@ -883,7 +1004,10 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
             };
             reachable: boolean;
             planned_boarding_time: string | undefined;
+            planned_boarding_time_local: string | undefined;
             realtime_boarding_time: string | undefined;
+            realtime_boarding_time_local: string | undefined;
+            local_time_zone: string;
             boarding_station: {
                 raw?: unknown;
                 station: {
@@ -894,9 +1018,14 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                     source: string | undefined;
                 };
                 planned_arrival: string | undefined;
+                planned_arrival_local: string | undefined;
                 planned_departure: string | undefined;
+                planned_departure_local: string | undefined;
                 realtime_arrival: string | undefined;
+                realtime_arrival_local: string | undefined;
                 realtime_departure: string | undefined;
+                realtime_departure_local: string | undefined;
+                local_time_zone: string;
                 platform: string | undefined;
                 realtime_platform: string | undefined;
                 display_label: string | undefined;
@@ -918,9 +1047,14 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                     source: string | undefined;
                 };
                 planned_arrival: string | undefined;
+                planned_arrival_local: string | undefined;
                 planned_departure: string | undefined;
+                planned_departure_local: string | undefined;
                 realtime_arrival: string | undefined;
+                realtime_arrival_local: string | undefined;
                 realtime_departure: string | undefined;
+                realtime_departure_local: string | undefined;
+                local_time_zone: string;
                 platform: string | undefined;
                 realtime_platform: string | undefined;
                 display_label: string | undefined;
@@ -961,9 +1095,14 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                     source: string | undefined;
                 };
                 planned_arrival: string | undefined;
+                planned_arrival_local: string | undefined;
                 planned_departure: string | undefined;
+                planned_departure_local: string | undefined;
                 realtime_arrival: string | undefined;
+                realtime_arrival_local: string | undefined;
                 realtime_departure: string | undefined;
+                realtime_departure_local: string | undefined;
+                local_time_zone: string;
                 platform: string | undefined;
                 realtime_platform: string | undefined;
                 display_label: string | undefined;
@@ -978,7 +1117,10 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
         };
         reachable: boolean;
         planned_boarding_time: string | undefined;
+        planned_boarding_time_local: string | undefined;
         realtime_boarding_time: string | undefined;
+        realtime_boarding_time_local: string | undefined;
+        local_time_zone: string;
         boarding_station: {
             raw?: unknown;
             station: {
@@ -989,9 +1131,14 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                 source: string | undefined;
             };
             planned_arrival: string | undefined;
+            planned_arrival_local: string | undefined;
             planned_departure: string | undefined;
+            planned_departure_local: string | undefined;
             realtime_arrival: string | undefined;
+            realtime_arrival_local: string | undefined;
             realtime_departure: string | undefined;
+            realtime_departure_local: string | undefined;
+            local_time_zone: string;
             platform: string | undefined;
             realtime_platform: string | undefined;
             display_label: string | undefined;
@@ -1013,9 +1160,14 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                 source: string | undefined;
             };
             planned_arrival: string | undefined;
+            planned_arrival_local: string | undefined;
             planned_departure: string | undefined;
+            planned_departure_local: string | undefined;
             realtime_arrival: string | undefined;
+            realtime_arrival_local: string | undefined;
             realtime_departure: string | undefined;
+            realtime_departure_local: string | undefined;
+            local_time_zone: string;
             platform: string | undefined;
             realtime_platform: string | undefined;
             display_label: string | undefined;
@@ -1035,6 +1187,11 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
         replacement_count: number;
         has_delayed_regional_candidates: boolean;
         has_reachable_replacements: boolean;
+        candidate_roles: {
+            delayed_regional: string;
+            reachable_replacement: string;
+        };
+        replacements_without_delayed_regional: boolean;
     };
     discarded_near_misses: {
         regional: {
@@ -1063,9 +1220,14 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                         source: string | undefined;
                     };
                     planned_arrival: string | undefined;
+                    planned_arrival_local: string | undefined;
                     planned_departure: string | undefined;
+                    planned_departure_local: string | undefined;
                     realtime_arrival: string | undefined;
+                    realtime_arrival_local: string | undefined;
                     realtime_departure: string | undefined;
+                    realtime_departure_local: string | undefined;
+                    local_time_zone: string;
                     platform: string | undefined;
                     realtime_platform: string | undefined;
                     display_label: string | undefined;
@@ -1106,9 +1268,14 @@ export declare function runDbDelayQuery(params: DbDelayQueryToolParams, config?:
                         source: string | undefined;
                     };
                     planned_arrival: string | undefined;
+                    planned_arrival_local: string | undefined;
                     planned_departure: string | undefined;
+                    planned_departure_local: string | undefined;
                     realtime_arrival: string | undefined;
+                    realtime_arrival_local: string | undefined;
                     realtime_departure: string | undefined;
+                    realtime_departure_local: string | undefined;
+                    local_time_zone: string;
                     platform: string | undefined;
                     realtime_platform: string | undefined;
                     display_label: string | undefined;
