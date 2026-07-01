@@ -57,6 +57,7 @@ export interface PrivateIdFile {
 }
 type PrivateIdField = "ID_USR" | "ID_CLM" | "ID_BUY" | "ID_PYM";
 export declare function privateSettingsPath(config?: DBhopperConfig): string;
+export declare function privateSettingsRoot(config?: DBhopperConfig): string;
 export declare function defaultPrivateSettings(): DBhopperPrivateSettings;
 export declare function readPrivateSettings(config?: DBhopperConfig): Promise<LoadedPrivateSettings>;
 export declare function parsePrivateSettingsToml(text: string, source?: string): DBhopperPrivateSettings;

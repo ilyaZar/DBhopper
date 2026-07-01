@@ -4,7 +4,8 @@ export type DisruptionType = "delay" | "cancellation";
 export type ClaimFileRole = "base_ticket" | "substitute_receipt" | "delay_evidence" | "submission_pdf" | "screenshot" | "other";
 export interface ClaimFile {
     role: ClaimFileRole;
-    path: string;
+    path?: string;
+    paths?: string[];
     description?: string;
     reusableAsset?: boolean;
 }
@@ -122,6 +123,7 @@ export interface ValidationResult {
 }
 export interface DBhopperConfig {
     workspaceRoot?: string;
+    settingsPath?: string;
     browserExecutablePath?: string;
     artifactRoot?: string;
     headless?: boolean;

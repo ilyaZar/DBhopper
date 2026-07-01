@@ -12,6 +12,7 @@ import {
   shouldFallbackToProvider,
 } from "../dist/db-delay-tools.js";
 import {
+  configWithPrivateSettings,
   writeCredentialsFixture,
   writePrivateSettingsFixture,
 } from "./helpers/private-settings.js";
@@ -56,12 +57,11 @@ describe("db delay provider selection", () => {
         delay_threshold_minutes: 20,
         include_table_rows: true,
       },
-      {
-        workspaceRoot: root,
+      configWithPrivateSettings(root, {
         bahnWebTransport: "fetch",
         fetchImpl: fakeParityFetch,
         timeZone: "Europe/Berlin",
-      },
+      }),
     );
 
     assert.equal(result.ok, true);
@@ -91,11 +91,10 @@ describe("db delay provider selection", () => {
         window_width_minutes: 60,
         delay_threshold_minutes: 20,
       },
-      {
-        workspaceRoot: root,
+      configWithPrivateSettings(root, {
         fetchImpl: fakeMunsterTimetablesFetch,
         timeZone: "Europe/Berlin",
-      },
+      }),
     );
 
     assert.equal(result.ok, true);

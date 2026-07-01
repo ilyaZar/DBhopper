@@ -13,6 +13,7 @@ import {
 } from "../dist/workspace.js";
 import { parseClaimToml, parsePrivateProfileToml } from "../dist/claim-toml.js";
 import {
+  configWithPrivateSettings,
   defaultExternalPrivateRoot,
   writePrivateProfileFixture,
   writePrivateSettingsFixture,
@@ -21,6 +22,7 @@ import {
 describe("dbhopper workspace", () => {
   it("creates per-claim folders and copies evidence", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-test-"));
+    await writePrivateSettingsFixture(root);
     const source = path.join(root, "ticket.pdf");
     await fs.writeFile(source, "fixture", "utf8");
 
@@ -33,7 +35,7 @@ describe("dbhopper workspace", () => {
         },
         files: [{ role: "base_ticket", sourcePath: source }],
       },
-      { workspaceRoot: root },
+      configWithPrivateSettings(root),
     );
 
     assert.equal(prepared.claimId, "re-6-koeln");
@@ -45,12 +47,40 @@ describe("dbhopper workspace", () => {
       "fixture",
     );
 
-    const reread = await readClaim("re-6-koeln", { workspaceRoot: root });
+    const reread = await readClaim("re-6-koeln", configWithPrivateSettings(root));
     assert.equal(reread.claim.claimId, "re-6-koeln");
 
-    const claims = await listClaims({ workspaceRoot: root });
+    const claims = await listClaims(configWithPrivateSettings(root));
     assert.equal(claims.length, 1);
     assert.equal(claims[0].claimant, undefined);
+  });
+
+  it("reads flat and nested claims from path_clm", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-claim-layouts-"));
+    await writePrivateSettingsFixture(root);
+    const claimRoot = path.join(defaultExternalPrivateRoot(root), "profiles");
+    await fs.mkdir(path.join(claimRoot, "nested-claim"), { recursive: true });
+    await fs.writeFile(
+      path.join(claimRoot, "nested-claim", "claim.toml"),
+      minimalClaimToml("nested-claim"),
+      "utf8",
+    );
+    await fs.writeFile(
+      path.join(claimRoot, "flat-claim.toml"),
+      minimalClaimToml("flat-claim"),
+      "utf8",
+    );
+
+    const nested = await readClaim("nested-claim", configWithPrivateSettings(root));
+    const flat = await readClaim("flat-claim", configWithPrivateSettings(root));
+    const claims = await listClaims(configWithPrivateSettings(root));
+
+    assert.equal(nested.claimPath, path.join(claimRoot, "nested-claim", "claim.toml"));
+    assert.equal(flat.claimPath, path.join(claimRoot, "flat-claim.toml"));
+    assert.deepEqual(
+      claims.map((claim) => claim.claimId).sort(),
+      ["flat-claim", "nested-claim"],
+    );
   });
 
   it("requires confirmation before writing", async () => {
@@ -82,7 +112,7 @@ describe("dbhopper workspace", () => {
           },
         },
       },
-      { workspaceRoot: root },
+      configWithPrivateSettings(root),
     );
 
     assert.equal(prepared.claim.claimant.email, "maria@example.org");
@@ -96,9 +126,11 @@ describe("dbhopper workspace", () => {
 
   it("rejects claim TOML field typos and private field duplication", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-invalid-"));
-    await fs.mkdir(path.join(root, "claims", "bad"), { recursive: true });
+    await writePrivateSettingsFixture(root);
+    const claimRoot = path.join(defaultExternalPrivateRoot(root), "profiles");
+    await fs.mkdir(path.join(claimRoot, "bad"), { recursive: true });
     await fs.writeFile(
-      path.join(root, "claims", "bad", "claim.toml"),
+      path.join(claimRoot, "bad", "claim.toml"),
       [
         'claim_id = "bad"',
         "",
@@ -111,7 +143,7 @@ describe("dbhopper workspace", () => {
     );
 
     await assert.rejects(
-      () => readClaim("bad", { workspaceRoot: root }),
+      () => readClaim("bad", configWithPrivateSettings(root)),
       /start_staiton is not a supported field/,
     );
 
@@ -123,7 +155,7 @@ describe("dbhopper workspace", () => {
             claimId: "private-dup",
             claim: { claimant: { email: "maria@example.org" } },
           },
-          { workspaceRoot: root },
+          configWithPrivateSettings(root),
         ),
       /must not include private fields/,
     );
@@ -188,6 +220,23 @@ describe("dbhopper workspace", () => {
     );
   });
 
+  it("parses file path arrays in claim TOML", () => {
+    const claim = parseClaimToml([
+      'claim_id = "multi-evidence"',
+      "",
+      "[[files]]",
+      'role = "delay_evidence"',
+      'paths = ["delay-1.png", "delay-2.png", "delay-3.png"]',
+      "",
+    ].join("\n"));
+
+    assert.deepEqual(claim.files?.[0].paths, [
+      "delay-1.png",
+      "delay-2.png",
+      "delay-3.png",
+    ]);
+  });
+
   it("flags wrong profile TOML value types in workspace validation", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-profile-invalid-"));
     await writePrivateSettingsFixture(root);
@@ -219,7 +268,7 @@ describe("dbhopper workspace", () => {
       "utf8",
     );
 
-    const result = await validateWorkspaceTomlFiles({ workspaceRoot: root });
+    const result = await validateWorkspaceTomlFiles(configWithPrivateSettings(root));
 
     assert.equal(result.ok, false);
     assert.ok(
@@ -250,7 +299,7 @@ describe("dbhopper workspace", () => {
           },
         },
       },
-      { workspaceRoot: root },
+      configWithPrivateSettings(root),
     );
 
     const recipePath = await writeSubmittedRecipe(prepared);
@@ -260,3 +309,15 @@ describe("dbhopper workspace", () => {
     assert.match(recipe, /start_station = "Koeln Hbf"/);
   });
 });
+
+function minimalClaimToml(claimId) {
+  return [
+    `claim_id = "${claimId}"`,
+    'status = "draft"',
+    "",
+    "[journey]",
+    'start_station = "Koeln Hbf"',
+    'end_station = "Duesseldorf Hbf"',
+    "",
+  ].join("\n");
+}

@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import type { Dirent } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -69,9 +70,8 @@ export function resolveWorkspace(config: DBhopperConfig = {}): WorkspacePaths {
 
 export async function ensureWorkspace(config: DBhopperConfig = {}): Promise<WorkspacePaths> {
   const workspace = resolveWorkspace(config);
-  await fs.mkdir(workspace.claimsDir, { recursive: true });
+  await fs.mkdir(await resolveClaimStorageDir(config), { recursive: true });
   await fs.mkdir(workspace.assetsDir, { recursive: true });
-  await fs.mkdir(await configuredClaimProfilesDir(config), { recursive: true });
   return workspace;
 }
 
@@ -102,8 +102,30 @@ export function claimPaths(claimId: string, config: DBhopperConfig = {}) {
   };
 }
 
+export async function resolveClaimPaths(
+  claimId: string,
+  config: DBhopperConfig = {},
+) {
+  const workspace = resolveWorkspace(config);
+  const safeId = normalizeClaimId(claimId);
+  const claimRoot = await resolveClaimStorageDir(config);
+  const claimDir = path.join(claimRoot, safeId);
+  const nestedClaimPath = path.join(claimDir, "claim.toml");
+  const flatClaimPath = path.join(claimRoot, `${safeId}.toml`);
+  const useFlatClaim =
+    !(await fileExists(nestedClaimPath)) && await fileExists(flatClaimPath);
+  return {
+    workspace,
+    claimRoot,
+    claimId: safeId,
+    claimDir,
+    claimPath: useFlatClaim ? flatClaimPath : nestedClaimPath,
+    recipePath: path.join(claimDir, "claim_submitted_recipe.toml"),
+  };
+}
+
 export async function readClaim(claimId: string, config: DBhopperConfig = {}): Promise<PreparedClaim> {
-  const paths = claimPaths(claimId, config);
+  const paths = await resolveClaimPaths(claimId, config);
   const raw = await fs.readFile(paths.claimPath, "utf8");
   const storedClaim = parseClaimToml(raw, paths.claimPath);
   const profileSelection = await resolveProfileSelection(config);
@@ -129,21 +151,25 @@ export async function readClaim(claimId: string, config: DBhopperConfig = {}): P
 }
 
 export async function listClaims(config: DBhopperConfig = {}) {
-  const workspace = await ensureWorkspace(config);
-  const entries = await fs.readdir(workspace.claimsDir, { withFileTypes: true });
+  await ensureWorkspace(config);
+  const claimRoot = await resolveClaimStorageDir(config);
+  const entries = await fs.readdir(claimRoot, { withFileTypes: true });
   const claims = [];
 
   for (const entry of entries) {
-    if (!entry.isDirectory()) {
+    const claimPath = claimListEntryPath(claimRoot, entry);
+    if (!claimPath) {
       continue;
     }
-    const claimPath = path.join(workspace.claimsDir, entry.name, "claim.toml");
     if (!(await fileExists(claimPath))) {
       continue;
     }
     try {
       const raw = await fs.readFile(claimPath, "utf8");
       const storedClaim = parseClaimToml(raw, claimPath);
+      const claimId = entry.isDirectory()
+        ? entry.name
+        : normalizeClaimId(storedClaim.claimId || path.basename(entry.name, ".toml"));
       const profileSelection = await resolveProfileSelection(config);
       const privateProfile = profileSelection
         ? await readPrivateProfile(profileSelection)
@@ -151,10 +177,10 @@ export async function listClaims(config: DBhopperConfig = {}) {
       const claim = materializeClaim(
         privateProfile,
         storedClaim,
-        entry.name,
+        claimId,
       );
       claims.push({
-        claimId: entry.name,
+        claimId,
         status: claim.status || "draft",
         profileId: profileSelection?.profileId,
         profileFile: profileSelection?.profileFile,
@@ -164,7 +190,9 @@ export async function listClaims(config: DBhopperConfig = {}) {
       });
     } catch {
       claims.push({
-        claimId: entry.name,
+        claimId: entry.isDirectory()
+          ? entry.name
+          : normalizeClaimId(path.basename(entry.name, ".toml")),
         status: "unreadable",
         fileCount: 0,
       });
@@ -189,7 +217,7 @@ export async function prepareClaim(
     throw new Error(
       [
         `claim data must not include private fields: ${privateFields.join(", ")}`,
-        "store claimant and bank data in the external path_clm profile directory",
+        "store claimant and bank data in an external path_clm claim TOML",
       ].join("; "),
     );
   }
@@ -199,7 +227,7 @@ export async function prepareClaim(
     ? await readPrivateProfile(profileSelection)
     : {};
   const claimId = normalizeClaimId(params.claimId || incoming.claimId);
-  const claimDir = path.join(workspace.claimsDir, claimId);
+  const claimDir = path.join(await resolveClaimStorageDir(config), claimId);
   const claimPath = path.join(claimDir, "claim.toml");
   const recipePath = path.join(claimDir, "claim_submitted_recipe.toml");
   await fs.mkdir(claimDir, { recursive: true });
@@ -284,7 +312,8 @@ export async function writeSubmittedRecipe(prepared: PreparedClaim) {
 }
 
 export async function validateWorkspaceTomlFiles(config: DBhopperConfig = {}) {
-  const workspace = await ensureWorkspace(config);
+  await ensureWorkspace(config);
+  const claimRoot = await resolveClaimStorageDir(config);
   const messages = [];
   const settingsStatus = await privateSettingsStatus(config);
   if (settingsStatus.settings.exists) {
@@ -340,12 +369,12 @@ export async function validateWorkspaceTomlFiles(config: DBhopperConfig = {}) {
     }
   }
 
-  const claimDirs = await fs.readdir(workspace.claimsDir, { withFileTypes: true });
-  for (const entry of claimDirs) {
-    if (!entry.isDirectory()) {
+  const claimEntries = await fs.readdir(claimRoot, { withFileTypes: true });
+  for (const entry of claimEntries) {
+    const claimPath = claimListEntryPath(claimRoot, entry);
+    if (!claimPath) {
       continue;
     }
-    const claimPath = path.join(workspace.claimsDir, entry.name, "claim.toml");
     if (!(await fileExists(claimPath))) {
       continue;
     }
@@ -399,6 +428,17 @@ async function copyClaimFile(
   };
 }
 
+async function resolveClaimStorageDir(config: DBhopperConfig) {
+  try {
+    return await configuredClaimProfilesDir(config);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw error;
+    }
+    return resolveWorkspace(config).claimsDir;
+  }
+}
+
 export async function resolveClaimFilePath(claimDir: string, value: string) {
   const resolved = path.resolve(claimDir, value);
   await assertInside(claimDir, resolved);
@@ -413,6 +453,16 @@ function safeFileName(value: string) {
   return normalized;
 }
 
+function claimListEntryPath(claimRoot: string, entry: Dirent) {
+  if (entry.isDirectory()) {
+    return path.join(claimRoot, entry.name, "claim.toml");
+  }
+  if (entry.isFile() && entry.name.endsWith(".toml")) {
+    return path.join(claimRoot, entry.name);
+  }
+  return undefined;
+}
+
 interface ProfileSelection {
   profileFile: string;
   profileId?: string;
@@ -421,7 +471,15 @@ interface ProfileSelection {
 }
 
 async function resolveProfileSelection(config: DBhopperConfig): Promise<ProfileSelection | undefined> {
-  const selected = await resolveSelectedClaimProfileFile(config);
+  let selected;
+  try {
+    selected = await resolveSelectedClaimProfileFile(config);
+  } catch (error) {
+    if (/^ID_CLM .+ does not exist in /.test(String((error as Error).message))) {
+      return undefined;
+    }
+    throw error;
+  }
   if (!selected) {
     return undefined;
   }
@@ -436,7 +494,15 @@ async function resolveProfileSelection(config: DBhopperConfig): Promise<ProfileS
 async function readPrivateProfile(selection: ProfileSelection) {
   await assertInside(selection.profileDir, selection.profilePath);
   const raw = await fs.readFile(selection.profilePath, "utf8");
-  return stripProfileRoutingFields(parsePrivateProfileToml(raw, selection.profilePath));
+  try {
+    return stripProfileRoutingFields(parsePrivateProfileToml(raw, selection.profilePath));
+  } catch (error) {
+    const claim = parseClaimToml(raw, selection.profilePath);
+    if (!claim.claimant) {
+      throw error;
+    }
+    return stripProfileRoutingFields({ claimant: claim.claimant });
+  }
 }
 
 async function fileExists(filePath: string) {

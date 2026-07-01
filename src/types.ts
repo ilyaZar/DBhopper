@@ -21,7 +21,8 @@ export type ClaimFileRole =
 
 export interface ClaimFile {
   role: ClaimFileRole;
-  path: string;
+  path?: string;
+  paths?: string[];
   description?: string;
   reusableAsset?: boolean;
 }
@@ -152,6 +153,7 @@ export interface ValidationResult {
 
 export interface DBhopperConfig {
   workspaceRoot?: string;
+  settingsPath?: string;
   browserExecutablePath?: string;
   artifactRoot?: string;
   headless?: boolean;

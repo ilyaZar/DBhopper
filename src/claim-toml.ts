@@ -175,15 +175,18 @@ const fileSchema: TomlSchema = object(
   {
     role: stringEnum(CLAIM_FILE_ROLES),
     path: string(),
+    paths: array(string()),
     description: string(),
     reusableAsset: boolean(),
   },
-  ["role", "path"],
+  ["role"],
 );
 
 const baseClaimFields: Record<string, TomlSchema> = {
+  ID_CLM: string(),
   claimId: string(),
   status: string(),
+  claimant: claimantSchema,
   journey: journeySchema,
   ticket: ticketSchema,
   files: array(fileSchema),

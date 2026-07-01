@@ -191,11 +191,11 @@ async function fillClaimant(page, claim) {
 }
 async function fillJourney(page, claim) {
     const journey = claim.journey || {};
-    await fill(page, "#dateOfEvent", journey.date);
-    await fill(page, "#complaintTime", journey.scheduledDepartureTime);
+    await fillDate(page, "#dateOfEvent", journey.date);
+    await fillTime(page, "#complaintTime", journey.scheduledDepartureTime);
     await chooseAutocomplete(page, "#startStation", journey.startStation);
     await chooseAutocomplete(page, "#endStation", journey.endStation);
-    await page.getByRole("button", { name: /Verbindung suchen/i }).first().click();
+    await clickSearchRoutes(page);
     await page.waitForTimeout(4000);
     const line = journey.plannedLine || journey.plannedTrainLabel;
     let selected = false;
@@ -244,13 +244,21 @@ async function fillTicket(page, claim, claimDir) {
     const uploadPaths = [];
     for (const file of claim.files || []) {
         if (["base_ticket", "substitute_receipt", "delay_evidence", "other"].includes(file.role)) {
-            uploadPaths.push(await resolveClaimFilePath(claimDir, file.path));
+            for (const filePath of claimFilePaths(file)) {
+                uploadPaths.push(await resolveClaimFilePath(claimDir, filePath));
+            }
         }
     }
     if (uploadPaths.length > 0) {
         await page.locator('input[type="file"]').first().setInputFiles(uploadPaths);
         await page.waitForTimeout(3000);
     }
+}
+function claimFilePaths(file) {
+    return [
+        ...(file.path ? [file.path] : []),
+        ...(Array.isArray(file.paths) ? file.paths : []),
+    ];
 }
 async function fillBank(page, claim) {
     await fill(page, "#accountOwner", claim.claimant?.bank?.accountOwner);
@@ -274,13 +282,85 @@ async function submitAndDownload(page, claimDir) {
     return target;
 }
 async function chooseAutocomplete(page, selector, value) {
-    await fill(page, selector, value);
-    await page.waitForTimeout(1200);
+    if (!value) {
+        return;
+    }
+    const control = await visibleOrFirst(page, selector);
+    for (const candidate of autocompleteCandidates(value)) {
+        await fillPlainControl(control, candidate, { tab: false });
+        await waitForAutocompleteOptions(page, selector);
+        if (await clickMatchingAutocompleteOption(page, selector, value)) {
+            await page.waitForTimeout(500);
+            await page.keyboard.press("Escape").catch(() => undefined);
+            return;
+        }
+    }
+    await fillPlainControl(control, value, { tab: false });
     await page.keyboard.press("ArrowDown").catch(() => undefined);
     await page.keyboard.press("Enter").catch(() => undefined);
+    await page.keyboard.press("Escape").catch(() => undefined);
+    await page.waitForTimeout(500);
+}
+async function clickMatchingAutocompleteOption(page, selector, value) {
+    if (!value) {
+        return false;
+    }
+    const candidates = autocompleteCandidates(value).map(normalizeStationMatchText);
+    return autocompleteOptions(page, selector).evaluateAll((nodes, payload) => {
+        const normalize = (text) => text
+            .normalize("NFKD")
+            .replace(/\p{Diacritic}/gu, "")
+            .replace(/\s+/g, " ")
+            .trim()
+            .toLowerCase();
+        const isHbfMatch = (input, option) => {
+            if (!/\bHbf\b/i.test(input)) {
+                return false;
+            }
+            const inputText = normalize(input);
+            const optionText = normalize(option);
+            const city = inputText
+                .replace(/\bhbf\b/g, "")
+                .replace(/\bhauptbahnhof\b/g, "")
+                .trim();
+            return Boolean(city) &&
+                optionText.includes(city) &&
+                (optionText.includes("hbf") || optionText.includes("hauptbahnhof"));
+        };
+        for (const node of nodes) {
+            const text = node.textContent || "";
+            const normalizedOption = normalize(text);
+            if (payload.candidates.some((candidate) => normalizedOption.includes(candidate)) ||
+                isHbfMatch(payload.value, text)) {
+                node.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+                node.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+                node.click();
+                return true;
+            }
+        }
+        return false;
+    }, { candidates, value });
+}
+function autocompleteOptions(page, selector) {
+    const id = selector.replace(/^#/, "");
+    return page.locator(`button[role="option"][id^="${id}_"], [role="option"][id^="${id}_"]`);
+}
+async function waitForAutocompleteOptions(page, selector) {
+    await autocompleteOptions(page, selector)
+        .first()
+        .waitFor({ state: "visible", timeout: 2500 })
+        .catch(() => undefined);
 }
 async function clickVisibleSave(page) {
     await page.getByRole("button", { name: /Speichern.*weiter/i }).filter({ visible: true }).first().click();
+}
+async function clickSearchRoutes(page) {
+    await page.keyboard.press("Escape").catch(() => undefined);
+    await page.waitForTimeout(300);
+    const button = page.getByRole("button", { name: /Verbindung suchen/i }).first();
+    await button.evaluate((element) => {
+        element.click();
+    });
 }
 async function fill(page, selector, value) {
     if (value === undefined || value === null || value === "") {
@@ -288,19 +368,61 @@ async function fill(page, selector, value) {
     }
     await fillSensitiveTextControl(await visibleOrFirst(page, selector), String(value));
 }
+async function fillDate(page, selector, value) {
+    if (!value) {
+        return;
+    }
+    const control = await visibleOrFirst(page, selector);
+    await control.fill(value);
+}
+async function fillTime(page, selector, value) {
+    if (!value) {
+        return;
+    }
+    const control = await visibleOrFirst(page, selector);
+    await control.fill(value);
+}
+async function fillPlainControl(control, value, options = {}) {
+    await control.waitFor({ state: "visible" });
+    await control.click();
+    await control.press(process.platform === "darwin" ? "Meta+A" : "Control+A");
+    await control.press("Backspace");
+    await control.pressSequentially(value, { delay: 25 });
+    if (options.tab !== false) {
+        await control.press("Tab");
+    }
+}
 async function clickText(page, text) {
     await page.getByText(text).filter({ visible: true }).first().click();
 }
 async function selectLabel(page, selector, label, required = true) {
+    const control = await visibleOrFirst(page, selector);
     try {
-        await (await visibleOrFirst(page, selector)).selectOption({ label });
+        await control.selectOption({ label });
         return;
     }
     catch (error) {
-        if (required) {
-            throw error;
+        const fallback = await matchingSelectOptionLabel(control, label);
+        if (fallback) {
+            await control.selectOption({ label: fallback });
+            return;
         }
+        if (!required) {
+            return;
+        }
+        throw error;
     }
+}
+async function matchingSelectOptionLabel(control, label) {
+    const normalizedLabel = normalizeOptionText(label);
+    const options = await control.locator("option").evaluateAll((nodes) => nodes.map((node) => node.textContent?.trim() || "").filter(Boolean));
+    const matches = options.filter((option) => {
+        const normalizedOption = normalizeOptionText(option);
+        return (normalizedOption === normalizedLabel ||
+            normalizedOption.startsWith(normalizedLabel) ||
+            normalizedOption.includes(normalizedLabel));
+    });
+    return matches.length === 1 ? matches[0] : undefined;
 }
 async function visibleOrFirst(page, selector) {
     const visible = page.locator(selector).filter({ visible: true }).first();
@@ -352,6 +474,59 @@ function formatEuro(value) {
         return undefined;
     }
     return value.toFixed(2).replace(".", ",");
+}
+function autocompleteCandidates(value) {
+    const normalized = value.replace(/\bHBF\b/gi, "Hbf").trim();
+    const queue = [normalized];
+    const candidates = new Set();
+    for (const candidate of queue) {
+        for (const expanded of stationCandidateVariants(candidate)) {
+            if (!candidates.has(expanded)) {
+                candidates.add(expanded);
+                queue.push(expanded);
+            }
+        }
+    }
+    return [...candidates];
+}
+function stationCandidateVariants(value) {
+    return [
+        value,
+        value.replace(/\bKoeln\b/gi, "Köln"),
+        value.replace(/\bDuesseldorf\b/gi, "Düsseldorf"),
+        value.replace(/\bMuenster\b/gi, "Münster"),
+        value.replace(/\bHbf\b/gi, "Hauptbahnhof"),
+    ];
+}
+function normalizeStationMatchText(value) {
+    return value
+        .normalize("NFKD")
+        .replace(/\p{Diacritic}/gu, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+}
+function isHbfStationMatch(input, option) {
+    if (!/\bHbf\b/i.test(input)) {
+        return false;
+    }
+    const inputText = normalizeStationMatchText(input);
+    const optionText = normalizeStationMatchText(option);
+    const city = inputText
+        .replace(/\bhbf\b/g, "")
+        .replace(/\bhauptbahnhof\b/g, "")
+        .trim();
+    return Boolean(city) &&
+        optionText.includes(city) &&
+        (optionText.includes("hbf") || optionText.includes("hauptbahnhof"));
+}
+function normalizeOptionText(value) {
+    return value
+        .normalize("NFKD")
+        .replace(/\p{Diacritic}/gu, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
 }
 function escapeRegExp(value) {
     return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

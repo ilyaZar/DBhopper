@@ -68,8 +68,8 @@ export function claimSchemaReference() {
     requiredFacts: {
       privateProfile:
         [
-          "Store reusable sensitive claimant and bank data in",
-          "the external path_clm profile directory and select it with",
+          "Store sensitive claimant and bank data in",
+          "an external path_clm claim TOML and select it with",
           "assets/private/settings.toml ID_CLM.",
         ].join(" "),
       privateProfileShape: {
@@ -136,7 +136,7 @@ export function claimSchemaReference() {
       ],
     },
     submittedRecipeShape:
-      "claim_submitted_recipe.toml joins editable claim.toml with the selected claim profile after successful submit.",
+      "claim_submitted_recipe.toml records the selected claim after successful submit.",
   };
 }
 
@@ -222,6 +222,18 @@ function validateTicket(claim: DBhopperClaim, messages: ValidationMessage[]) {
 
 function validateFiles(claim: DBhopperClaim, messages: ValidationMessage[]) {
   const roles = new Set((claim.files || []).map((file) => file.role));
+  let uploadCount = 0;
+  let delayEvidenceCount = 0;
+  for (const file of claim.files || []) {
+    const paths = filePaths(file);
+    if (paths.length === 0) {
+      messages.push(error("missing_file_path", `file entry ${file.role} must set path or paths`));
+    }
+    uploadCount += paths.length;
+    if (file.role === "delay_evidence") {
+      delayEvidenceCount += paths.length;
+    }
+  }
   if (!roles.has("base_ticket")) {
     messages.push(error("missing_base_ticket", "original ticket proof must be attached"));
   }
@@ -236,6 +248,19 @@ function validateFiles(claim: DBhopperClaim, messages: ValidationMessage[]) {
       ),
     );
   }
+  if (delayEvidenceCount > 3) {
+    messages.push(error("too_many_delay_evidence_files", "delay_evidence may include at most 3 files"));
+  }
+  if (uploadCount > 5) {
+    messages.push(error("too_many_upload_files", "the browser form accepts at most 5 upload files"));
+  }
+}
+
+function filePaths(file: { path?: string; paths?: string[] }) {
+  return [
+    ...(file.path ? [file.path] : []),
+    ...(Array.isArray(file.paths) ? file.paths : []),
+  ];
 }
 
 function readPath(value: unknown, dotted: string) {

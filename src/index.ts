@@ -40,6 +40,12 @@ const configSchema = Type.Object(
           "Top-level directory containing claims/ and assets/. Defaults to the plugin package directory.",
       }),
     ),
+    settingsPath: Type.Optional(
+      Type.String({
+        description:
+          "Optional explicit path to settings.toml. Defaults to the plugin package assets/private/settings.toml.",
+      }),
+    ),
     browserExecutablePath: Type.Optional(
       Type.String({
         description: "Optional Chromium or Chrome executable path for browser filing.",

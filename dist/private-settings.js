@@ -70,7 +70,10 @@ const DELAY_PROVIDER_VALUES = new Set(DELAY_PROVIDERS);
 const DELAY_FALLBACK_VALUES = new Set(DELAY_FALLBACKS);
 const PURCHASE_MODE_VALUES = new Set(["review", "auto"]);
 export function privateSettingsPath(config = {}) {
-    return path.join(workspaceRoot(config), SETTINGS_RELATIVE_PATH);
+    return path.resolve(config.settingsPath || path.join(PACKAGE_ROOT, SETTINGS_RELATIVE_PATH));
+}
+export function privateSettingsRoot(config = {}) {
+    return settingsRootFromPath(privateSettingsPath(config));
 }
 export function defaultPrivateSettings() {
     return {
@@ -110,11 +113,11 @@ export async function readPrivateSettings(config = {}) {
         exists,
         settingsPath,
         settings,
-        userCredentialsDir: resolveConfiguredPath(config, settings.PATH_USR),
-        claimProfilesDir: resolveConfiguredPath(config, settings.PATH_CLM),
-        buyingProfilesDir: resolveConfiguredPath(config, settings.PATH_BUY),
-        paymentProfilesDir: resolveConfiguredPath(config, settings.PATH_PYM),
-        purchaseArtifactsDir: resolveConfiguredPath(config, settings.PATH_PRC),
+        userCredentialsDir: resolveConfiguredPath(settingsPath, settings.PATH_USR),
+        claimProfilesDir: resolveConfiguredPath(settingsPath, settings.PATH_CLM),
+        buyingProfilesDir: resolveConfiguredPath(settingsPath, settings.PATH_BUY),
+        paymentProfilesDir: resolveConfiguredPath(settingsPath, settings.PATH_PYM),
+        purchaseArtifactsDir: resolveConfiguredPath(settingsPath, settings.PATH_PRC),
     };
 }
 export function parsePrivateSettingsToml(text, source = "settings.toml") {
@@ -171,7 +174,7 @@ async function listConfiguredIdFiles(config, idField) {
     const slot = privateSlotForIdField(idField);
     return {
         settings: loaded,
-        ...(await listIdFiles(loaded[slot.directoryField], idField, workspaceRoot(config))),
+        ...(await listIdFiles(loaded[slot.directoryField], idField, privateSettingsRoot(config))),
     };
 }
 async function resolveConfiguredIdFile(config, idField) {
@@ -182,7 +185,7 @@ async function resolveConfiguredIdFile(config, idField) {
     const slot = privateSlotForIdField(idField);
     return {
         settings: loaded,
-        file: await resolveIdFile(loaded[slot.directoryField], idField, loaded.settings[idField], workspaceRoot(config)),
+        file: await resolveIdFile(loaded[slot.directoryField], idField, loaded.settings[idField], privateSettingsRoot(config)),
     };
 }
 export async function configuredUserCredentialsDir(config = {}) {
@@ -199,12 +202,12 @@ export async function configuredPaymentProfilesDir(config = {}) {
 }
 export async function configuredPurchaseArtifactsDir(config = {}) {
     const settings = await readPrivateSettings(config);
-    let locationError = await privatePathLocationError(settings.purchaseArtifactsDir, "path_prc", workspaceRoot(config));
+    let locationError = await privatePathLocationError(settings.purchaseArtifactsDir, "path_prc", privateSettingsRoot(config));
     if (locationError) {
         throw new Error(locationError.message);
     }
     await fs.mkdir(settings.purchaseArtifactsDir, { recursive: true });
-    locationError = await privatePathLocationError(settings.purchaseArtifactsDir, "path_prc", workspaceRoot(config));
+    locationError = await privatePathLocationError(settings.purchaseArtifactsDir, "path_prc", privateSettingsRoot(config));
     if (locationError) {
         throw new Error(locationError.message);
     }
@@ -212,7 +215,7 @@ export async function configuredPurchaseArtifactsDir(config = {}) {
 }
 export async function privateSettingsStatus(config = {}) {
     const settings = await readPrivateSettings(config);
-    const root = workspaceRoot(config);
+    const root = privateSettingsRoot(config);
     const credentials = await listConfiguredStatusFiles(settings, "ID_USR", root);
     const paymentProfiles = await listConfiguredStatusFiles(settings, "ID_PYM", root);
     const claimProfiles = await listConfiguredStatusFiles(settings, "ID_CLM", root);
@@ -308,7 +311,7 @@ export async function writePrivateSettingsIds(updates, config = {}) {
             ? normalizePrivateId(updates.paymentProfileId, "ID_PYM")
             : loaded.settings.ID_PYM,
     };
-    const root = workspaceRoot(config);
+    const root = privateSettingsRoot(config);
     for (const idField of PRIVATE_ID_FIELDS) {
         const slot = privateSlotForIdField(idField);
         await resolveIdFile(loaded[slot.directoryField], idField, updated[idField], root);
@@ -354,13 +357,21 @@ export function normalizePrivateId(value, field) {
     assertNumericId(trimmed, field);
     return trimmed;
 }
-function workspaceRoot(config) {
-    return path.resolve(config.workspaceRoot || PACKAGE_ROOT);
-}
-function resolveConfiguredPath(config, value) {
+function resolveConfiguredPath(settingsPath, value) {
     return path.isAbsolute(value)
         ? path.resolve(value)
-        : path.resolve(workspaceRoot(config), value);
+        : path.resolve(settingsRootFromPath(settingsPath), value);
+}
+function settingsRootFromPath(settingsPath) {
+    const resolved = path.resolve(settingsPath);
+    const privateDir = path.dirname(resolved);
+    const assetsDir = path.dirname(privateDir);
+    if (path.basename(resolved) === "settings.toml" &&
+        path.basename(privateDir) === "private" &&
+        path.basename(assetsDir) === "assets") {
+        return path.dirname(assetsDir);
+    }
+    return privateDir;
 }
 function normalizePrivateSettings(value, source) {
     const normalizedValue = normalizeTomlKeys(value, source, PRIVATE_SETTINGS_ALIASES, true);
@@ -545,6 +556,31 @@ async function listIdFiles(dir, idField, root) {
     }
     const entries = await fs.readdir(dir, { withFileTypes: true });
     for (const entry of entries) {
+        const claimPath = idField === "ID_CLM"
+            ? privateClaimCandidatePath(dir, entry)
+            : undefined;
+        if (claimPath) {
+            if (await fileExists(claimPath)) {
+                try {
+                    const parsed = parseIdDocument(await fs.readFile(claimPath, "utf8"), claimPath);
+                    if (!parsed.ID_CLM) {
+                        continue;
+                    }
+                    const id = normalizePrivateId(String(parsed.ID_CLM), idField);
+                    items.push({
+                        id,
+                        fileName: entry.isDirectory()
+                            ? path.join(entry.name, "claim.toml")
+                            : entry.name,
+                        filePath: claimPath,
+                    });
+                }
+                catch (error) {
+                    messages.push(validationErrorFromException("invalid_private_id_file", error));
+                }
+            }
+            continue;
+        }
         if (!entry.isFile() || !entry.name.endsWith(".toml")) {
             continue;
         }
@@ -577,6 +613,24 @@ async function listIdFiles(dir, idField, root) {
         messages.push(validationError("duplicate_private_id", `${idField} ${item.id} appears in more than one TOML file`));
     }
     return { items, messages, directoryOk: true };
+}
+function privateClaimCandidatePath(dir, entry) {
+    if (entry.isDirectory()) {
+        return path.join(dir, entry.name, "claim.toml");
+    }
+    if (entry.isFile() && entry.name.endsWith(".toml")) {
+        return path.join(dir, entry.name);
+    }
+    return undefined;
+}
+async function fileExists(filePath) {
+    try {
+        await fs.access(filePath);
+        return true;
+    }
+    catch {
+        return false;
+    }
 }
 async function listConfiguredStatusFiles(settings, idField, root) {
     const slot = privateSlotForIdField(idField);

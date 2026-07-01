@@ -12,6 +12,7 @@ import {
   validateCredentialsFiles,
 } from "../dist/credentials.js";
 import {
+  configWithPrivateSettings,
   writeCredentialsFixture,
   writePrivateSettingsFixture,
 } from "./helpers/private-settings.js";
@@ -36,7 +37,7 @@ describe("dbhopper credentials", () => {
       ],
     });
 
-    const loaded = await readSelectedCredentialsProfile({ workspaceRoot: root });
+    const loaded = await readSelectedCredentialsProfile(configWithPrivateSettings(root));
     assert.equal(loaded.credentialsName, "credentials-01.toml");
     assert.equal(loaded.credentialsId, "01");
     assert.equal(loaded.credentials.bahnAPI.clientId, "client-secret-value");
@@ -50,7 +51,7 @@ describe("dbhopper credentials", () => {
     assert.equal(summary.hasBrowserUserDataDir, true);
     assert.doesNotMatch(JSON.stringify(summary), /secret|maria@example|api-user/);
 
-    const config = applyCredentialsToConfig({ workspaceRoot: root }, loaded);
+    const config = applyCredentialsToConfig(configWithPrivateSettings(root), loaded);
     assert.equal(config.dbClientId, "client-secret-value");
     assert.equal(config.dbApiKey, "api-secret-value");
   });
@@ -106,7 +107,7 @@ describe("dbhopper credentials", () => {
       "utf8",
     );
 
-    const result = await validateCredentialsFiles({ workspaceRoot: root });
+    const result = await validateCredentialsFiles(configWithPrivateSettings(root));
     assert.equal(result.ok, false);
     assert.ok(
       result.messages.some((message) =>
@@ -124,7 +125,7 @@ describe("dbhopper credentials", () => {
     await fs.writeFile(credentialsFile, 'ID_USR = "01"\n', "utf8");
     await writePrivateSettingsFixture(root, { userCredentialsPath: credentialsFile });
 
-    const result = await validateCredentialsFiles({ workspaceRoot: root });
+    const result = await validateCredentialsFiles(configWithPrivateSettings(root));
 
     assert.equal(result.ok, false);
     assert.ok(

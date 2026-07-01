@@ -40,12 +40,26 @@ export async function writePrivateSettingsFixture(root, options = {}) {
     "",
   ];
 
-  await fs.mkdir(path.join(root, "assets", "private"), { recursive: true });
+  const settingsPath = privateSettingsPathForRoot(root);
+  await fs.mkdir(path.dirname(settingsPath), { recursive: true });
   await fs.writeFile(
-    path.join(root, "assets", "private", "settings.toml"),
+    settingsPath,
     lines.join("\n"),
     "utf8",
   );
+  return settingsPath;
+}
+
+export function privateSettingsPathForRoot(root) {
+  return path.join(root, "assets", "private", "settings.toml");
+}
+
+export function configWithPrivateSettings(root, config = {}) {
+  return {
+    workspaceRoot: root,
+    settingsPath: privateSettingsPathForRoot(root),
+    ...config,
+  };
 }
 
 export async function writeCredentialsFixture(root, options = {}) {

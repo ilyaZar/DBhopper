@@ -131,12 +131,15 @@ const ticketSchema = object({
 const fileSchema = object({
     role: stringEnum(CLAIM_FILE_ROLES),
     path: string(),
+    paths: array(string()),
     description: string(),
     reusableAsset: boolean(),
-}, ["role", "path"]);
+}, ["role"]);
 const baseClaimFields = {
+    ID_CLM: string(),
     claimId: string(),
     status: string(),
+    claimant: claimantSchema,
     journey: journeySchema,
     ticket: ticketSchema,
     files: array(fileSchema),
