@@ -7,7 +7,12 @@ import {
   SIDE_EFFECT_CLAIM_TOOL_NAMES,
 } from "./claim-tool-contracts.js";
 import { PRIVATE_SETTINGS_CONFIGURE_TOOL_NAME } from "./tool-contracts.js";
-import { probeBrowser, runBrowserClaim } from "./browser.js";
+import {
+  BAHNHOF_SUFFIX_CHECKS,
+  probeBrowser,
+  runBrowserClaim,
+  type BahnhofSuffixCheck,
+} from "./browser.js";
 import { claimSchemaReference, validateClaim } from "./validation.js";
 import { errorMessage } from "./errors.js";
 import {
@@ -64,6 +69,9 @@ export function buildDBhopperApprovalDescription({
   }
   if (params.confirmSubmit === true) {
     lines.push("Submit: explicitly confirmed");
+  }
+  if (typeof params.check_bahnhof_suffix === "string") {
+    lines.push(`Station suffix check: ${params.check_bahnhof_suffix}`);
   }
   if (params.confirm === true) {
     lines.push("Settings change: explicitly confirmed");
@@ -263,6 +271,33 @@ function runClaimTool() {
           type: "boolean",
           description: "Must be true only after the user explicitly confirms final submission.",
         },
+        stop_after_station_resolution: {
+          type: "boolean",
+          description:
+            [
+              "Stop after filling and selecting station autocomplete fields.",
+              "Use this for LLM station probing before a full dry run.",
+            ].join(" "),
+        },
+        check_bahnhof_suffix: bahnhofSuffixSchema(
+          [
+            "Default station suffix probe strategy for browser station fields.",
+            "Use both to gather Hbf and Bf dropdown choices, then rerun or ask",
+            "the user when choices are ambiguous.",
+          ].join(" "),
+        ),
+        start_check_bahnhof_suffix: bahnhofSuffixSchema(
+          "Optional suffix probe strategy for the departure station field.",
+        ),
+        end_check_bahnhof_suffix: bahnhofSuffixSchema(
+          "Optional suffix probe strategy for the destination station field.",
+        ),
+        exact_station_departure: exactStationSchema(
+          "Optional exact live dropdown label for the departure station.",
+        ),
+        exact_station_arrival: exactStationSchema(
+          "Optional exact live dropdown label for the arrival station.",
+        ),
         headless: { type: "boolean" },
       },
       ["confirm", "claimId"],
@@ -275,6 +310,12 @@ function runClaimTool() {
         claimId?: string;
         mode?: "dry_run" | "submit";
         confirmSubmit?: boolean;
+        stop_after_station_resolution?: boolean;
+        check_bahnhof_suffix?: BahnhofSuffixCheck;
+        start_check_bahnhof_suffix?: BahnhofSuffixCheck;
+        end_check_bahnhof_suffix?: BahnhofSuffixCheck;
+        exact_station_departure?: string;
+        exact_station_arrival?: string;
         headless?: boolean;
       },
     ) {
@@ -314,6 +355,12 @@ function runClaimTool() {
           claimDir: prepared.claimDir,
           mode: params.mode || "dry_run",
           confirmSubmit: params.confirmSubmit,
+          stopAfterStationResolution: params.stop_after_station_resolution,
+          checkBahnhofSuffix: params.check_bahnhof_suffix,
+          startCheckBahnhofSuffix: params.start_check_bahnhof_suffix,
+          endCheckBahnhofSuffix: params.end_check_bahnhof_suffix,
+          exactStationDeparture: params.exact_station_departure,
+          exactStationArrival: params.exact_station_arrival,
           headless: params.headless ?? this.config.headless,
           browserExecutablePath: this.config.browserExecutablePath,
           artifactRoot: this.config.artifactRoot,
@@ -334,6 +381,27 @@ function runClaimTool() {
         return errorResult("run_claim", error, true);
       }
     },
+  };
+}
+
+function exactStationSchema(description: string) {
+  return {
+    type: "string",
+    description:
+      [
+        description,
+        "Leave empty or omit to probe dropdown choices; pass a returned live",
+        "label to force and verify that exact station on a rerun.",
+      ].join(" "),
+  };
+}
+
+function bahnhofSuffixSchema(description: string) {
+  return {
+    type: "string",
+    enum: [...BAHNHOF_SUFFIX_CHECKS],
+    default: "both",
+    description,
   };
 }
 
