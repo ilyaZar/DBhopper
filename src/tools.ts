@@ -112,7 +112,6 @@ function schemaTool() {
         operation: "claim_schema",
         research: {
           formUrl: "https://www.mobil.nrw/fahren/mobigarantie/einreichen.html",
-          embeddedAppUrl: "https://mg.kcm-nrw.de/elmapublic/",
           automationChoice:
             [
               "No public CLI or documented stable API was found.",

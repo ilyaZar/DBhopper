@@ -29,8 +29,7 @@ Required evidence:
 
 Known form structure as of 2026-06-08:
 
-- public wrapper: `https://www.mobil.nrw/fahren/mobigarantie/einreichen.html`
-- embedded form app: `https://mg.kcm-nrw.de/elmapublic/`
+- public form page: `https://www.mobil.nrw/fahren/mobigarantie/einreichen.html`
 - top-level blocks: legal questions, personal data, route/date/time, base
   ticket, bank details, summary
 - route search uses station autocomplete and selectable regional journeys

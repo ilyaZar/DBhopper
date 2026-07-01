@@ -172,9 +172,8 @@ shown in screenshot 1 and click:
 Zum Online-Formular für den digitalen Erstattungsantrag
 ```
 
-The current direct `elmapublic` URL is useful for probing, but a full live smoke
-should also cover the entry page and the consent accept step shown in screenshot
-2.
+The browser flow starts at this public page. Do not drive the embedded form URL
+directly for claim filing.
 
 ### Step 3: Legal Questions
 
@@ -218,8 +217,8 @@ Recommended station resolution loop:
 2. Derive the city-like prefix from the TOML guess.
 3. Probe only these dropdown query vectors:
    - plain city, for example `Duisburg`
-   - city plus `B`, for example `Duisburg B`
    - city plus `Hb`, for example `Duisburg Hb`
+   - city plus `B`, for example `Duisburg B`
 4. In `stop_after_station_resolution` mode, collect the visible dropdown
    choices from those probes and stop without committing a station value.
 5. Let the LLM compare the returned choices against the TOML intent. If one
@@ -328,11 +327,9 @@ schema problems should prevent browser execution.
   data than the current fields provide.
 - Add typed allowlists for predefined form option labels.
 - Replace direct station autocomplete with the resolution loop described above.
-- Replace first-row fallback train selection with explicit row matching and
-  clarification on ambiguity.
+- Select the intended delayed train row explicitly and clarify ambiguity.
 - Keep the browser flow routed through the entry and consent pages for full
-  live parity, while keeping the direct form URL as a lower-level probe if
-  useful.
+  live parity.
 - Ensure dry-run/review mode stops at screenshot 11 and cannot submit.
 - Save the summary screenshot as the user-review artifact.
 - Add focused tests for TOML validation, upload-count validation, station option
@@ -371,24 +368,25 @@ under:
 /home/iz/Documents/dbhopper-own-tests/claims/live-dummy-essen-koeln-re1/claim.toml
 ```
 
-It was run against the live public entry page, accepted the consent prompts, and
-stopped at the final summary page without submitting. Local artifacts are under:
+It was run against the live public entry page, handled the cookie and consent
+gates, and stopped at the final summary page without submitting. Local artifacts
+are under:
 
 ```text
-/home/iz/Documents/dbhopper-own-tests/tmp/browser-runs/live-dummy-essen-koeln-re1-2026-07-01T17-30-41-507Z/
-/home/iz/Documents/dbhopper-own-tests/tmp/browser-runs/live-dummy-essen-koeln-re1-2026-07-01T17-59-49-766Z/
+/home/iz/Documents/dbhopper-own-tests/tmp/browser-runs/live-dummy-essen-koeln-re1-2026-07-01T18-34-23-756Z/
+/home/iz/Documents/dbhopper-own-tests/tmp/browser-runs/live-dummy-essen-koeln-re1-2026-07-01T18-49-00-121Z/
 ```
 
 Verified summary facts:
 
-- entry flow: public mobil.nrw page opened, cookie modal handled, direct
-  `elmapublic` fallback not used
+- entry flow: public mobil.nrw page opened and cookie modal handled
 - start station: `Duisburg Hbf, Duisburg`
 - destination: `Köln Messe/Deutz Bf, Köln`
-- station resolution probe returned candidate vectors `city`, `city B`, and
-  `city Hb`; the follow-up run forced exact pickable dropdown labels with
+- station resolution probe returned candidate vectors `city`, `city Hb`, and
+  `city B` with per-vector `probeChoices`; the follow-up run forced exact
+  pickable dropdown labels with
   `exact_station_departure` and `exact_station_arrival`
-- delayed local service fallback field: `RE5; delay`
+- delayed local service metadata: `RE5; delay`
 - replacement service: `Fernverkehrszug (IC/EC/ICE)`
 - ticket name/category: `Semesterticket`, `Sonstiges Ticket`
 - substitute cost: `38,00 EURO`
