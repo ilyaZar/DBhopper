@@ -29,8 +29,8 @@ profile IDs from `assets/private/settings.toml`. The status check must flag:
 - `path_usr`, `path_clm`, `path_buy`, or `path_pym` values that are unreadable.
 - `path_usr`, `path_clm`, `path_buy`, or `path_pym` values that point to a
   file instead of a directory.
-- `path_usr`, `path_clm`, `path_buy`, or `path_pym` values that resolve inside
-  the plugin workspace/package root.
+- Any configured `path_*` value that resolves inside the plugin
+  workspace/package root, including `path_prc`.
 - missing selected `ID_USR`, `ID_CLM`, `ID_BUY`, or `ID_PYM` values.
 
 Use `dbhopper_credentials_validate` to validate user credential TOML files
@@ -179,7 +179,7 @@ Safety rules:
   files under `tmp/` are prefixed with visit numbers such as `01_`.
 - Capture screenshots after payment-profile fields only for the explicit
   review-mode Check-page artifact. Mark those artifacts sensitive and keep the
-  user-facing copy under ignored `assets/private/purchases/`.
+  user-facing copy under configured `path_prc`.
 - Treat logged-in DB account identity as fixed. SEPA account-holder name and
   birth date mismatches return sanitized warnings and keep DB's account values;
   IBAN, mandate, and configured address fields remain compare-and-fill fields.
@@ -209,10 +209,10 @@ array so the agent can relay the mismatch without exposing private values.
 When the Check page is reached in review mode, `finalSafetyStop` is
 `check_page_review`, `reviewGate.status` is `awaiting_user_review`, and
 `reviewScreenshot` points to the sensitive local screenshot artifact under
-`assets/private/purchases/`. In auto mode, `reviewGate.status` is
-`auto_unavailable`; the plugin does not click the final buying button. The
-optional `test_drive_purchase: true` flag also records the pre-payment page text
-and screenshots, plus a numbered copy of the review screenshot, in the ignored
+configured `path_prc`. In auto mode, `reviewGate.status` is `auto_unavailable`;
+the plugin does not click the final buying button. The optional
+`test_drive_purchase: true` flag also records the pre-payment page text and
+screenshots, plus a numbered copy of the review screenshot, in the ignored
 timestamped `tmp/ticket-purchase-test-drive-*` directory.
 
 ## Delay Retrieval Tests
@@ -233,6 +233,15 @@ known 401 behavior for invalid DB Timetables credentials.
 Provider parity tests should drive both Timetables and `bahn-web` through their
 provider parsers, then compare the normalized `Journey[]` data handed to the
 shared regional and replacement filters.
+
+Delay-query output tests should keep UTC and display-time semantics separate.
+Fields ending in `_time` are canonical UTC ISO timestamps. User-facing answers
+should use `normalized_input.query_time_local`, the `window.*_local` fields,
+adjacent row-level `_time_local` fields, and `local_time_zone`. This makes the
+agent's chosen local query time directly inspectable before debugging provider
+results. `table_rows[].role` must distinguish delayed regional candidates from
+reachable ICE/IC/EC replacement candidates, including the case where replacement
+rows exist without any delayed regional row.
 
 `npm run test:live:delay-backends` is the opt-in live comparison gate. It runs
 50 NRW route probes through both providers and writes sanitized artifacts under

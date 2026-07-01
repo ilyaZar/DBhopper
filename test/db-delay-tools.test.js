@@ -6,6 +6,7 @@ import path from "node:path";
 
 import {
   isTimetablesCredentialError,
+  runDbDelayQuery,
   runDbDelayProviderParityProbe,
   selectDelayProvider,
   shouldFallbackToProvider,
@@ -74,6 +75,73 @@ describe("db delay provider selection", () => {
     assert.equal(result.official.table_rows[0].public_category, "RE");
     assert.equal(result.official.table_rows[0].technical_category, "NX");
     assert.equal(result.official.table_rows[0].train_number, "26838");
+  });
+
+  it("adds local Berlin times and keeps replacement rows distinct", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-local-time-"));
+    await writePrivateFiles(root);
+
+    const result = await runDbDelayQuery(
+      {
+        provider: "db-timetables",
+        departure_station: "Münster(Westf)Hbf",
+        arrival_station: "Düsseldorf Hbf",
+        query_time: "17:59",
+        service_date: "2026-06-16",
+        window_width_minutes: 60,
+        delay_threshold_minutes: 20,
+      },
+      {
+        workspaceRoot: root,
+        fetchImpl: fakeMunsterTimetablesFetch,
+        timeZone: "Europe/Berlin",
+      },
+    );
+
+    assert.equal(result.ok, true);
+    assert.equal(result.normalized_input.query_time, "2026-06-16T15:59:00.000Z");
+    assert.equal(
+      result.normalized_input.query_time_local,
+      "2026-06-16T17:59:00+02:00",
+    );
+    assert.equal(result.window.lower_bound, "2026-06-16T14:59:00.000Z");
+    assert.equal(result.window.lower_bound_local, "2026-06-16T16:59:00+02:00");
+    assert.equal(result.window.query_time, "2026-06-16T15:59:00.000Z");
+    assert.equal(result.window.query_time_local, "2026-06-16T17:59:00+02:00");
+    assert.equal(result.window.upper_bound, "2026-06-16T16:59:00.000Z");
+    assert.equal(result.window.upper_bound_local, "2026-06-16T18:59:00+02:00");
+    assert.equal(result.window.local_time_zone, "Europe/Berlin");
+    assert.equal(result.local_time.time_zone, "Europe/Berlin");
+    assert.equal(result.local_time.query_time, "2026-06-16T17:59:00+02:00");
+    assert.equal(
+      result.local_time.window_lower_bound,
+      "2026-06-16T16:59:00+02:00",
+    );
+    assert.equal(
+      result.local_time.window_upper_bound,
+      "2026-06-16T18:59:00+02:00",
+    );
+    assert.equal(result.cleaned_summary.delayed_regional_count, 0);
+    assert.equal(result.cleaned_summary.replacement_count, 2);
+    assert.equal(result.cleaned_summary.replacements_without_delayed_regional, true);
+    assert.match(
+      result.cleaned_summary.candidate_roles.reachable_replacement,
+      /ICE\/IC\/EC replacement/,
+    );
+
+    const [ice, ic] = result.table_rows;
+    assert.equal(ice.role, "reachable_replacement");
+    assert.equal(ice.label, "ICE 615");
+    assert.equal(ice.planned_boarding_time, "2026-06-16T16:02:00.000Z");
+    assert.equal(ice.planned_boarding_time_local, "2026-06-16T18:02:00+02:00");
+    assert.equal(ice.realtime_boarding_time, "2026-06-16T16:03:00.000Z");
+    assert.equal(ice.realtime_boarding_time_local, "2026-06-16T18:03:00+02:00");
+    assert.equal(ice.local_time_zone, "Europe/Berlin");
+    assert.equal(ic.realtime_boarding_time_local, "2026-06-16T18:30:00+02:00");
+    assert.equal(
+      result.replacement_candidates[0].boarding_station.realtime_departure_local,
+      "2026-06-16T18:03:00+02:00",
+    );
   });
 });
 
@@ -180,6 +248,52 @@ async function fakeParityFetch(url) {
     `);
   }
   if (text.includes("/rchg/8000149") || text.includes("/plan/8000149/")) {
+    return new Response("", { status: 404 });
+  }
+  return new Response("not found", { status: 404 });
+}
+
+async function fakeMunsterTimetablesFetch(url) {
+  const parsed = new URL(String(url));
+  const path = decodeURIComponent(parsed.pathname);
+  if (path.includes("/station/Münster(Westf)Hbf")) {
+    return xmlResponse(`
+      <stations>
+        <station name="Münster(Westf)Hbf" eva="8000263" ds100="EMSTP" />
+      </stations>
+    `);
+  }
+  if (path.includes("/station/Düsseldorf Hbf")) {
+    return xmlResponse(`
+      <stations>
+        <station name="Düsseldorf Hbf" eva="8000085" ds100="KD" />
+      </stations>
+    `);
+  }
+  if (path.includes("/plan/8000263/260616/18")) {
+    return xmlResponse(`
+      <timetable station="Münster(Westf)Hbf" eva="8000263">
+        <s id="ice-615">
+          <tl c="ICE" n="615" />
+          <dp pt="2606161802" pp="9"
+            ppth="Münster(Westf)Hbf|Dortmund Hbf|Bochum Hbf|Essen Hbf|Duisburg Hbf|Düsseldorf Hbf|Köln Hbf" />
+        </s>
+        <s id="ic-2207">
+          <tl c="IC" n="2207" />
+          <dp pt="2606161830" pp="8"
+            ppth="Münster(Westf)Hbf|Recklinghausen Hbf|Herne-Wanne-Eickel Hbf|Gelsenkirchen Hbf|Oberhausen Hbf|Duisburg Hbf|Düsseldorf Hbf|Köln Hbf" />
+        </s>
+      </timetable>
+    `);
+  }
+  if (path.includes("/fchg/8000263")) {
+    return xmlResponse(`
+      <timetable station="Münster(Westf)Hbf" eva="8000263">
+        <s id="ice-615"><dp ct="2606161803" cp="9" /></s>
+      </timetable>
+    `);
+  }
+  if (path.includes("/rchg/8000263") || path.includes("/plan/8000263/")) {
     return new Response("", { status: 404 });
   }
   return new Response("not found", { status: 404 });
