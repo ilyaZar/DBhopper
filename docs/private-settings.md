@@ -97,13 +97,26 @@ IDs are quoted strings such as `"01"`, `"02"`, and `"03"`.
 
 ## Claim Fields
 
+Claim TOML files live under `path_clm` and are selected by `ID_CLM`. They may
+be stored either as `<claim-id>/claim.toml` with evidence files next to the
+TOML, or as `<claim-id>.toml` when no per-claim directory is needed.
+
+The full dummy example is:
+
+```text
+docs/examples/claim.example.toml
+```
+
 Current top-level fields:
 
 - `ID_CLM`: required quoted claim ID, for example `"01"`.
+- `status`: optional local workflow state, for example `"draft"`.
 
-Current sensitive claim sections:
+Current claimant sections:
 
 - `[claimant].salutation`: one of `MR`, `MS`, `DIVERS`, or `FAMILY`.
+  German form labels `Herr`, `Frau`, `Divers`, and `Keine Angabe` are also
+  accepted and normalized.
 - `[claimant].first_name`: claimant first name.
 - `[claimant].last_name`: claimant last name.
 - `[claimant].email`: claimant email address.
@@ -114,6 +127,53 @@ Current sensitive claim sections:
 - `[claimant.address].country`: claimant country.
 - `[claimant.bank].account_owner`: bank account owner.
 - `[claimant.bank].iban`: IBAN for reimbursement.
+
+Current journey section:
+
+- `[journey].date`: incident date as `YYYY-MM-DD`.
+- `[journey].scheduled_departure_time`: scheduled departure time as `HH:MM`.
+- `[journey].start_station`: user-facing departure station guess. Browser
+  automation resolves it to an exact live dropdown entry before submitting the
+  station field.
+- `[journey].end_station`: user-facing destination station guess. Browser
+  automation resolves it to an exact live dropdown entry before submitting the
+  station field.
+- `[journey].planned_line`: delayed local line, for example `RE5`.
+- `[journey].planned_train_label`: optional train label when a line alone is
+  not specific enough.
+- `[journey].delay_minutes`: optional known delay in minutes.
+- `[journey].disruption_type`: `delay` or `cancellation`.
+- `[journey].replacement_started_at`: replacement-service start time as
+  `HH:MM`.
+- `[journey].used_delayed_vehicle`: optional boolean exclusion check.
+- `[journey].used_identical_local_alternative`: optional boolean exclusion
+  check.
+- `[journey].excluded_reasons`: optional list of known exclusion reasons.
+
+Current ticket section:
+
+- `[ticket].base_ticket_name`: original ticket name shown to the form.
+- `[ticket].base_ticket_category`: original ticket category label.
+- `[ticket].tariff_area`: tariff label, usually `NRW-Tarif`.
+- `[ticket].substitute_type`: one of `long_distance`, `taxi`, `sharing`, or
+  `alternative_local`.
+- `[ticket].substitute_cost`: replacement-service cost as a number.
+- `[ticket].companions`: companion count as a number.
+- `[ticket].description`: free-text message for the claim. The default
+  messages keep German umlauts and the final exclamation mark.
+
+Current file entries:
+
+- `[[files]].role`: one of `base_ticket`, `substitute_receipt`,
+  `delay_evidence`, `submission_pdf`, `screenshot`, or `other`.
+- `[[files]].path`: one claim-local file path for this role.
+- `[[files]].paths`: multiple claim-local file paths for this role. Use this
+  for delay evidence and keep delay evidence at three files or fewer.
+- `[[files]].reusable_asset`: optional boolean for reusable local assets.
+
+Only claim-local relative file paths should be used in public examples. Real
+ticket, receipt, delay screenshot, bank, claimant, and browser data belong only
+in external private directories.
 
 ## Buying Profile Fields
 
@@ -210,9 +270,9 @@ Example private files:
 ../dbhopper-private/profiles/buying-profile-01.toml
 ```
 
-Safe public credential/profile templates live under `docs/examples/`. Create
-the private directories, then copy those files before adding real account,
-claimant, or bank values.
+Safe public credential, claim, payment, and buying templates live under
+`docs/examples/`. Create the private directories, then copy those files before
+adding real account, claimant, ticket, receipt, or bank values.
 
 ```bash
 mkdir -p ../dbhopper-private/credentials ../dbhopper-private/claims

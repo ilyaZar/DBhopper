@@ -1,16 +1,16 @@
 ID_CLM = "01"
 
 [claimant]
-salutation = "FAMILY"
+salutation = "Herr"
 first_name = "Maria"
 last_name = "Mustermann"
 email = "maria.mustermann@example.org"
-phone = "+4922112345678"
+phone = "+49 221 1234 5678"
 
 [claimant.address]
 street_number = "Musterstrasse 1"
 zip = "50667"
-city = "Koeln"
+city = "Köln"
 country = "Deutschland"
 
 [claimant.bank]

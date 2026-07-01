@@ -3,7 +3,7 @@
 Reference screenshots live outside this repository:
 
 ```text
-/home/iz/Work/mobilitaetsgarantie-screenshots/
+<local-screenshot-reference-dir>/
 ```
 
 They document the live NRW Mobilitätsgarantie web form from entry page through
@@ -75,7 +75,7 @@ phone = "+4922112345678"
 [claimant.address]
 street_number = "Musterstrasse 1"
 zip = "50667"
-city = "Koeln"
+city = "Köln"
 country = "Deutschland"
 
 # Bank data fills the reimbursement page.
@@ -87,36 +87,36 @@ iban = "DE00000000000000000000"
 [journey]
 date = "2026-06-26"
 scheduled_departure_time = "12:31"
-start_station = "Essen Hbf"
-end_station = "Koeln Hbf"
-planned_line = "RE1"
+start_station = "Duisburg Hbf"
+end_station = "Köln Messe/Deutz Bf"
+planned_line = "RE5"
 disruption_type = "delay"
-replacement_started_at = "13:19"
+replacement_started_at = "12:49"
 
 # Ticket data fills ticket, replacement, and message fields.
 [ticket]
 base_ticket_name = "Deutschlandticket"
-base_ticket_category = "Sonstiges"
+base_ticket_category = "Sonstiges Ticket"
 tariff_area = "NRW-Tarif"
 substitute_type = "long_distance"
-substitute_cost = 13.40
+substitute_cost = 38.00
 companions = 0
-description = "Vielen Dank für die Bearbeitung!"
+description = "Anbei auch Bilder, die die Verspätung verifizieren. Vielen Dank für die Bearbeitung!"
 
 # Original ticket proof.
 [[files]]
 role = "base_ticket"
-path = "deutschlandticket.pdf"
+path = "base-ticket.png"
 
 # Replacement ticket or receipt.
 [[files]]
 role = "substitute_receipt"
-path = "ersatzleistung.pdf"
+path = "replacement-ticket-receipt.pdf"
 
 # Optional delay proof screenshots.
 [[files]]
 role = "delay_evidence"
-paths = ["delay-screenshot-1.png", "delay-screenshot-2.png"]
+paths = ["delay-evidence-1.png", "delay-evidence-2.png"]
 ```
 
 Required evidence:
@@ -365,7 +365,7 @@ The latest local dry-run used the plugin tool path with the external claim
 under:
 
 ```text
-/home/iz/Documents/dbhopper-own-tests/claims/live-dummy-essen-koeln-re1/claim.toml
+<external-claim-root>/claims/live-dummy-claim/claim.toml
 ```
 
 It was run against the live public entry page, handled the cookie and consent
@@ -373,8 +373,8 @@ gates, and stopped at the final summary page without submitting. Local artifacts
 are under:
 
 ```text
-/home/iz/Documents/dbhopper-own-tests/tmp/browser-runs/live-dummy-essen-koeln-re1-2026-07-01T18-34-23-756Z/
-/home/iz/Documents/dbhopper-own-tests/tmp/browser-runs/live-dummy-essen-koeln-re1-2026-07-01T18-49-00-121Z/
+<external-claim-root>/tmp/browser-runs/live-dummy-claim-2026-07-01T18-34-23-756Z/
+<external-claim-root>/tmp/browser-runs/live-dummy-claim-2026-07-01T18-49-00-121Z/
 ```
 
 Verified summary facts:
