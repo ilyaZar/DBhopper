@@ -7,7 +7,6 @@ import { fillSensitiveTextControl } from "./sensitive-input.js";
 export const BAHNHOF_SUFFIX_CHECKS = ["both", "hbf_only", "bf_only"];
 const ENTRY_URL = "https://www.mobil.nrw/fahren/mobigarantie.html";
 const FORM_PAGE_URL = "https://www.mobil.nrw/fahren/mobigarantie/einreichen.html";
-const FORM_URL = "https://mg.kcm-nrw.de/elmapublic/";
 const DEFAULT_TIMEOUT_MS = 180000;
 const LIVE_FORM_SETTLE_MS = 5000;
 export async function probeBrowser(config = {}) {
@@ -17,13 +16,15 @@ export async function probeBrowser(config = {}) {
         locale: "de-DE",
     });
     try {
-        await page.goto(FORM_URL, { waitUntil: "domcontentloaded", timeout: 45000 });
+        await page.goto(FORM_PAGE_URL, { waitUntil: "domcontentloaded", timeout: 45000 });
+        await storeDefaultCookieServicesIfVisible(page);
+        await acceptConsentUntilFormVisible(page);
         await page.waitForSelector("#formCreator", { timeout: 45000 });
         await page.waitForTimeout(1000);
         const controls = await visibleControls(page);
         return {
             ok: true,
-            url: FORM_URL,
+            url: FORM_PAGE_URL,
             title: await page.title(),
             controls,
         };
@@ -59,7 +60,7 @@ export async function runBrowserClaim(params) {
         entryFlow = await openClaimForm(page, artifactDir, artifacts);
         await captureStage(page, artifactDir, "open-form", artifacts);
         stage = "legal";
-        await clickText(page, /Ich habe die Regeln/i);
+        await checkRequiredLegalQuestion(page);
         await clickVisibleSave(page);
         await captureStage(page, artifactDir, "legal", artifacts);
         stage = "claimant";
@@ -175,45 +176,30 @@ function defaultEntryFlow() {
     return {
         entryUrl: ENTRY_URL,
         formPageUrl: FORM_PAGE_URL,
-        formUrl: FORM_URL,
         startedAtPublicEntry: false,
         storedEntryCookieServices: false,
         acceptedFormConsent: false,
-        usedFormPageFallback: false,
-        usedDirectFormFallback: false,
     };
 }
 async function openClaimForm(page, artifactDir, artifacts) {
     const entryFlow = defaultEntryFlow();
-    try {
-        await page.goto(ENTRY_URL, { waitUntil: "domcontentloaded" });
-        entryFlow.startedAtPublicEntry = true;
-        await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => undefined);
-        entryFlow.storedEntryCookieServices = await storeDefaultCookieServicesIfVisible(page);
-        if (entryFlow.storedEntryCookieServices) {
-            await page.waitForTimeout(1000);
-        }
-        await captureStage(page, artifactDir, "entry", artifacts);
-        const openedFormPage = await openPublicFormPage(page);
-        entryFlow.usedFormPageFallback = !openedFormPage;
-        await page.waitForLoadState("domcontentloaded", { timeout: 10000 }).catch(() => undefined);
-        entryFlow.storedEntryCookieServices =
-            await storeDefaultCookieServicesIfVisible(page) ||
-                entryFlow.storedEntryCookieServices;
-        await captureStage(page, artifactDir, "consent", artifacts);
-        entryFlow.acceptedFormConsent = await acceptConsentUntilFormVisible(page);
-        await waitForFormCreator(page);
-        return entryFlow;
+    await page.goto(ENTRY_URL, { waitUntil: "domcontentloaded" });
+    entryFlow.startedAtPublicEntry = true;
+    await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => undefined);
+    entryFlow.storedEntryCookieServices = await storeDefaultCookieServicesIfVisible(page);
+    if (entryFlow.storedEntryCookieServices) {
+        await page.waitForTimeout(1000);
     }
-    catch {
-        entryFlow.usedDirectFormFallback = true;
-        await page.goto(FORM_URL, { waitUntil: "domcontentloaded" });
-        entryFlow.storedEntryCookieServices =
-            await storeDefaultCookieServicesIfVisible(page) ||
-                entryFlow.storedEntryCookieServices;
-        await waitForFormCreator(page);
-        return entryFlow;
-    }
+    await captureStage(page, artifactDir, "entry", artifacts);
+    await openPublicFormPage(page);
+    await page.waitForLoadState("domcontentloaded", { timeout: 10000 }).catch(() => undefined);
+    entryFlow.storedEntryCookieServices =
+        await storeDefaultCookieServicesIfVisible(page) ||
+            entryFlow.storedEntryCookieServices;
+    await captureStage(page, artifactDir, "consent", artifacts);
+    entryFlow.acceptedFormConsent = await acceptConsentUntilFormVisible(page);
+    await waitForFormCreator(page);
+    return entryFlow;
 }
 async function storeDefaultCookieServicesIfVisible(page) {
     const cookieDialogVisible = await page
@@ -256,34 +242,27 @@ async function openPublicFormPage(page) {
         .locator('a[href*="/fahren/mobigarantie/einreichen.html"]')
         .filter({ visible: true })
         .first();
-    if ((await link.count()) > 0) {
-        const href = await link.getAttribute("href");
-        await link.click({ force: true }).catch(() => undefined);
-        await page.waitForURL(formPagePattern, { timeout: 5000 }).catch(() => undefined);
-        if (formPagePattern.test(page.url())) {
-            return true;
-        }
-        if (href) {
-            await page.goto(new URL(href, ENTRY_URL).href, { waitUntil: "domcontentloaded" });
-            return false;
-        }
+    if ((await link.count()) === 0) {
+        throw new Error("public claim form link was not found");
     }
-    await page.goto(FORM_PAGE_URL, { waitUntil: "domcontentloaded" });
-    return false;
+    await link.click({ force: true });
+    await page.waitForURL(formPagePattern, { timeout: 10000 });
 }
 async function acceptConsentUntilFormVisible(page) {
     let accepted = false;
     for (let index = 0; index < 3; index += 1) {
         await storeDefaultCookieServicesIfVisible(page);
-        if ((await page.locator("#formCreator").count()) > 0) {
+        const clicked = await clickVisibleAccept(page);
+        if (clicked) {
+            accepted = true;
+            await page.waitForTimeout(2500);
+        }
+        if (await legalQuestionVisible(page)) {
             return accepted;
         }
-        const clicked = await clickVisibleAccept(page);
         if (!clicked) {
-            break;
+            await page.waitForTimeout(1000);
         }
-        accepted = true;
-        await page.waitForTimeout(2500);
     }
     return accepted;
 }
@@ -300,6 +279,17 @@ async function clickVisibleAccept(page) {
 }
 async function waitForFormCreator(page) {
     await page.waitForSelector("#formCreator", { timeout: 45000 });
+    await page.getByText(/Ich habe die Regeln/i)
+        .filter({ visible: true })
+        .first()
+        .waitFor({ state: "visible", timeout: 45000 });
+}
+async function legalQuestionVisible(page) {
+    return page.getByText(/Ich habe die Regeln/i)
+        .filter({ visible: true })
+        .first()
+        .isVisible({ timeout: 1000 })
+        .catch(() => false);
 }
 export async function launchBrowser(config) {
     const { chromium } = await import("playwright-core");
@@ -361,16 +351,20 @@ async function fillJourney(page, claim, checkBahnhofSuffix, stopAfterStationReso
     const stationSelections = [];
     await fillDate(page, "#dateOfEvent", journey.date);
     await fillTime(page, "#complaintTime", journey.scheduledDepartureTime);
-    const startSelection = await chooseAutocomplete(page, "#startStation", journey.startStation, "startStation", checkBahnhofSuffix.startStation, checkBahnhofSuffix.exactDeparture, stopAfterStationResolution && !checkBahnhofSuffix.exactDeparture);
+    const startSelection = await chooseAutocomplete(page, "#startStation", journey.startStation, "startStation", checkBahnhofSuffix.startStation, checkBahnhofSuffix.exactDeparture);
     if (startSelection) {
         stationSelections.push(startSelection);
     }
-    const endSelection = await chooseAutocomplete(page, "#endStation", journey.endStation, "endStation", checkBahnhofSuffix.endStation, checkBahnhofSuffix.exactArrival, stopAfterStationResolution && !checkBahnhofSuffix.exactArrival);
+    const endSelection = await chooseAutocomplete(page, "#endStation", journey.endStation, "endStation", checkBahnhofSuffix.endStation, checkBahnhofSuffix.exactArrival);
     if (endSelection) {
         stationSelections.push(endSelection);
     }
     if (stopAfterStationResolution) {
         return { stationSelections, stoppedAfterStationResolution: true };
+    }
+    const failedStation = stationSelections.find((entry) => !entry.matched);
+    if (failedStation) {
+        throw new Error(`${failedStation.field} requires exact_station_departure or exact_station_arrival from a live dropdown choice`);
     }
     await clickSearchRoutes(page);
     await page.waitForTimeout(LIVE_FORM_SETTLE_MS);
@@ -459,7 +453,7 @@ async function submitAndDownload(page, claimDir) {
     await download.saveAs(target);
     return target;
 }
-async function chooseAutocomplete(page, selector, value, field, checkBahnhofSuffix, exactStation, probeOnly = false) {
+async function chooseAutocomplete(page, selector, value, field, checkBahnhofSuffix, exactStation) {
     if (!value) {
         return undefined;
     }
@@ -469,82 +463,30 @@ async function chooseAutocomplete(page, selector, value, field, checkBahnhofSuff
     }
     const candidatesTried = stationAutocompleteCandidates(value, checkBahnhofSuffix);
     const dropdownChoices = [];
-    const observedChoices = [];
+    const probeChoices = [];
     for (const candidate of candidatesTried) {
         await fillPlainControl(control, candidate, { tab: false });
+        await page.waitForTimeout(750);
         await waitForAutocompleteOptions(page, selector);
         const choices = await readAutocompleteOptions(page, selector);
+        probeChoices.push({ candidate, choices });
         dropdownChoices.push(...choices);
-        observedChoices.push({ candidate, choices });
-    }
-    if (probeOnly) {
         await closeAutocompleteFlyout(page, selector, control);
-        return {
-            field,
-            input: value,
-            checkBahnhofSuffix,
-            candidatesTried,
-            dropdownChoices: uniqueStrings(dropdownChoices),
-            matched: false,
-        };
     }
-    const bestChoice = bestAutocompleteChoice(value, dropdownChoices);
-    if (bestChoice) {
-        const observed = observedChoices.find((entry) => entry.choices.includes(bestChoice));
-        if (observed) {
-            await fillPlainControl(control, observed.candidate, { tab: false });
-            await waitForAutocompleteOptions(page, selector);
-        }
-        const selected = await clickAutocompleteOptionByText(page, selector, bestChoice) ||
-            await clickMatchingAutocompleteOption(page, selector, value, checkBahnhofSuffix);
-        if (selected) {
-            const committed = await commitAutocompleteSelection(page, selector, control);
-            const verified = stationValuesMatch(committed, selected)
-                ? committed
-                : await retryAutocompleteSelection(page, selector, control, selected);
-            if (!stationValuesMatch(verified, selected)) {
-                return {
-                    field,
-                    input: value,
-                    checkBahnhofSuffix,
-                    candidatesTried,
-                    dropdownChoices: uniqueStrings([...dropdownChoices, selected, verified || ""]),
-                    selected: verified,
-                    matched: false,
-                };
-            }
-            return {
-                field,
-                input: value,
-                checkBahnhofSuffix,
-                candidatesTried,
-                dropdownChoices: uniqueStrings([...dropdownChoices, verified || selected]),
-                selected: verified || selected,
-                matched: true,
-            };
-        }
-    }
-    await fillPlainControl(control, value, { tab: false });
-    dropdownChoices.push(...await readAutocompleteOptions(page, selector));
-    await page.keyboard.press("ArrowDown").catch(() => undefined);
-    await page.keyboard.press("Enter").catch(() => undefined);
-    await page.keyboard.press("Escape").catch(() => undefined);
-    await page.waitForTimeout(500);
     return {
         field,
         input: value,
         checkBahnhofSuffix,
         candidatesTried,
         dropdownChoices: uniqueStrings(dropdownChoices),
-        selected: await controlInputValue(control),
+        probeChoices,
         matched: false,
     };
 }
 async function forceExactAutocompleteSelection(page, selector, control, input, field, checkBahnhofSuffix, exactStation) {
     await fillPlainControl(control, exactStation, { tab: false });
-    await waitForAutocompleteOptions(page, selector);
-    const dropdownChoices = await readAutocompleteOptions(page, selector);
-    const exactChoice = dropdownChoices.find((choice) => stationValuesMatch(choice, exactStation));
+    const dropdownChoices = await readAutocompleteOptionsForExact(page, selector, exactStation);
+    const exactChoice = dropdownChoices.find((choice) => exactOptionLabelMatch(choice, exactStation));
     if (!exactChoice) {
         await closeAutocompleteFlyout(page, selector, control);
         return {
@@ -561,6 +503,7 @@ async function forceExactAutocompleteSelection(page, selector, control, input, f
     const committed = selected
         ? await commitAutocompleteSelection(page, selector, control)
         : await controlInputValue(control);
+    await hideAutocompleteFlyout(page, selector);
     return {
         field,
         input,
@@ -570,6 +513,19 @@ async function forceExactAutocompleteSelection(page, selector, control, input, f
         selected: committed,
         matched: stationValuesMatch(committed, exactChoice),
     };
+}
+async function readAutocompleteOptionsForExact(page, selector, exactStation) {
+    const started = Date.now();
+    let choices = [];
+    while (Date.now() - started < LIVE_FORM_SETTLE_MS) {
+        await waitForAutocompleteOptions(page, selector);
+        choices = await readAutocompleteOptions(page, selector);
+        if (choices.some((choice) => exactOptionLabelMatch(choice, exactStation))) {
+            return choices;
+        }
+        await page.waitForTimeout(500);
+    }
+    return choices;
 }
 async function commitAutocompleteSelection(page, selector, control) {
     await page.waitForTimeout(500);
@@ -587,12 +543,31 @@ async function closeAutocompleteFlyout(page, selector, control) {
         .first()
         .waitFor({ state: "hidden", timeout: 1500 })
         .catch(() => undefined);
+    await deactivateAutocompleteFlyout(page, selector);
 }
-async function retryAutocompleteSelection(page, selector, control, selected) {
-    await fillPlainControl(control, selected, { tab: false });
-    await waitForAutocompleteOptions(page, selector);
-    await clickAutocompleteOptionByText(page, selector, selected);
-    return commitAutocompleteSelection(page, selector, control);
+async function deactivateAutocompleteFlyout(page, selector) {
+    const id = selector.replace(/^#/, "");
+    await page.evaluate((controlId) => {
+        const wrapper = document.getElementById(`wrapper${controlId}`);
+        wrapper?.classList.remove("flyout-active");
+        wrapper?.setAttribute("aria-hidden", "true");
+        const control = document.getElementById(controlId);
+        control?.setAttribute("aria-expanded", "false");
+    }, id);
+}
+async function hideAutocompleteFlyout(page, selector) {
+    const id = selector.replace(/^#/, "");
+    await page.evaluate((controlId) => {
+        const wrapper = document.getElementById(`wrapper${controlId}`);
+        if (wrapper instanceof HTMLElement) {
+            wrapper.classList.remove("flyout-active");
+            wrapper.setAttribute("aria-hidden", "true");
+            wrapper.style.display = "none";
+            wrapper.style.pointerEvents = "none";
+        }
+        const control = document.getElementById(controlId);
+        control?.setAttribute("aria-expanded", "false");
+    }, id);
 }
 function stationValuesMatch(left, right) {
     if (!left || !right) {
@@ -603,6 +578,12 @@ function stationValuesMatch(left, right) {
     return normalizedLeft === normalizedRight ||
         normalizedLeft.includes(normalizedRight) ||
         normalizedRight.includes(normalizedLeft);
+}
+function exactOptionLabelMatch(left, right) {
+    if (!left || !right) {
+        return false;
+    }
+    return normalizeStationMatchText(left) === normalizeStationMatchText(right);
 }
 async function clickAutocompleteOptionByText(page, selector, value) {
     const normalizedValue = normalizeStationMatchText(value);
@@ -630,132 +611,14 @@ async function clickAutocompleteOptionByText(page, selector, value) {
     await options.nth(match.index).click({ force: true });
     return match.text;
 }
-export function bestAutocompleteChoice(input, choices) {
-    let best;
-    for (const choice of uniqueStrings(choices)) {
-        if (expectsMainStation(input) && !looksLikeMainStationChoice(input, choice)) {
-            continue;
-        }
-        const score = scoreStationOption(input, choice);
-        if (score >= 2 && (!best || score > best.score)) {
-            best = { choice, score };
-        }
-    }
-    return best?.choice;
-}
-function expectsMainStation(input) {
-    return /\b(?:hbf|hauptbahnhof)\b/i.test(input);
-}
-function looksLikeMainStationChoice(input, choice) {
-    const inputTokens = stationTokens(input);
-    const choiceTokens = stationTokens(choice);
-    if (!inputTokens.includes("hbf")) {
-        return true;
-    }
-    const cityTokens = inputTokens.filter((token) => token !== "hbf");
-    return choiceTokens.includes("hbf") &&
-        cityTokens.some((token) => choiceTokens.includes(token));
-}
-async function clickMatchingAutocompleteOption(page, selector, value, checkBahnhofSuffix = "both") {
-    if (!value) {
-        return undefined;
-    }
-    const candidates = stationAutocompleteCandidates(value, checkBahnhofSuffix)
-        .map(normalizeStationMatchText);
-    const match = await autocompleteOptions(page, selector).evaluateAll((nodes, payload) => {
-        const normalize = (text) => text
-            .normalize("NFKD")
-            .replace(/\p{Diacritic}/gu, "")
-            .replace(/\b(?:hauptbahnhof|hbf)\b/gi, " hbf ")
-            .replace(/[()\\/,-]/g, " ")
-            .replace(/\s+/g, " ")
-            .trim()
-            .toLowerCase();
-        const tokens = (text) => normalize(text)
-            .split(" ")
-            .filter((token) => token && !["bf", "bahnhof", "station"].includes(token));
-        const scoreOption = (input, option) => {
-            const inputTokens = tokens(input);
-            const optionTokens = tokens(option);
-            if (inputTokens.length === 0 || optionTokens.length === 0) {
-                return 0;
-            }
-            let score = 0;
-            for (const token of new Set(inputTokens)) {
-                if (optionTokens.includes(token)) {
-                    score += token === "hbf" ? 2 : 3;
-                }
-                else if (optionTokens.some((optionToken) => optionToken.startsWith(token) || token.startsWith(optionToken))) {
-                    score += 1;
-                }
-            }
-            const inputSet = new Set(inputTokens);
-            const extraTokens = [...new Set(optionTokens)]
-                .filter((token) => !inputSet.has(token));
-            const extraPenalty = Math.min(1.5, extraTokens.length * 0.75);
-            return (score / Math.max(1, inputSet.size)) - extraPenalty;
-        };
-        const isHbfMatch = (input, option) => {
-            const inputText = normalize(input);
-            const optionText = normalize(option);
-            const hbfPattern = /\b(?:hbf|hauptbahnhof)\b/g;
-            if (!hbfPattern.test(inputText)) {
-                return false;
-            }
-            const city = inputText
-                .replace(/\bhbf\b/g, "")
-                .replace(/\bhauptbahnhof\b/g, "")
-                .replace(/[(),]/g, " ")
-                .trim();
-            return Boolean(city) &&
-                optionText.includes(city) &&
-                (optionText.includes("hbf") || optionText.includes("hauptbahnhof"));
-        };
-        const isHbfExpected = (input, option) => {
-            const inputTokens = tokens(input);
-            if (!inputTokens.includes("hbf")) {
-                return true;
-            }
-            const optionTokens = tokens(option);
-            const cityTokens = inputTokens.filter((token) => token !== "hbf");
-            return optionTokens.includes("hbf") &&
-                cityTokens.some((token) => optionTokens.includes(token));
-        };
-        let best;
-        for (const [index, node] of nodes.entries()) {
-            const text = node.textContent || "";
-            if (!isHbfExpected(payload.value, text)) {
-                continue;
-            }
-            const normalizedOption = normalize(text);
-            const exactScore = payload.candidates.some((candidate) => normalizedOption.includes(candidate))
-                ? 100
-                : 0;
-            const hbfScore = isHbfMatch(payload.value, text) ? 50 : 0;
-            const overlapScore = scoreOption(payload.value, text);
-            const specificityScore = scoreOption(payload.value, text);
-            const score = Math.max(exactScore, hbfScore, overlapScore) + specificityScore;
-            if (score >= 2 && (!best || score > best.score)) {
-                best = { index, text: text.trim().replace(/\s+/g, " "), score };
-            }
-        }
-        if (!best) {
-            return undefined;
-        }
-        return { index: best.index, text: best.text };
-    }, { candidates, value });
-    if (!match) {
-        return undefined;
-    }
-    await autocompleteOptions(page, selector).nth(match.index).click({ force: true });
-    return match.text;
-}
 async function readAutocompleteOptions(page, selector) {
     await waitForAutocompleteOptions(page, selector);
-    return autocompleteOptions(page, selector).evaluateAll((nodes) => nodes
-        .map((node) => (node.textContent || "").trim().replace(/\s+/g, " "))
-        .filter(Boolean)
-        .slice(0, 20));
+    return autocompleteOptions(page, selector).evaluateAll((nodes) => {
+        const labels = nodes
+            .map((node) => (node.textContent || "").trim().replace(/\s+/g, " "))
+            .filter(Boolean);
+        return [...new Set(labels)].slice(0, 30);
+    });
 }
 async function controlInputValue(control) {
     return control.inputValue().catch(() => undefined);
@@ -763,11 +626,8 @@ async function controlInputValue(control) {
 function autocompleteOptions(page, selector) {
     const id = selector.replace(/^#/, "");
     return page.locator([
+        `#wrapper${id} button[role="option"]`,
         `button[role="option"][id^="${id}_"]`,
-        `[role="option"][id^="${id}_"]`,
-        `li[id^="${id}_"]`,
-        ".MuiAutocomplete-option",
-        "[role='option']",
     ].join(", "));
 }
 function activeAutocompleteFlyout(page, selector) {
@@ -824,23 +684,28 @@ async function fillPlainControl(control, value, options = {}) {
 async function clickText(page, text) {
     await page.getByText(text).filter({ visible: true }).first().click();
 }
-async function selectLabel(page, selector, label, required = true) {
-    const control = await visibleOrFirst(page, selector);
-    try {
-        await control.selectOption({ label });
+async function checkRequiredLegalQuestion(page) {
+    const checkbox = page
+        .getByRole("checkbox", { name: /Ich habe die Regeln/i })
+        .filter({ visible: true })
+        .first();
+    if ((await checkbox.count()) > 0) {
+        await checkbox.check({ force: true });
         return;
     }
-    catch (error) {
-        const fallback = await matchingSelectOptionLabel(control, label);
-        if (fallback) {
-            await control.selectOption({ label: fallback });
-            return;
-        }
-        if (!required) {
-            return;
-        }
-        throw error;
+    await clickText(page, /Ich habe die Regeln/i);
+}
+async function selectLabel(page, selector, label, required = true) {
+    const control = await visibleOrFirst(page, selector);
+    const optionLabel = await matchingSelectOptionLabel(control, label);
+    if (optionLabel) {
+        await control.selectOption({ label: optionLabel });
+        return;
     }
+    if (!required) {
+        return;
+    }
+    throw new Error(`${selector} option not found for ${label}`);
 }
 async function matchingSelectOptionLabel(control, label) {
     const normalizedLabel = normalizeOptionText(label);
@@ -936,7 +801,7 @@ function stationCandidateVariants(value, checkBahnhofSuffix) {
     if (checkBahnhofSuffix === "bf_only") {
         return stationProbeVectors(cityOnly || value, ["city", "b"]);
     }
-    return stationProbeVectors(cityOnly || value, ["city", "b", "hb"]);
+    return stationProbeVectors(cityOnly || value, ["city", "hb", "b"]);
 }
 function stationProbeVectors(city, suffixes) {
     const trimmedCity = city.trim();
@@ -959,31 +824,6 @@ function normalizeStationMatchText(value) {
         .replace(/\s+/g, " ")
         .trim()
         .toLowerCase();
-}
-export function scoreStationOption(input, option) {
-    const inputTokens = stationTokens(input);
-    const optionTokens = stationTokens(option);
-    if (inputTokens.length === 0 || optionTokens.length === 0) {
-        return 0;
-    }
-    let score = 0;
-    for (const token of new Set(inputTokens)) {
-        if (optionTokens.includes(token)) {
-            score += token === "hbf" ? 2 : 3;
-        }
-        else if (optionTokens.some((optionToken) => optionToken.startsWith(token) || token.startsWith(optionToken))) {
-            score += 1;
-        }
-    }
-    const inputSet = new Set(inputTokens);
-    const extraTokens = [...new Set(optionTokens)].filter((token) => !inputSet.has(token));
-    const extraPenalty = Math.min(1.5, extraTokens.length * 0.75);
-    return (score / Math.max(1, inputSet.size)) - extraPenalty;
-}
-function stationTokens(value) {
-    return normalizeStationMatchText(value)
-        .split(" ")
-        .filter((token) => token && !["bf", "bahnhof", "station"].includes(token));
 }
 function uniqueStrings(values) {
     return [...new Set(values.filter(Boolean))];

@@ -86,9 +86,10 @@ station values as guesses, not as exact accepted form values.
 - Use a station-resolution dry run before full filing when station spelling or
   suffixes may be ambiguous.
 - Let the browser collect dropdown choices from public station probes, then use
-  the returned `stationSelections` to decide whether a station is clear.
-- Station probes should be limited to plain city, city plus `B`, and city plus
-  `Hb`; compare the resulting dropdown lists against the TOML intent.
+  the returned `stationSelections` and per-vector `probeChoices` to decide
+  whether a station is clear.
+- Station probes should be limited to plain city, city plus `Hb`, and city plus
+  `B`; compare the resulting dropdown lists against the TOML intent.
 - On the first probing invocation, omit `exact_station_departure` and
   `exact_station_arrival`. On a rerun, use those fields only after the LLM or
   user has chosen a specific live dropdown label.
@@ -101,6 +102,9 @@ station values as guesses, not as exact accepted form values.
 - Do not select unrelated street or bus-stop suggestions when the user wrote an
   Hbf or Bf station. Ask the user for the exact station name if the dropdown
   choices do not contain one clear match.
+- During plugin use, report the live dropdown candidates considered and the
+  exact departure and arrival labels chosen before proceeding to the full dry
+  run.
 - After a clear live option is found, update the public station fields in the
   external claim TOML or rerun the tool with the narrowed suffix arguments so
   the full dry run is deterministic.

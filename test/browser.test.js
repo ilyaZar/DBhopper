@@ -2,10 +2,8 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  bestAutocompleteChoice,
   normalizeIbanForBrowser,
   normalizePhoneForBrowser,
-  scoreStationOption,
   stationAutocompleteCandidates,
 } from "../dist/browser.js";
 
@@ -18,41 +16,10 @@ describe("dbhopper browser claim fields", () => {
     );
   });
 
-  it("scores reordered and case-varied hbf station options", () => {
-    const plainDuisburg = scoreStationOption(
-      "Duisburg HBF",
-      "Duisburg Hbf, Duisburg",
-    );
-    const eastEntrance = scoreStationOption(
-      "Duisburg HBF",
-      "Duisburg Hbf (Osteingang), Duisburg",
-    );
-
-    assert.ok(plainDuisburg > eastEntrance);
-    assert.ok(
-      scoreStationOption(
-        "Duisburg Hbf Osteingang",
-        "Duisburg Hbf (Osteingang), Duisburg",
-      ) >= 2,
-    );
-    assert.ok(
-      scoreStationOption(
-        "Hbf Duisburg",
-        "Duisburg Hbf (Osteingang), Duisburg",
-      ) > 1,
-    );
-    assert.ok(
-      scoreStationOption(
-        "Koeln Messe Deutz",
-        "Köln Messe/Deutz Bf, Köln",
-      ) > 1,
-    );
-  });
-
   it("uses short station probes before exact station text", () => {
     assert.deepEqual(
       stationAutocompleteCandidates("Duisburg HBF"),
-      ["Duisburg", "Duisburg B", "Duisburg Hb"],
+      ["Duisburg", "Duisburg Hb", "Duisburg B"],
     );
     assert.deepEqual(
       stationAutocompleteCandidates("Duisburg HBF", "hbf_only"),
@@ -65,17 +32,6 @@ describe("dbhopper browser claim fields", () => {
     assert.deepEqual(
       stationAutocompleteCandidates("Koeln Messe Deutz Bf", "bf_only"),
       ["Koeln Messe Deutz", "Koeln Messe Deutz B"],
-    );
-  });
-
-  it("does not choose street suggestions for hbf station input", () => {
-    assert.equal(
-      bestAutocompleteChoice("Duisburg Hbf", [
-        "Donaustr., Duisburg",
-        "Duisburg Hbf (Osteingang), Duisburg",
-        "Duisburg Hbf, Duisburg",
-      ]),
-      "Duisburg Hbf, Duisburg",
     );
   });
 });

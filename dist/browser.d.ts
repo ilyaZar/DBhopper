@@ -33,12 +33,9 @@ export interface BrowserRunResult {
 export interface BrowserEntryFlow {
     entryUrl: string;
     formPageUrl: string;
-    formUrl: string;
     startedAtPublicEntry: boolean;
     storedEntryCookieServices: boolean;
     acceptedFormConsent: boolean;
-    usedFormPageFallback: boolean;
-    usedDirectFormFallback: boolean;
 }
 export interface StationSelection {
     field: "startStation" | "endStation";
@@ -46,6 +43,10 @@ export interface StationSelection {
     checkBahnhofSuffix: BahnhofSuffixCheck;
     candidatesTried: string[];
     dropdownChoices: string[];
+    probeChoices?: Array<{
+        candidate: string;
+        choices: string[];
+    }>;
     selected?: string;
     matched: boolean;
 }
@@ -67,8 +68,6 @@ export declare function probeBrowser(config?: DBhopperConfig): Promise<{
 export declare function runBrowserClaim(params: BrowserRunParams): Promise<BrowserRunResult>;
 export declare function launchBrowser(config: DBhopperConfig | BrowserRunParams): Promise<Browser>;
 export declare function resolveBrowserExecutablePath(config: DBhopperConfig | BrowserRunParams): Promise<string>;
-export declare function bestAutocompleteChoice(input: string, choices: string[]): string | undefined;
 export declare function normalizePhoneForBrowser(value?: string): string | undefined;
 export declare function normalizeIbanForBrowser(value?: string): string | undefined;
 export declare function stationAutocompleteCandidates(value: string, checkBahnhofSuffix?: BahnhofSuffixCheck): string[];
-export declare function scoreStationOption(input: string, option: string): number;
