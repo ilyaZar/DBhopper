@@ -4,7 +4,6 @@ export interface FileInput {
     sourcePath?: string;
     assetName?: string;
     targetName?: string;
-    description?: string;
 }
 export interface PrepareClaimParams {
     confirm?: boolean;

@@ -36,8 +36,8 @@ delay_fallback = "none"
 - `use_claim_requests` controls claim-preparation and filing tools.
 - `use_ticket_purchase` controls ticket-purchase dry-run tools.
 - `ID_USR` selects one user credential file from `path_usr`.
-- `ID_CLM` selects one claim TOML from `path_clm` when matching routed claim
-  files contain an `ID_CLM` field.
+- `ID_CLM` selects one claim TOML from `path_clm` when a routed claim file
+  contains the same `ID_CLM` field.
 - `ID_BUY` selects one buying profile file from `path_buy`.
 - `ID_PYM` selects one payment profile file from `path_pym`.
 - `purchase_mode` controls the final DB Check-page gate. `"review"` is the
@@ -93,13 +93,13 @@ Every routed payment profile file needs an `ID_PYM`:
 ID_PYM = "01"
 ```
 
-IDs are quoted numeric strings such as `"01"`, `"02"`, and `"03"`.
+IDs are quoted strings such as `"01"`, `"02"`, and `"03"`.
 
 ## Claim Fields
 
 Current top-level fields:
 
-- `ID_CLM`: optional quoted numeric claim routing ID, for example `"01"`.
+- `ID_CLM`: required quoted claim ID, for example `"01"`.
 
 Current sensitive claim sections:
 
@@ -205,8 +205,8 @@ Example private files:
 ../dbhopper-private/credentials/credentials-01.toml
 ../dbhopper-private/credentials/credentials-02.toml
 ../dbhopper-private/credentials/payment-profile-01.toml
-../dbhopper-private/profiles/private-profile-01.toml
-../dbhopper-private/profiles/private-profile-03.toml
+../dbhopper-private/claims/essen-koeln-2026-06-26-re1/claim.toml
+../dbhopper-private/claims/duisburg-koeln-2026-06-18-re5.toml
 ../dbhopper-private/profiles/buying-profile-01.toml
 ```
 
@@ -215,7 +215,8 @@ the private directories, then copy those files before adding real account,
 claimant, or bank values.
 
 ```bash
-mkdir -p ../dbhopper-private/credentials ../dbhopper-private/profiles
+mkdir -p ../dbhopper-private/credentials ../dbhopper-private/claims
+mkdir -p ../dbhopper-private/profiles
 ```
 
 ## Tools

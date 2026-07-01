@@ -23,13 +23,11 @@ export interface ClaimFile {
   role: ClaimFileRole;
   path?: string;
   paths?: string[];
-  description?: string;
   reusableAsset?: boolean;
 }
 
 export interface DBhopperClaim {
   ID_CLM?: string;
-  claimId?: string;
   status?: string;
   claimant?: {
     salutation?: "MR" | "MS" | "DIVERS" | "FAMILY";

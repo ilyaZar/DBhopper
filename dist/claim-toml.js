@@ -2,8 +2,17 @@ import { stringify } from "smol-toml";
 import { CLAIM_FILE_ROLES } from "./claim-tool-contracts.js";
 import { normalizeTomlKeys, parseToml, renameTomlKeys, } from "./toml.js";
 import { validationErrorFromException } from "./validation-messages.js";
-import { assertNumericId } from "./schema-helpers.js";
 const SALUTATIONS = ["MR", "MS", "DIVERS", "FAMILY"];
+const SALUTATION_TOML_VALUES = {
+    MR: "MR",
+    Herr: "MR",
+    MS: "MS",
+    Frau: "MS",
+    DIVERS: "DIVERS",
+    Divers: "DIVERS",
+    FAMILY: "FAMILY",
+    "Keine Angabe": "FAMILY",
+};
 const DISRUPTION_TYPES = ["delay", "cancellation"];
 const SUBSTITUTE_TYPES = [
     "long_distance",
@@ -12,9 +21,6 @@ const SUBSTITUTE_TYPES = [
     "alternative_local",
 ];
 const CLAIM_TOML_ALIASES = {
-    "": {
-        claim_id: "claimId",
-    },
     claimant: {
         first_name: "firstName",
         last_name: "lastName",
@@ -50,9 +56,6 @@ const CLAIM_TOML_ALIASES = {
     },
 };
 const CLAIM_TOML_OUTPUT_KEYS = {
-    "": {
-        claimId: "claim_id",
-    },
     claimant: {
         firstName: "first_name",
         lastName: "last_name",
@@ -132,12 +135,10 @@ const fileSchema = object({
     role: stringEnum(CLAIM_FILE_ROLES),
     path: string(),
     paths: array(string()),
-    description: string(),
     reusableAsset: boolean(),
 }, ["role"]);
 const baseClaimFields = {
     ID_CLM: string(),
-    claimId: string(),
     status: string(),
     claimant: claimantSchema,
     journey: journeySchema,
@@ -145,7 +146,7 @@ const baseClaimFields = {
     files: array(fileSchema),
     metadata: object({}, [], true),
 };
-const claimFileSchema = object(baseClaimFields);
+const claimFileSchema = object(baseClaimFields, ["ID_CLM"]);
 const privateProfileSchema = object({
     ID_CLM: string(),
     claimant: claimantSchema,
@@ -154,11 +155,7 @@ export function parseClaimToml(text, source = "claim.toml") {
     return parseTomlDocument(text, claimFileSchema, source);
 }
 export function parsePrivateProfileToml(text, source = "profile.toml") {
-    const parsed = parseTomlDocument(text, privateProfileSchema, source);
-    if (parsed.ID_CLM) {
-        assertNumericId(parsed.ID_CLM, `${source}.ID_CLM`);
-    }
-    return parsed;
+    return parseTomlDocument(text, privateProfileSchema, source);
 }
 export function stringifyClaimToml(claim) {
     return stringifyToml(stripPrivateClaimFields(claim));
@@ -190,9 +187,25 @@ export function schemaValidationMessages(value, kind, source) {
     }
 }
 function parseTomlDocument(text, schema, source) {
-    const parsed = normalizeTomlKeys(parseToml(text, source), source, CLAIM_TOML_ALIASES, true);
+    const parsed = normalizeClaimTomlValues(normalizeTomlKeys(parseToml(text, source), source, CLAIM_TOML_ALIASES, true));
     assertSchema(parsed, schema, source);
     return parsed;
+}
+function normalizeClaimTomlValues(value) {
+    if (!isPlainObject(value)) {
+        return value;
+    }
+    const claimant = value.claimant;
+    if (!isPlainObject(claimant) || typeof claimant.salutation !== "string") {
+        return value;
+    }
+    return {
+        ...value,
+        claimant: {
+            ...claimant,
+            salutation: SALUTATION_TOML_VALUES[claimant.salutation] ?? claimant.salutation,
+        },
+    };
 }
 function stringifyToml(value) {
     return `${stringify(renameTomlKeys(cleanForToml(value), CLAIM_TOML_OUTPUT_KEYS))}`;

@@ -37,7 +37,6 @@ export interface FileInput {
   sourcePath?: string;
   assetName?: string;
   targetName?: string;
-  description?: string;
 }
 
 export interface PrepareClaimParams {
@@ -167,9 +166,7 @@ export async function listClaims(config: DBhopperConfig = {}) {
     try {
       const raw = await fs.readFile(claimPath, "utf8");
       const storedClaim = parseClaimToml(raw, claimPath);
-      const claimId = entry.isDirectory()
-        ? entry.name
-        : normalizeClaimId(storedClaim.claimId || path.basename(entry.name, ".toml"));
+      const claimId = normalizeClaimId(storedClaim.ID_CLM);
       const profileSelection = await resolveProfileSelection(config);
       const privateProfile = profileSelection
         ? await readPrivateProfile(profileSelection)
@@ -226,7 +223,7 @@ export async function prepareClaim(
   const privateProfile = profileSelection
     ? await readPrivateProfile(profileSelection)
     : {};
-  const claimId = normalizeClaimId(params.claimId || incoming.claimId);
+  const claimId = normalizeClaimId(params.claimId || incoming.ID_CLM);
   const claimDir = path.join(await resolveClaimStorageDir(config), claimId);
   const claimPath = path.join(claimDir, "claim.toml");
   const recipePath = path.join(claimDir, "claim_submitted_recipe.toml");
@@ -251,7 +248,7 @@ export async function prepareClaim(
   const existingFiles = Array.isArray(incoming.files) ? incoming.files : [];
   const storedClaim: DBhopperClaim = {
     ...incoming,
-    claimId,
+    ID_CLM: claimId,
     status: incoming.status || "draft",
     files: [...existingFiles, ...copiedFiles],
   };
@@ -424,7 +421,6 @@ async function copyClaimFile(
     role: file.role,
     path: path.relative(paths.claimDir, target),
     reusableAsset: Boolean(file.assetName),
-    ...(file.description ? { description: file.description } : {}),
   };
 }
 
@@ -548,7 +544,7 @@ function materializeClaim(
 ) {
   return mergeClaims(privateProfile, {
     ...storedClaim,
-    claimId: storedClaim.claimId || claimId,
+    ID_CLM: storedClaim.ID_CLM || claimId,
   });
 }
 

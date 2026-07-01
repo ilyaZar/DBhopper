@@ -56,7 +56,7 @@ export function claimSchemaReference() {
         requiredFacts: {
             privateProfile: [
                 "Store sensitive claimant and bank data in",
-                "an external path_clm claim TOML and select it with",
+                "an external path_clm claim TOML and select it by",
                 "assets/private/settings.toml ID_CLM.",
             ].join(" "),
             privateProfileShape: {
@@ -94,19 +94,15 @@ export function claimSchemaReference() {
             formData: REQUIRED_BROWSER_FIELDS,
         },
         editableClaimTomlShape: {
-            claimId: "koeln-duesseldorf-2026-06-06-re6",
+            ID_CLM: "01",
             journey: {
                 date: "2026-06-06",
                 scheduledDepartureTime: "09:07",
                 startStation: "Koeln Hbf",
                 endStation: "Duesseldorf Hbf",
                 plannedLine: "RE6",
-                delayMinutes: 25,
                 disruptionType: "delay",
                 replacementStartedAt: "09:35",
-                usedDelayedVehicle: false,
-                usedIdenticalLocalAlternative: false,
-                excludedReasons: [],
             },
             ticket: {
                 baseTicketName: "Deutschlandticket",
@@ -127,7 +123,10 @@ export function claimSchemaReference() {
 }
 function validateJourney(claim, now, messages) {
     const journey = claim.journey || {};
-    if (!Number.isFinite(journey.delayMinutes) || Number(journey.delayMinutes) < 20) {
+    if (journey.delayMinutes === undefined || journey.delayMinutes === null) {
+        messages.push(warning("missing_delay_minutes", "delayMinutes is missing; browser filing can continue but eligibility is not proven"));
+    }
+    else if (!Number.isFinite(journey.delayMinutes) || Number(journey.delayMinutes) < 20) {
         messages.push(error("delay_too_short", "delayMinutes must be at least 20"));
     }
     if (!["delay", "cancellation"].includes(String(journey.disruptionType || ""))) {

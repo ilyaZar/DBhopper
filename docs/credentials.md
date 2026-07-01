@@ -54,8 +54,8 @@ is not enabled yet, so checkout still stops before the final order button.
 Use the selected external private paths inside this single settings TOML file.
 The settings file itself always remains at `assets/private/settings.toml`.
 
-`dbhopper_private_settings_status` lists available user credential,
-claim-profile, buying-profile, and payment-profile IDs. It returns an error if
+`dbhopper_private_settings_status` lists available user credential, claim,
+buying-profile, and payment-profile IDs. It returns an error if
 the selected ID does not exist.
 
 ## Credential Schema

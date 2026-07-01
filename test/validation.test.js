@@ -74,6 +74,22 @@ describe("dbhopper validation", () => {
     assert.ok(result.messages.some((message) => message.code === "claim_too_old"));
   });
 
+  it("allows browser filing when optional delay minutes are omitted", () => {
+    const claim = validClaim();
+    delete claim.journey.delayMinutes;
+
+    const result = validateClaim(claim, {
+      now: new Date("2026-06-08T12:00:00Z"),
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(result.readyForBrowser, true);
+    assert.equal(result.readyForSubmit, false);
+    assert.ok(
+      result.messages.some((message) => message.code === "missing_delay_minutes"),
+    );
+  });
+
   it("rejects excluded circumstances", () => {
     const claim = validClaim();
     claim.journey.excludedReasons = ["strike"];

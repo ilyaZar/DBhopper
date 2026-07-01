@@ -101,7 +101,7 @@ function settingsToml({
     'ID_PYM = "01"',
     'purchase_mode = "review"',
     'path_usr = "../dbhopper-private/credentials"',
-    'path_clm = "../dbhopper-private/profiles"',
+    'path_clm = "../dbhopper-private/claims"',
     'path_buy = "../dbhopper-private/profiles"',
     'path_pym = "../dbhopper-private/credentials"',
     'path_prc = "../dbhopper-private/purchases"',
