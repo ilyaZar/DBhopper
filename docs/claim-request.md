@@ -39,17 +39,19 @@ The repo already has the basic ownership split:
   the selected `ID_CLM` can route to a matching claim TOML when present.
 - `src/workspace.ts` writes under `path_clm`, copies evidence files into the
   claim directory, and rejects claimant data supplied through tool input.
-- `src/claim-toml.ts` defines the current claim and private profile schema.
+- `src/claim-toml.ts` defines the current claim schema, including sensitive
+  claimant/bank fields for external `path_clm` TOML and multi-file evidence
+  entries via `paths = [...]`.
 - `src/validation.ts` checks core eligibility and required browser fields.
-- `src/browser.ts` opens `https://mg.kcm-nrw.de/elmapublic/` and currently fills
-  the form with direct selectors.
+- `src/browser.ts` opens `https://mg.kcm-nrw.de/elmapublic/`, resolves live
+  autocomplete station choices, uploads claim-local evidence, and stops at the
+  final summary page in dry-run mode.
 
-The current browser implementation is not yet complete enough for this spec. In
-particular, it starts directly at the embedded form, uses a simple autocomplete
-strategy, may select the first train if no line match is found, and contains a
-submit mode. The target review flow should make station/train resolution
-explicit and should stop at screenshot 11 unless a later task deliberately adds
-the confirmed final submit lane.
+The current browser implementation starts directly at the embedded form, so the
+public entry page and consent screen from screenshots 1-2 remain the main
+full-parity gap. Train matching is deterministic for a configured
+`planned_line`/`planned_train_label` when the live form returns a selectable
+row, with an explicit non-submit dry-run boundary at screenshot 11.
 
 ## Data Ownership
 
@@ -363,3 +365,34 @@ There must also be a live test-drive record from the plugin itself:
 - record which screenshot step is reached, which fields are filled, and the
   exact first blocker if the run stops before screenshot 11
 - keep the generated artifacts local and ignored
+
+### Latest Local Live Test-Drive
+
+The latest local dry-run used the plugin tool path with the external claim
+under:
+
+```text
+/home/iz/Documents/dbhopper-own-tests/claims/live-dummy-essen-koeln-re1/claim.toml
+```
+
+It was run against the live embedded form and stopped at the final summary page
+without submitting. Local artifacts are under:
+
+```text
+/home/iz/Documents/dbhopper-own-tests/tmp/browser-runs/live-dummy-essen-koeln-re1-2026-07-01T16-44-56-722Z/
+```
+
+Verified summary facts:
+
+- start station: `Duisburg Hbf (Osteingang), Duisburg`
+- destination: `Köln Messe/Deutz Bf, Köln`
+- delayed local service field: `RE5; 25 minutes delay; delay`
+- replacement service: `Fernverkehrszug (IC/EC/ICE)`
+- ticket name/category: `Semesterticket`, `Sonstiges Ticket`
+- substitute cost: `38,00 EURO`
+- uploads: invoice PDF, base-ticket image, and two delay-evidence images from
+  the claim directory; the summary header reported `3 Dateien`
+- free text: `Anbei auch Bilder, die die Verspätung verifizieren. Vielen Dank
+  für die Bearbeitung!`
+- final state: `browser-summary.png` captured with `Angaben absenden` visible
+  but not clicked
