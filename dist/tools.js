@@ -119,7 +119,6 @@ function prepareClaimTool() {
                         sourcePath: { type: "string" },
                         assetName: { type: "string" },
                         targetName: { type: "string" },
-                        description: { type: "string" },
                     },
                     required: ["role"],
                 },

@@ -36,7 +36,7 @@ the private-data boundary:
 The repo already has the basic ownership split:
 
 - `assets/private/settings.toml` selects the active claim root with `path_clm`;
-  the selected `ID_CLM` can route to a matching claim TOML when present.
+  the selected `ID_CLM` routes to a matching external claim TOML.
 - `src/workspace.ts` writes under `path_clm`, copies evidence files into the
   claim directory, and rejects claimant data supplied through tool input.
 - `src/claim-toml.ts` defines the current claim schema, including sensitive
@@ -50,19 +50,21 @@ The repo already has the basic ownership split:
 The current browser implementation starts directly at the embedded form, so the
 public entry page and consent screen from screenshots 1-2 remain the main
 full-parity gap. Train matching is deterministic for a configured
-`planned_line`/`planned_train_label` when the live form returns a selectable
-row, with an explicit non-submit dry-run boundary at screenshot 11.
+`planned_line` when the live form returns a selectable row, with an explicit
+non-submit dry-run boundary at screenshot 11.
 
 ## Data Ownership
 
-Use two TOML documents.
+Use one external claim TOML for the active claim.
 
 The claim TOML may include sensitive claimant and bank data when it lives under
 the external `path_clm` directory:
 
 ```toml
+# Selects this claim from assets/private/settings.toml.
 ID_CLM = "01"
 
+# Claimant data fills the personal details page.
 [claimant]
 salutation = "FAMILY"
 first_name = "Maria"
@@ -70,37 +72,29 @@ last_name = "Mustermann"
 email = "maria@example.org"
 phone = "+4922112345678"
 
+# Claimant address fills the address fields.
 [claimant.address]
 street_number = "Musterstrasse 1"
 zip = "50667"
 city = "Koeln"
 country = "Deutschland"
 
+# Bank data fills the reimbursement page.
 [claimant.bank]
 account_owner = "Maria Mustermann"
 iban = "DE00000000000000000000"
-```
 
-The per-claim file is non-reusable incident data plus local evidence paths:
-
-```toml
-claim_id = "essen-koeln-2026-06-26-re1"
-status = "draft"
-
+# Journey data selects the delayed local service.
 [journey]
 date = "2026-06-26"
 scheduled_departure_time = "12:31"
 start_station = "Essen Hbf"
 end_station = "Koeln Hbf"
 planned_line = "RE1"
-planned_train_label = "RE 1"
-delay_minutes = 25
 disruption_type = "delay"
 replacement_started_at = "13:19"
-used_delayed_vehicle = false
-used_identical_local_alternative = false
-excluded_reasons = []
 
+# Ticket data fills ticket, replacement, and message fields.
 [ticket]
 base_ticket_name = "Deutschlandticket"
 base_ticket_category = "Sonstiges"
@@ -110,18 +104,20 @@ substitute_cost = 13.40
 companions = 0
 description = "Vielen Dank für die Bearbeitung!"
 
+# Original ticket proof.
 [[files]]
 role = "base_ticket"
 path = "deutschlandticket.pdf"
 
+# Replacement ticket or receipt.
 [[files]]
 role = "substitute_receipt"
 path = "ersatzleistung.pdf"
 
+# Optional delay proof screenshots.
 [[files]]
 role = "delay_evidence"
 paths = ["delay-screenshot-1.png", "delay-screenshot-2.png"]
-description = "Verspätungsnachweis"
 ```
 
 Required evidence:
@@ -223,7 +219,8 @@ Recommended station resolution loop:
 2. Build safe public candidates from the claim text, for example:
    - `HBF` -> `Hbf`
    - `Hauptbahnhof` -> `Hbf`
-   - `Koeln` -> `Köln` when the menu offers it
+   - ASCII and umlaut spellings normalize to the same match text
+   - reordered variants such as `Hbf Duisburg` and `Duisburg Hbf`
    - city-only input -> likely `Hbf` candidate
 3. Enter one candidate and capture the visible suggestion labels.
 4. If there is a high-confidence exact or normalized match, click that option.
@@ -243,7 +240,6 @@ After station selection, click `Verbindung suchen`.
 Train selection must match the intended delayed local service, not just the
 first visible result. Matching should prefer:
 
-- `journey.planned_train_label`, for example `RE 1`
 - `journey.planned_line`, for example `RE1`
 - scheduled departure time
 - start and destination stations from the selected menu values
@@ -314,7 +310,6 @@ Before a browser run, validation should prove:
 - selected `ID_CLM` exists under `path_clm`
 - `claim.toml` has required journey and ticket fields
 - claimant and bank fields are only stored in the external `path_clm` claim TOML
-- `delay_minutes >= 20`
 - incident date is not in the future and is within the allowed filing window
 - excluded causes are absent
 - `base_ticket` and `substitute_receipt` files exist
@@ -379,20 +374,22 @@ It was run against the live embedded form and stopped at the final summary page
 without submitting. Local artifacts are under:
 
 ```text
-/home/iz/Documents/dbhopper-own-tests/tmp/browser-runs/live-dummy-essen-koeln-re1-2026-07-01T16-44-56-722Z/
+/home/iz/Documents/dbhopper-own-tests/tmp/browser-runs/live-dummy-essen-koeln-re1-2026-07-01T17-11-27-306Z/
 ```
 
 Verified summary facts:
 
 - start station: `Duisburg Hbf (Osteingang), Duisburg`
 - destination: `Köln Messe/Deutz Bf, Köln`
-- delayed local service field: `RE5; 25 minutes delay; delay`
+- station resolution returned the TOML guess, dropdown choices, and selected
+  live option for both station fields
+- delayed local service fallback field: `RE5; delay`
 - replacement service: `Fernverkehrszug (IC/EC/ICE)`
 - ticket name/category: `Semesterticket`, `Sonstiges Ticket`
 - substitute cost: `38,00 EURO`
 - uploads: invoice PDF, base-ticket image, and two delay-evidence images from
-  the claim directory; the summary header reported `3 Dateien`
+  the claim directory; the summary header reported `4 Dateien`
 - free text: `Anbei auch Bilder, die die Verspätung verifizieren. Vielen Dank
   für die Bearbeitung!`
 - final state: `browser-summary.png` captured with `Angaben absenden` visible
-  but not clicked
+  but not clicked; `summaryScreenshot` pointed at the same file

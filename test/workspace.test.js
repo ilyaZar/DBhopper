@@ -48,7 +48,7 @@ describe("dbhopper workspace", () => {
     );
 
     const reread = await readClaim("re-6-koeln", configWithPrivateSettings(root));
-    assert.equal(reread.claim.claimId, "re-6-koeln");
+    assert.equal(reread.claim.ID_CLM, "re-6-koeln");
 
     const claims = await listClaims(configWithPrivateSettings(root));
     assert.equal(claims.length, 1);
@@ -132,7 +132,7 @@ describe("dbhopper workspace", () => {
     await fs.writeFile(
       path.join(claimRoot, "bad", "claim.toml"),
       [
-        'claim_id = "bad"',
+        'ID_CLM = "bad"',
         "",
         "[journey]",
         'start_staiton = "Koeln Hbf"',
@@ -165,15 +165,25 @@ describe("dbhopper workspace", () => {
     assert.throws(
       () =>
         parseClaimToml([
+          'ID_CLM = "bad-claim"',
           'claimId = "bad-claim"',
           "",
         ].join("\n")),
-      /use claim_id/,
+      /claimId is not a supported field/,
     );
     assert.throws(
       () =>
         parseClaimToml([
+          'ID_CLM = "bad-claim"',
           'claim_id = "bad-claim"',
+          "",
+        ].join("\n")),
+      /claim_id is not a supported field/,
+    );
+    assert.throws(
+      () =>
+        parseClaimToml([
+          'ID_CLM = "bad-claim"',
           "",
           "[journey]",
           'startStation = "Koeln Hbf"',
@@ -218,11 +228,35 @@ describe("dbhopper workspace", () => {
         ].join("\n")),
       /use first_name/,
     );
+    assert.equal(
+      parsePrivateProfileToml([
+        'ID_CLM = "01"',
+        "",
+        "[claimant]",
+        'salutation = "Herr"',
+        'first_name = "Maria"',
+        'last_name = "Mustermann"',
+        'email = "maria@example.org"',
+        'phone = "+4922112345678"',
+        "",
+        "[claimant.address]",
+        'street_number = "Musterstrasse 1"',
+        'zip = "50667"',
+        'city = "Koeln"',
+        'country = "Deutschland"',
+        "",
+        "[claimant.bank]",
+        'account_owner = "Maria Mustermann"',
+        'iban = "fill-iban"',
+        "",
+      ].join("\n")).claimant.salutation,
+      "MR",
+    );
   });
 
   it("parses file path arrays in claim TOML", () => {
     const claim = parseClaimToml([
-      'claim_id = "multi-evidence"',
+      'ID_CLM = "multi-evidence"',
       "",
       "[[files]]",
       'role = "delay_evidence"',
@@ -312,7 +346,7 @@ describe("dbhopper workspace", () => {
 
 function minimalClaimToml(claimId) {
   return [
-    `claim_id = "${claimId}"`,
+    `ID_CLM = "${claimId}"`,
     'status = "draft"',
     "",
     "[journey]",

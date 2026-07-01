@@ -12,7 +12,7 @@ path_usr = "../dbhopper-private/credentials"
 path_pym = "../dbhopper-private/credentials"
 
 # external directories scanned for files with matching ID_CLM and ID_BUY
-path_clm = "../dbhopper-private/profiles"
+path_clm = "../dbhopper-private/claims"
 path_buy = "../dbhopper-private/profiles"
 
 # provider backend for delay retrieval

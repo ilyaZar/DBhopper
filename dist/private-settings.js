@@ -354,7 +354,9 @@ export async function writePrivateSettingsRuntimeConfig(updates, config = {}) {
 }
 export function normalizePrivateId(value, field) {
     const trimmed = value.trim();
-    assertNumericId(trimmed, field);
+    if (field !== "ID_CLM") {
+        assertNumericId(trimmed, field);
+    }
     return trimmed;
 }
 function resolveConfiguredPath(settingsPath, value) {

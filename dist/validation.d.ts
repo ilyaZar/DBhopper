@@ -30,19 +30,15 @@ export declare function claimSchemaReference(): {
         formData: string[];
     };
     editableClaimTomlShape: {
-        claimId: string;
+        ID_CLM: string;
         journey: {
             date: string;
             scheduledDepartureTime: string;
             startStation: string;
             endStation: string;
             plannedLine: string;
-            delayMinutes: number;
             disruptionType: string;
             replacementStartedAt: string;
-            usedDelayedVehicle: boolean;
-            usedIdenticalLocalAlternative: boolean;
-            excludedReasons: never[];
         };
         ticket: {
             baseTicketName: string;

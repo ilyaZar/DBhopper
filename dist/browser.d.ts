@@ -17,9 +17,19 @@ export interface BrowserRunResult {
     claimDir: string;
     artifactDir: string;
     artifacts: string[];
+    stationSelections: StationSelection[];
+    summaryScreenshot?: string;
     submitted: boolean;
     needsUserAction: boolean;
     message: string;
+}
+export interface StationSelection {
+    field: "startStation" | "endStation";
+    input: string;
+    candidatesTried: string[];
+    dropdownChoices: string[];
+    selected?: string;
+    matched: boolean;
 }
 export declare function probeBrowser(config?: DBhopperConfig): Promise<{
     ok: boolean;
@@ -37,3 +47,6 @@ export declare function probeBrowser(config?: DBhopperConfig): Promise<{
 export declare function runBrowserClaim(params: BrowserRunParams): Promise<BrowserRunResult>;
 export declare function launchBrowser(config: DBhopperConfig | BrowserRunParams): Promise<Browser>;
 export declare function resolveBrowserExecutablePath(config: DBhopperConfig | BrowserRunParams): Promise<string>;
+export declare function normalizePhoneForBrowser(value?: string): string | undefined;
+export declare function normalizeIbanForBrowser(value?: string): string | undefined;
+export declare function scoreStationOption(input: string, option: string): number;

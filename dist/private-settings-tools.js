@@ -33,7 +33,7 @@ export function createPrivateSettingsToolDefinitions(tool) {
                     description: 'User credential ID_USR to select, for example "01".',
                 })),
                 claim_profile_id: Type.Optional(Type.String({
-                    description: 'Claim profile ID_CLM to select, for example "03".',
+                    description: 'Claim ID_CLM to select, for example "essen-koeln-re1".',
                 })),
                 buying_profile_id: Type.Optional(Type.String({
                     description: 'Buying profile ID_BUY to select, for example "01".',

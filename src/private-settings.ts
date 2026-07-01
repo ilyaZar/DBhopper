@@ -558,7 +558,9 @@ export function normalizePrivateId(
   field: PrivateIdField,
 ) {
   const trimmed = value.trim();
-  assertNumericId(trimmed, field);
+  if (field !== "ID_CLM") {
+    assertNumericId(trimmed, field);
+  }
   return trimmed;
 }
 

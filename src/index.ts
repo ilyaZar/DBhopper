@@ -390,7 +390,6 @@ function prepareClaimParameters() {
               sourcePath: Type.Optional(Type.String()),
               assetName: Type.Optional(Type.String()),
               targetName: Type.Optional(Type.String()),
-              description: Type.Optional(Type.String()),
             },
             { additionalProperties: false },
           ),
