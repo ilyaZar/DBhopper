@@ -12,6 +12,7 @@ const DEFAULT_USER_CREDENTIALS_PATH = path.join(DEFAULT_EXTERNAL_PRIVATE_ROOT, "
 const DEFAULT_CLAIM_PROFILES_PATH = path.join(DEFAULT_EXTERNAL_PRIVATE_ROOT, "profiles");
 const DEFAULT_BUYING_PROFILES_PATH = path.join(DEFAULT_EXTERNAL_PRIVATE_ROOT, "profiles");
 const DEFAULT_PAYMENT_PROFILES_PATH = path.join(DEFAULT_EXTERNAL_PRIVATE_ROOT, "credentials");
+const DEFAULT_PURCHASE_ARTIFACTS_PATH = path.join(DEFAULT_EXTERNAL_PRIVATE_ROOT, "purchases");
 const DEFAULT_ID = "01";
 const SETTINGS_KEYS = new Set([
     "USE_DELAY_RETRIEVAL",
@@ -26,6 +27,7 @@ const SETTINGS_KEYS = new Set([
     "PATH_CLM",
     "PATH_BUY",
     "PATH_PYM",
+    "PATH_PRC",
     "DELAY_PROVIDER",
     "DELAY_FALLBACK",
 ]);
@@ -59,6 +61,7 @@ const PRIVATE_SETTINGS_ALIASES = {
         path_clm: "PATH_CLM",
         path_buy: "PATH_BUY",
         path_pym: "PATH_PYM",
+        path_prc: "PATH_PRC",
         delay_provider: "DELAY_PROVIDER",
         delay_fallback: "DELAY_FALLBACK",
     },
@@ -83,6 +86,7 @@ export function defaultPrivateSettings() {
         PATH_CLM: DEFAULT_CLAIM_PROFILES_PATH,
         PATH_BUY: DEFAULT_BUYING_PROFILES_PATH,
         PATH_PYM: DEFAULT_PAYMENT_PROFILES_PATH,
+        PATH_PRC: DEFAULT_PURCHASE_ARTIFACTS_PATH,
         DELAY_PROVIDER: "bahn-web",
         DELAY_FALLBACK: "none",
     };
@@ -110,6 +114,7 @@ export async function readPrivateSettings(config = {}) {
         claimProfilesDir: resolveConfiguredPath(config, settings.PATH_CLM),
         buyingProfilesDir: resolveConfiguredPath(config, settings.PATH_BUY),
         paymentProfilesDir: resolveConfiguredPath(config, settings.PATH_PYM),
+        purchaseArtifactsDir: resolveConfiguredPath(config, settings.PATH_PRC),
     };
 }
 export function parsePrivateSettingsToml(text, source = "settings.toml") {
@@ -131,6 +136,7 @@ export function stringifyPrivateSettingsToml(settings) {
         `path_clm = ${tomlString(settings.PATH_CLM)}`,
         `path_buy = ${tomlString(settings.PATH_BUY)}`,
         `path_pym = ${tomlString(settings.PATH_PYM)}`,
+        `path_prc = ${tomlString(settings.PATH_PRC)}`,
         `delay_provider = ${tomlString(settings.DELAY_PROVIDER)}`,
         `delay_fallback = ${tomlString(settings.DELAY_FALLBACK)}`,
         "",
@@ -191,6 +197,19 @@ export async function configuredBuyingProfilesDir(config = {}) {
 export async function configuredPaymentProfilesDir(config = {}) {
     return (await readPrivateSettings(config)).paymentProfilesDir;
 }
+export async function configuredPurchaseArtifactsDir(config = {}) {
+    const settings = await readPrivateSettings(config);
+    let locationError = await privatePathLocationError(settings.purchaseArtifactsDir, "path_prc", workspaceRoot(config));
+    if (locationError) {
+        throw new Error(locationError.message);
+    }
+    await fs.mkdir(settings.purchaseArtifactsDir, { recursive: true });
+    locationError = await privatePathLocationError(settings.purchaseArtifactsDir, "path_prc", workspaceRoot(config));
+    if (locationError) {
+        throw new Error(locationError.message);
+    }
+    return settings.purchaseArtifactsDir;
+}
 export async function privateSettingsStatus(config = {}) {
     const settings = await readPrivateSettings(config);
     const root = workspaceRoot(config);
@@ -198,11 +217,13 @@ export async function privateSettingsStatus(config = {}) {
     const paymentProfiles = await listConfiguredStatusFiles(settings, "ID_PYM", root);
     const claimProfiles = await listConfiguredStatusFiles(settings, "ID_CLM", root);
     const buyingProfiles = await listConfiguredStatusFiles(settings, "ID_BUY", root);
+    const purchaseArtifactsLocationError = await privatePathLocationError(settings.purchaseArtifactsDir, "path_prc", root);
     const messages = [
         ...credentials.messages,
         ...paymentProfiles.messages,
         ...claimProfiles.messages,
         ...buyingProfiles.messages,
+        ...(purchaseArtifactsLocationError ? [purchaseArtifactsLocationError] : []),
     ];
     const credentialSelection = credentials.directoryOk
         ? resolveIdFromList(credentials.items, "ID_USR", settings.settings.ID_USR, messages)
@@ -233,12 +254,14 @@ export async function privateSettingsStatus(config = {}) {
             PATH_CLM: settings.settings.PATH_CLM,
             PATH_BUY: settings.settings.PATH_BUY,
             PATH_PYM: settings.settings.PATH_PYM,
+            PATH_PRC: settings.settings.PATH_PRC,
             DELAY_PROVIDER: settings.settings.DELAY_PROVIDER,
             DELAY_FALLBACK: settings.settings.DELAY_FALLBACK,
             userCredentialsDir: settings.userCredentialsDir,
             claimProfilesDir: settings.claimProfilesDir,
             buyingProfilesDir: settings.buyingProfilesDir,
             paymentProfilesDir: settings.paymentProfilesDir,
+            purchaseArtifactsDir: settings.purchaseArtifactsDir,
         },
         credentials: {
             currentId: settings.settings.ID_USR,
@@ -284,9 +307,6 @@ export async function writePrivateSettingsIds(updates, config = {}) {
         ID_PYM: updates.paymentProfileId
             ? normalizePrivateId(updates.paymentProfileId, "ID_PYM")
             : loaded.settings.ID_PYM,
-        PURCHASE_MODE: updates.purchaseMode
-            ? normalizePurchaseMode(updates.purchaseMode, "purchase_mode")
-            : loaded.settings.PURCHASE_MODE,
     };
     const root = workspaceRoot(config);
     for (const idField of PRIVATE_ID_FIELDS) {
@@ -297,6 +317,37 @@ export async function writePrivateSettingsIds(updates, config = {}) {
     await fs.writeFile(`${loaded.settingsPath}.tmp`, stringifyPrivateSettingsToml(updated), "utf8");
     await fs.rename(`${loaded.settingsPath}.tmp`, loaded.settingsPath);
     return privateSettingsStatus(config);
+}
+export async function previewPrivateSettingsRuntimeConfig(updates, config = {}) {
+    const loaded = await readPrivateSettings(config);
+    return runtimeConfigPreview(loaded.settings, normalizeRuntimeConfigUpdates(updates));
+}
+export async function writePrivateSettingsRuntimeConfig(updates, config = {}) {
+    const loaded = await readPrivateSettings(config);
+    const normalized = normalizeRuntimeConfigUpdates(updates);
+    const preview = runtimeConfigPreview(loaded.settings, normalized);
+    if (preview.changes.length === 0) {
+        return {
+            preview,
+            status: await privateSettingsStatus(config),
+        };
+    }
+    const updated = {
+        ...loaded.settings,
+        USE_DELAY_RETRIEVAL: normalized.use_delay_retrieval ?? loaded.settings.USE_DELAY_RETRIEVAL,
+        USE_CLAIM_REQUESTS: normalized.use_claim_requests ?? loaded.settings.USE_CLAIM_REQUESTS,
+        USE_TICKET_PURCHASE: normalized.use_ticket_purchase ?? loaded.settings.USE_TICKET_PURCHASE,
+        DELAY_PROVIDER: normalized.delay_provider ?? loaded.settings.DELAY_PROVIDER,
+        DELAY_FALLBACK: normalized.delay_fallback ?? loaded.settings.DELAY_FALLBACK,
+        PURCHASE_MODE: normalized.purchase_mode ?? loaded.settings.PURCHASE_MODE,
+    };
+    await fs.mkdir(path.dirname(loaded.settingsPath), { recursive: true });
+    await fs.writeFile(`${loaded.settingsPath}.tmp`, stringifyPrivateSettingsToml(updated), "utf8");
+    await fs.rename(`${loaded.settingsPath}.tmp`, loaded.settingsPath);
+    return {
+        preview,
+        status: await privateSettingsStatus(config),
+    };
 }
 export function normalizePrivateId(value, field) {
     const trimmed = value.trim();
@@ -316,6 +367,7 @@ function normalizePrivateSettings(value, source) {
     assertTable(normalizedValue, source);
     const table = normalizedValue;
     assertKnownKeys(table, SETTINGS_KEYS, source);
+    table.PATH_PRC ??= defaultPrivateSettings().PATH_PRC;
     assertPrivateSettingsShape(table, source);
     return table;
 }
@@ -337,6 +389,7 @@ function assertPrivateSettingsShape(value, source) {
     assertString(value.PATH_CLM, `${source}.path_clm`);
     assertString(value.PATH_BUY, `${source}.path_buy`);
     assertString(value.PATH_PYM, `${source}.path_pym`);
+    assertString(value.PATH_PRC, `${source}.path_prc`);
     assertString(value.PURCHASE_MODE, `${source}.purchase_mode`);
     assertString(value.DELAY_PROVIDER, `${source}.DELAY_PROVIDER`);
     assertString(value.DELAY_FALLBACK, `${source}.DELAY_FALLBACK`);
@@ -351,6 +404,124 @@ function assertPrivateSettingsShape(value, source) {
 function normalizePurchaseMode(value, source) {
     assertOneOf(value, PURCHASE_MODE_VALUES, source);
     return value;
+}
+function normalizeRuntimeConfigUpdates(updates) {
+    const normalized = {};
+    if ("use_delay_retrieval" in updates) {
+        assertBoolean(updates.use_delay_retrieval, "use_delay_retrieval");
+        normalized.use_delay_retrieval = updates.use_delay_retrieval;
+    }
+    if ("use_claim_requests" in updates) {
+        assertBoolean(updates.use_claim_requests, "use_claim_requests");
+        normalized.use_claim_requests = updates.use_claim_requests;
+    }
+    if ("use_ticket_purchase" in updates) {
+        assertBoolean(updates.use_ticket_purchase, "use_ticket_purchase");
+        normalized.use_ticket_purchase = updates.use_ticket_purchase;
+    }
+    if ("delay_provider" in updates) {
+        assertOneOf(updates.delay_provider, DELAY_PROVIDER_VALUES, "delay_provider");
+        normalized.delay_provider = updates.delay_provider;
+    }
+    if ("delay_fallback" in updates) {
+        assertOneOf(updates.delay_fallback, DELAY_FALLBACK_VALUES, "delay_fallback");
+        normalized.delay_fallback = updates.delay_fallback;
+    }
+    if ("purchase_mode" in updates) {
+        normalized.purchase_mode = normalizePurchaseMode(updates.purchase_mode, "purchase_mode");
+    }
+    return normalized;
+}
+function runtimeConfigPreview(currentSettings, requested) {
+    const current = runtimeConfigSettings(currentSettings);
+    const changes = Object.entries(requested).flatMap(([field, to]) => {
+        const key = field;
+        if (to === undefined || current[key] === to) {
+            return [];
+        }
+        return [{
+                field: key,
+                from: current[key],
+                to,
+                meaning: runtimeConfigMeaning(key, to),
+            }];
+    });
+    const needsUserAction = changes.length > 0;
+    return {
+        current,
+        requested,
+        changes,
+        needsUserAction,
+        message: needsUserAction
+            ? "Review these DBhopper settings changes, then call again with confirm: true to write settings.toml."
+            : "No DBhopper settings changes were requested.",
+    };
+}
+function runtimeConfigSettings(settings) {
+    return {
+        use_delay_retrieval: settings.USE_DELAY_RETRIEVAL,
+        use_claim_requests: settings.USE_CLAIM_REQUESTS,
+        use_ticket_purchase: settings.USE_TICKET_PURCHASE,
+        delay_provider: settings.DELAY_PROVIDER,
+        delay_fallback: settings.DELAY_FALLBACK,
+        purchase_mode: settings.PURCHASE_MODE,
+    };
+}
+function runtimeConfigMeaning(field, value) {
+    switch (field) {
+        case "use_delay_retrieval":
+            return value
+                ? "Enable DB delay-query tools."
+                : "Disable DB delay-query tools.";
+        case "use_claim_requests":
+            return value
+                ? "Enable claim preparation and browser filing tools."
+                : "Disable claim preparation and browser filing tools.";
+        case "use_ticket_purchase":
+            return value
+                ? "Enable ticket search and checkout dry-run tools."
+                : "Disable ticket search and checkout dry-run tools.";
+        case "delay_provider":
+            return delayProviderMeaning(value);
+        case "delay_fallback":
+            return delayFallbackMeaning(value);
+        case "purchase_mode":
+            return purchaseModeMeaning(value);
+    }
+}
+function delayProviderMeaning(value) {
+    switch (value) {
+        case "bahn-web":
+            return "Use DB passenger website retrieval; no DB API credentials are needed.";
+        case "db-timetables":
+            return "Use official DB Timetables API calls with DB API Marketplace credentials.";
+        case "auto":
+            return "Use automatic delay provider selection according to the configured fallback policy.";
+        default:
+            return "Unknown delay provider.";
+    }
+}
+function delayFallbackMeaning(value) {
+    switch (value) {
+        case "none":
+            return "Do not automatically retry with another delay backend.";
+        case "bahn-web":
+            return "Retry delay retrieval with DB passenger website retrieval if the primary provider fails.";
+        case "db-timetables":
+            return "Retry delay retrieval with official DB Timetables API calls if the primary provider fails.";
+        default:
+            return "Unknown delay fallback.";
+    }
+}
+function purchaseModeMeaning(value) {
+    switch (value) {
+        case "review":
+            return "Fill checkout to DB's final Check page, save a review screenshot, and stop.";
+        case "auto":
+            return "Request automatic purchase mode; current code still stops with auto_unavailable before final buying.";
+        default:
+            return "Unknown purchase mode.";
+    }
 }
 async function listIdFiles(dir, idField, root) {
     const messages = [];
@@ -452,7 +623,9 @@ function isOtherPrivateIdFile(parsed, idField) {
     return PRIVATE_ID_FIELDS.some((field) => field !== idField && field in parsed);
 }
 export async function privateDirectoryLocationError(dir, idField, root) {
-    const pathField = pathSettingNameForIdField(idField);
+    return privatePathLocationError(dir, pathSettingNameForIdField(idField), root);
+}
+async function privatePathLocationError(dir, pathField, root) {
     const resolvedRoot = path.resolve(root);
     const resolvedDir = path.resolve(dir);
     if (isPathInsideOrEqual(resolvedDir, resolvedRoot)) {
@@ -465,7 +638,26 @@ export async function privateDirectoryLocationError(dir, idField, root) {
     if (realDir && isPathInsideOrEqual(realDir, realRoot)) {
         return validationError("private_directory_inside_workspace", `${pathField} ${resolvedDir} resolves inside the plugin workspace ${realRoot}`);
     }
+    const realAncestorCandidate = await realpathExistingAncestorCandidate(resolvedDir);
+    if (realAncestorCandidate &&
+        isPathInsideOrEqual(realAncestorCandidate, realRoot)) {
+        return validationError("private_directory_inside_workspace", `${pathField} ${resolvedDir} resolves inside the plugin workspace ${realRoot}`);
+    }
     return undefined;
+}
+async function realpathExistingAncestorCandidate(candidate) {
+    let current = path.resolve(candidate);
+    while (true) {
+        const realCurrent = await fs.realpath(current).catch(() => undefined);
+        if (realCurrent) {
+            return path.resolve(realCurrent, path.relative(current, candidate));
+        }
+        const parent = path.dirname(current);
+        if (parent === current) {
+            return undefined;
+        }
+        current = parent;
+    }
 }
 function isPathInsideOrEqual(candidate, parent) {
     const relative = path.relative(parent, candidate);

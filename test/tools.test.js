@@ -24,7 +24,11 @@ describe("dbhopper tools", () => {
     );
     assert.deepEqual(
       [...resolveApprovalToolNames({ approvalMode: "mutating" })],
-      ["dbhopper_prepare_claim", "dbhopper_run_claim"],
+      [
+        "dbhopper_prepare_claim",
+        "dbhopper_run_claim",
+        "dbhopper_private_settings_configure",
+      ],
     );
     assert.equal(
       resolveApprovalToolNames({ approvalMode: "mutating" }).has("dbhopper_validate_claim"),

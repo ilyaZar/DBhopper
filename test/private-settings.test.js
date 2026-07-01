@@ -5,9 +5,11 @@ import os from "node:os";
 import path from "node:path";
 
 import {
+  configuredPurchaseArtifactsDir,
   parsePrivateSettingsToml,
   privateSettingsStatus,
   writePrivateSettingsIds,
+  writePrivateSettingsRuntimeConfig,
 } from "../dist/private-settings.js";
 import { readSelectedCredentialsProfile } from "../dist/credentials.js";
 import { readSelectedBuyingProfile } from "../dist/buying-profile.js";
@@ -22,7 +24,7 @@ import {
 
 describe("dbhopper private settings", () => {
   it("routes credentials and profiles through selected IDs", async () => {
-    const { root, credentialsDir, profilesDir } = await createSettingsWorkspace(
+    const { root, credentialsDir, profilesDir, purchaseArtifactsDir } = await createSettingsWorkspace(
       "dbhopper-settings-",
       {
         credentialsDirName: "external-creds",
@@ -51,6 +53,11 @@ describe("dbhopper private settings", () => {
     assert.equal(status.settings.DELAY_PROVIDER, "bahn-web");
     assert.equal(status.settings.DELAY_FALLBACK, "none");
     assert.equal(status.settings.PURCHASE_MODE, "review");
+    assert.equal(status.settings.purchaseArtifactsDir, purchaseArtifactsDir);
+    assert.equal(
+      await configuredPurchaseArtifactsDir({ workspaceRoot: root }),
+      purchaseArtifactsDir,
+    );
     assert.doesNotMatch(
       JSON.stringify(status),
       /client-02|key-02|user-02@example|password-02|Account Owner|DE00000000000000000000|First|Third/,
@@ -130,7 +137,6 @@ describe("dbhopper private settings", () => {
         claimProfileId: "03",
         buyingProfileId: "02",
         paymentProfileId: "02",
-        purchaseMode: "auto",
       },
       { workspaceRoot: root },
     );
@@ -144,13 +150,33 @@ describe("dbhopper private settings", () => {
     assert.match(settings, /ID_CLM = "03"/);
     assert.match(settings, /ID_BUY = "02"/);
     assert.match(settings, /ID_PYM = "02"/);
-    assert.match(settings, /purchase_mode = "auto"/);
+    assert.match(settings, /purchase_mode = "review"/);
     assert.match(settings, new RegExp(escapeRegExp(`path_usr = "${credentialsDir}"`)));
     assert.match(settings, new RegExp(escapeRegExp(`path_pym = "${credentialsDir}"`)));
     assert.match(settings, new RegExp(escapeRegExp(`path_clm = "${profilesDir}"`)));
     assert.match(settings, new RegExp(escapeRegExp(`path_buy = "${profilesDir}"`)));
     assert.match(settings, /delay_provider = "bahn-web"/);
     assert.match(settings, /delay_fallback = "none"/);
+  });
+
+  it("updates purchase mode through the runtime configuration writer", async () => {
+    const { root, credentialsDir, profilesDir } = await createSettingsWorkspace(
+      "dbhopper-settings-runtime-write-",
+    );
+
+    const result = await writePrivateSettingsRuntimeConfig(
+      { purchase_mode: "auto" },
+      { workspaceRoot: root },
+    );
+    const settings = await fs.readFile(
+      path.join(root, "assets", "private", "settings.toml"),
+      "utf8",
+    );
+
+    assert.equal(result.preview.needsUserAction, true);
+    assert.match(settings, /purchase_mode = "auto"/);
+    assert.match(settings, new RegExp(escapeRegExp(`path_usr = "${credentialsDir}"`)));
+    assert.match(settings, new RegExp(escapeRegExp(`path_clm = "${profilesDir}"`)));
   });
 
   it("rejects unsupported private settings keys", () => {
@@ -170,6 +196,7 @@ describe("dbhopper private settings", () => {
         'path_clm = "../dbhopper-private/profiles"',
         'path_buy = "../dbhopper-private/profiles"',
         'path_pym = "../dbhopper-private/credentials"',
+        'path_prc = "../dbhopper-private/purchases"',
         'delay_provider = "bahn-web"',
         'delay_fallback = "none"',
         "",
@@ -191,6 +218,7 @@ describe("dbhopper private settings", () => {
         'path_clm = "../dbhopper-private/profiles"',
         'path_buy = "../dbhopper-private/profiles"',
         'path_pym = "../dbhopper-private/credentials"',
+        'path_prc = "../dbhopper-private/purchases"',
         'delay_provider = "bahn-web"',
         'delay_fallback = "none"',
         "",
@@ -206,12 +234,13 @@ describe("dbhopper private settings", () => {
       paymentProfilesPath: path.join(root, "assets", "private", "credentials"),
       claimProfilesPath: path.join(root, "assets", "private", "profiles"),
       buyingProfilesPath: path.join(root, "assets", "private", "profiles"),
+      purchaseArtifactsPath: path.join(root, "assets", "private", "purchases"),
     });
 
     const status = await privateSettingsStatus({ workspaceRoot: root });
 
     assert.equal(status.ok, false);
-    for (const field of ["path_usr", "path_pym", "path_clm", "path_buy"]) {
+    for (const field of ["path_usr", "path_pym", "path_clm", "path_buy", "path_prc"]) {
       assert.ok(
         status.messages.some((message) =>
           message.code === "private_directory_inside_workspace" &&
@@ -248,6 +277,37 @@ describe("dbhopper private settings", () => {
           { workspaceRoot: root },
         ),
       /path_clm .* outside the plugin workspace/,
+    );
+    await assert.rejects(
+      () => configuredPurchaseArtifactsDir({ workspaceRoot: root }),
+      /path_prc .* outside the plugin workspace/,
+    );
+  });
+
+  it("rejects path_prc through a symlinked parent into the workspace", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-settings-prc-link-"));
+    const linkRoot = await fs.mkdtemp(
+      path.join(os.tmpdir(), "dbhopper-settings-prc-link-external-"),
+    );
+    const linkPath = path.join(linkRoot, "purchase-link");
+    await fs.mkdir(path.join(root, "assets", "private"), { recursive: true });
+    await fs.symlink(path.join(root, "assets", "private"), linkPath, "dir");
+    await writePrivateSettingsFixture(root, {
+      purchaseArtifactsPath: path.join(linkPath, "purchases"),
+    });
+
+    const status = await privateSettingsStatus({ workspaceRoot: root });
+
+    assert.equal(status.ok, false);
+    assert.ok(
+      status.messages.some((message) =>
+        message.code === "private_directory_inside_workspace" &&
+          message.message.includes("path_prc"),
+      ),
+    );
+    await assert.rejects(
+      () => configuredPurchaseArtifactsDir({ workspaceRoot: root }),
+      /path_prc .* inside the plugin workspace/,
     );
   });
 
@@ -400,6 +460,7 @@ async function createSettingsWorkspace(
   {
     credentialsDirName = "creds",
     profilesDirName = "profiles",
+    purchaseArtifactsDirName = "purchases",
     credentialId = "01",
     profileId = "01",
     buyingProfileId = "01",
@@ -415,6 +476,9 @@ async function createSettingsWorkspace(
   const profilesDir = path.isAbsolute(profilesDirName)
     ? profilesDirName
     : path.join(externalRoot, profilesDirName);
+  const purchaseArtifactsDir = path.isAbsolute(purchaseArtifactsDirName)
+    ? purchaseArtifactsDirName
+    : path.join(externalRoot, purchaseArtifactsDirName);
   await writePrivateSettingsFixture(root, {
     userId: credentialId,
     claimProfileId: profileId,
@@ -425,8 +489,9 @@ async function createSettingsWorkspace(
     paymentProfilesPath: credentialsDir,
     claimProfilesPath: profilesDir,
     buyingProfilesPath: profilesDir,
+    purchaseArtifactsPath: purchaseArtifactsDir,
   });
-  return { root, credentialsDir, profilesDir };
+  return { root, credentialsDir, profilesDir, purchaseArtifactsDir };
 }
 
 async function writeCredential(dir, id, fileName, overrides = {}) {

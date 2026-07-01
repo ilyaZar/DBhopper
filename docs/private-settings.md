@@ -27,6 +27,7 @@ path_usr = "../dbhopper-private/credentials"
 path_clm = "../dbhopper-private/profiles"
 path_buy = "../dbhopper-private/profiles"
 path_pym = "../dbhopper-private/credentials"
+path_prc = "../dbhopper-private/purchases"
 delay_provider = "bahn-web"
 delay_fallback = "none"
 ```
@@ -39,12 +40,13 @@ delay_fallback = "none"
 - `ID_BUY` selects one buying profile file from `path_buy`.
 - `ID_PYM` selects one payment profile file from `path_pym`.
 - `purchase_mode` controls the final DB Check-page gate. `"review"` is the
-  default and saves a sensitive screenshot artifact under
-  `assets/private/purchases/` for user inspection. `"auto"` requests automatic
-  buying, but buying is not enabled yet, so the run still aborts before any
-  final order button with `auto_unavailable`.
+  default and saves a sensitive screenshot artifact under `path_prc` for user
+  inspection. `"auto"` requests automatic buying, but buying is not enabled yet,
+  so the run still aborts before any final order button with `auto_unavailable`.
 - `path_usr`, `path_clm`, `path_buy`, and `path_pym` point to external
   directories to scan for files with the matching `ID_*` field.
+- `path_prc` points to an external directory for sensitive purchase review
+  screenshot artifacts.
 - `delay_provider` selects the default delay data source for omitted provider
   tool calls.
 - `delay_fallback` controls fallback behavior; `"none"` disables automatic
@@ -52,13 +54,16 @@ delay_fallback = "none"
 
 Paths may be relative to the plugin directory or absolute within the user file
 system, but every resolved `path_*` directory must be outside the plugin
-workspace/package root. The plugin process may read those directories. Coding
-agents and workspace read/write tools should be denied access to them.
+workspace/package root. The plugin process may read the profile and credential
+directories and write to `path_prc`. Coding agents and workspace read/write
+tools should be denied access to them.
 
-OpenClaw agents should only change `ID_USR`, `ID_CLM`, `ID_BUY`, `ID_PYM`, and
-`purchase_mode`; they must not change path fields or read private values into
-the conversation. The settings file itself always remains at
-`assets/private/settings.toml`.
+OpenClaw agents should only change selected IDs through
+`dbhopper_private_settings_select`, and workflow or mode settings through
+`dbhopper_private_settings_configure`. They must not change path fields or read
+private values into the conversation. The settings file itself always remains
+at `assets/private/settings.toml`. Manual local edits are also valid when you
+want to control the file directly.
 
 ## File IDs
 
@@ -218,5 +223,24 @@ claim, buying, and payment IDs. It returns an error when the selected ID does
 not exist.
 
 Use `dbhopper_private_settings_select` to update `ID_USR`, `ID_CLM`, `ID_BUY`,
-`ID_PYM`, and/or `purchase_mode`. That tool does not accept path fields,
-so an agent cannot change the directories where private files are stored.
+and/or `ID_PYM`. That tool does not accept path fields, so an agent cannot
+change the directories where private files are stored.
+
+Use `dbhopper_private_settings_configure` to update important runtime choices:
+
+- `use_delay_retrieval`: enables or disables DB delay-query tools.
+- `use_claim_requests`: enables or disables claim preparation and browser
+  filing tools.
+- `use_ticket_purchase`: enables or disables ticket search and checkout dry-run
+  tools.
+- `delay_provider`: chooses `"bahn-web"` website retrieval, `"db-timetables"`
+  official DB API calls, or `"auto"` provider selection.
+- `delay_fallback`: chooses a retry backend after provider failure, or `"none"`
+  for no automatic retry.
+- `purchase_mode`: chooses `"review"` to stop on the DB Check page with a
+  review screenshot, or `"auto"` to request automatic purchase mode. Current
+  code still stops with `auto_unavailable` before final buying.
+
+The configure tool always previews current values, requested values, changed
+fields, and the plain-language meaning of each change. It writes
+`settings.toml` only when called again with `confirm: true`.

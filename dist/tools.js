@@ -1,10 +1,17 @@
 import { CLAIM_FILE_ROLES, CLAIM_TOOL_CONTRACTS, CLAIM_TOOL_NAMES, RUN_CLAIM_MODES, SIDE_EFFECT_CLAIM_TOOL_NAMES, } from "./claim-tool-contracts.js";
+import { PRIVATE_SETTINGS_CONFIGURE_TOOL_NAME } from "./tool-contracts.js";
 import { probeBrowser, runBrowserClaim } from "./browser.js";
 import { claimSchemaReference, validateClaim } from "./validation.js";
 import { errorMessage } from "./errors.js";
 import { claimPaths, listClaims, prepareClaim, readClaim, redactEmail, validateWorkspaceTomlFiles, writeSubmittedRecipe, } from "./workspace.js";
-const SIDE_EFFECT_TOOL_NAMES = new Set(SIDE_EFFECT_CLAIM_TOOL_NAMES);
-const CLAIM_TOOL_NAME_SET = new Set(CLAIM_TOOL_NAMES);
+const SIDE_EFFECT_TOOL_NAMES = new Set([
+    ...SIDE_EFFECT_CLAIM_TOOL_NAMES,
+    PRIVATE_SETTINGS_CONFIGURE_TOOL_NAME,
+]);
+const CLAIM_TOOL_NAME_SET = new Set([
+    ...CLAIM_TOOL_NAMES,
+    PRIVATE_SETTINGS_CONFIGURE_TOOL_NAME,
+]);
 export function resolveApprovalToolNames(config = {}) {
     const mode = config.approvalMode || "all";
     if (mode === "none") {
@@ -30,6 +37,9 @@ export function buildDBhopperApprovalDescription({ toolName, params = {}, }) {
     }
     if (params.confirmSubmit === true) {
         lines.push("Submit: explicitly confirmed");
+    }
+    if (params.confirm === true) {
+        lines.push("Settings change: explicitly confirmed");
     }
     const claim = params.claim;
     if (claim?.claimant?.email) {

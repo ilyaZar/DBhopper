@@ -8,7 +8,7 @@ import { buyingProfileSummary, fareProductLabel, readSelectedBuyingProfile, reso
 import { formatPaymentBirthdateForDbUi, paymentProfileSummary, readSelectedPaymentProfile, } from "./payment-profile.js";
 import { compactUiText, normalizeCardNumber, normalizeCountry, normalizeIban, normalizeOption, normalizeUiDateComparable, normalizeUiText, } from "./normalization.js";
 import { errorMessage } from "./errors.js";
-import { readPrivateSettings, } from "./private-settings.js";
+import { configuredPurchaseArtifactsDir, readPrivateSettings, } from "./private-settings.js";
 import { resolveCredentialUserDataDir } from "./access-browser.js";
 import { performDbAccountLogin } from "./db-login.js";
 import { TICKET_BUYING_DRY_RUN_TOOL_NAME, TICKET_BUYING_RESEARCH_TOOL_NAME, TICKET_CHECKOUT_DRY_RUN_TOOL_NAME, } from "./tool-contracts.js";
@@ -2300,13 +2300,13 @@ async function saveTicketReviewScreenshot(page, config, artifactCapture, label) 
     };
 }
 async function savePurchaseReviewScreenshot(config, screenshot) {
-    const target = path.join(purchaseReviewArtifactDir(config), `ticket-checkout-review-${purchaseReviewTimestamp()}.png`);
+    const target = path.join(await purchaseReviewArtifactDir(config), `ticket-checkout-review-${purchaseReviewTimestamp()}.png`);
     await fs.mkdir(path.dirname(target), { recursive: true });
     await fs.writeFile(target, screenshot);
     return target;
 }
-function purchaseReviewArtifactDir(config) {
-    return path.join(resolveWorkspace(config).root, "assets/private/purchases");
+async function purchaseReviewArtifactDir(config) {
+    return configuredPurchaseArtifactsDir(config);
 }
 function purchaseReviewTimestamp(now = new Date()) {
     const pad = (value) => String(value).padStart(2, "0");

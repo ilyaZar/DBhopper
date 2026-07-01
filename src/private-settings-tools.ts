@@ -1,11 +1,20 @@
 import { Type } from "typebox";
 
 import {
+  DELAY_FALLBACKS,
+  DELAY_PROVIDERS,
+} from "./delay-provider-options.js";
+import {
   privateSettingsStatus,
+  previewPrivateSettingsRuntimeConfig,
+  writePrivateSettingsRuntimeConfig,
+  type DBhopperDelayFallbackSetting,
+  type DBhopperDelayProviderSetting,
   writePrivateSettingsIds,
   type DBhopperPurchaseMode,
 } from "./private-settings.js";
 import {
+  PRIVATE_SETTINGS_CONFIGURE_TOOL_NAME,
   PRIVATE_SETTINGS_SELECT_TOOL_NAME,
   PRIVATE_SETTINGS_STATUS_TOOL_NAME,
 } from "./tool-contracts.js";
@@ -35,8 +44,8 @@ export function createPrivateSettingsToolDefinitions(tool: any) {
       label: "DBhopper Private Settings Select",
       description:
         [
-          "Update ID_USR, ID_CLM, ID_BUY, ID_PYM, and/or",
-          "purchase_mode in assets/private/settings.toml.",
+          "Update ID_USR, ID_CLM, ID_BUY, and/or ID_PYM",
+          "in assets/private/settings.toml.",
         ].join(" "),
       optional: true,
       parameters: Type.Object(
@@ -61,12 +70,6 @@ export function createPrivateSettingsToolDefinitions(tool: any) {
               description: 'Payment profile ID_PYM to select, for example "01".',
             }),
           ),
-          purchase_mode: Type.Optional(
-            Type.Union([Type.Literal("review"), Type.Literal("auto")], {
-              description:
-                "Final Check-page gate mode. Default is review; auto is not purchase-enabled yet.",
-            }),
-          ),
         },
         { additionalProperties: false },
       ),
@@ -76,7 +79,6 @@ export function createPrivateSettingsToolDefinitions(tool: any) {
           claim_profile_id?: string;
           buying_profile_id?: string;
           payment_profile_id?: string;
-          purchase_mode?: DBhopperPurchaseMode;
         },
         config: DBhopperConfig = {},
       ) => {
@@ -90,7 +92,6 @@ export function createPrivateSettingsToolDefinitions(tool: any) {
                 claimProfileId: params.claim_profile_id,
                 buyingProfileId: params.buying_profile_id,
                 paymentProfileId: params.payment_profile_id,
-                purchaseMode: params.purchase_mode,
               },
               config,
             ),
@@ -99,6 +100,111 @@ export function createPrivateSettingsToolDefinitions(tool: any) {
           return {
             ok: false,
             operation: "private_settings_select",
+            error: errorMessage(error),
+            status: await privateSettingsStatus(config).catch(() => undefined),
+          };
+        }
+      },
+    }),
+    tool({
+      name: PRIVATE_SETTINGS_CONFIGURE_TOOL_NAME,
+      label: "DBhopper Private Settings Configure",
+      description:
+        [
+          "Preview or confirm important DBhopper settings changes.",
+          "Controls workflow gates, delay backend mode, fallback mode,",
+          "and purchase review mode in assets/private/settings.toml.",
+        ].join(" "),
+      optional: true,
+      parameters: Type.Object(
+        {
+          use_delay_retrieval: Type.Optional(
+            Type.Boolean({
+              description: "Enable or disable DB delay-query tools.",
+            }),
+          ),
+          use_claim_requests: Type.Optional(
+            Type.Boolean({
+              description:
+                "Enable or disable claim preparation and browser filing tools.",
+            }),
+          ),
+          use_ticket_purchase: Type.Optional(
+            Type.Boolean({
+              description:
+                "Enable or disable ticket search and checkout dry-run tools.",
+            }),
+          ),
+          delay_provider: Type.Optional(
+            Type.Union(DELAY_PROVIDERS.map((provider) => Type.Literal(provider)), {
+              description:
+                "Delay backend mode: bahn-web, db-timetables, or auto.",
+            }),
+          ),
+          delay_fallback: Type.Optional(
+            Type.Union(DELAY_FALLBACKS.map((fallback) => Type.Literal(fallback)), {
+              description:
+                "Delay fallback backend after provider failure, or none.",
+            }),
+          ),
+          purchase_mode: Type.Optional(
+            Type.Union([Type.Literal("review"), Type.Literal("auto")], {
+              description:
+                "Final ticket checkout mode. review stops for screenshot inspection; auto is not purchase-enabled yet.",
+            }),
+          ),
+          confirm: Type.Optional(
+            Type.Boolean({
+              description:
+                "Must be true only after the user explicitly confirms the previewed settings changes.",
+            }),
+          ),
+        },
+        { additionalProperties: false },
+      ),
+      execute: async (
+        params: {
+          use_delay_retrieval?: boolean;
+          use_claim_requests?: boolean;
+          use_ticket_purchase?: boolean;
+          delay_provider?: DBhopperDelayProviderSetting;
+          delay_fallback?: DBhopperDelayFallbackSetting;
+          purchase_mode?: DBhopperPurchaseMode;
+          confirm?: boolean;
+        } = {},
+        config: DBhopperConfig = {},
+      ) => {
+        const updates = Object.fromEntries(
+          Object.entries({
+            use_delay_retrieval: params.use_delay_retrieval,
+            use_claim_requests: params.use_claim_requests,
+            use_ticket_purchase: params.use_ticket_purchase,
+            delay_provider: params.delay_provider,
+            delay_fallback: params.delay_fallback,
+            purchase_mode: params.purchase_mode,
+          }).filter(([, value]) => value !== undefined),
+        );
+        try {
+          if (params.confirm !== true) {
+            return {
+              ok: true,
+              operation: "private_settings_configure",
+              mode: "preview",
+              preview: await previewPrivateSettingsRuntimeConfig(updates, config),
+            };
+          }
+          const result = await writePrivateSettingsRuntimeConfig(updates, config);
+          return {
+            ok: true,
+            operation: "private_settings_configure",
+            mode: "confirmed",
+            preview: result.preview,
+            status: result.status,
+          };
+        } catch (error) {
+          return {
+            ok: false,
+            operation: "private_settings_configure",
             error: errorMessage(error),
             status: await privateSettingsStatus(config).catch(() => undefined),
           };

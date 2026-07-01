@@ -7,6 +7,7 @@ import {
   AUTONOMOUS_TICKET_BUYING_TOOL_NAMES,
   CLAIM_TOOL_NAMES,
   DELAY_RETRIEVAL_TOOL_NAMES,
+  PRIVATE_SETTINGS_CONFIGURE_TOOL_NAME,
 } from "./tool-contracts.js";
 import {
   defaultPrivateSettings,
@@ -104,5 +105,16 @@ export function featureSettingsSummary(settings: DBhopperFeatureSettings) {
     delay_retrieval: settings.use_delay_retrieval,
     autonomous_claims: settings.use_claim_requests,
     autonomous_ticket_purchase: settings.use_ticket_purchase,
+  };
+}
+
+export function featureSettingEnableSuggestion(
+  setting: DBhopperFeatureSettingName,
+) {
+  return {
+    suggestedTool: PRIVATE_SETTINGS_CONFIGURE_TOOL_NAME,
+    suggestedChange: {
+      [setting]: true,
+    },
   };
 }

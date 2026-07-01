@@ -37,6 +37,7 @@ import {
 } from "./normalization.js";
 import { errorMessage } from "./errors.js";
 import {
+  configuredPurchaseArtifactsDir,
   readPrivateSettings,
   type DBhopperPurchaseMode,
 } from "./private-settings.js";
@@ -3240,7 +3241,7 @@ async function savePurchaseReviewScreenshot(
   screenshot: Buffer,
 ) {
   const target = path.join(
-    purchaseReviewArtifactDir(config),
+    await purchaseReviewArtifactDir(config),
     `ticket-checkout-review-${purchaseReviewTimestamp()}.png`,
   );
   await fs.mkdir(path.dirname(target), { recursive: true });
@@ -3248,8 +3249,8 @@ async function savePurchaseReviewScreenshot(
   return target;
 }
 
-function purchaseReviewArtifactDir(config: DBhopperConfig) {
-  return path.join(resolveWorkspace(config).root, "assets/private/purchases");
+async function purchaseReviewArtifactDir(config: DBhopperConfig) {
+  return configuredPurchaseArtifactsDir(config);
 }
 
 function purchaseReviewTimestamp(now = new Date()) {

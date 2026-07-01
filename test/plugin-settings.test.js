@@ -4,12 +4,14 @@ import assert from "node:assert/strict";
 import {
   DEFAULT_FEATURE_SETTINGS,
   enabledToolNames,
+  featureSettingEnableSuggestion,
   featureSettingForToolName,
   parseTopLevelSettings,
 } from "../dist/plugin-settings.js";
 import {
   DB_API_CREDENTIAL_PROBE_TOOL_NAME,
   DB_STANDARD_LOGIN_CHECK_TOOL_NAME,
+  PRIVATE_SETTINGS_CONFIGURE_TOOL_NAME,
   PRIVATE_SETTINGS_STATUS_TOOL_NAME,
   QUERY_DB_DELAY_TOOL_NAME,
   TICKET_CHECKOUT_DRY_RUN_TOOL_NAME,
@@ -25,6 +27,7 @@ describe("dbhopper top-level settings", () => {
     assert.equal(tools.has(QUERY_DB_DELAY_TOOL_NAME), true);
     assert.equal(tools.has("dbhopper_prepare_claim"), false);
     assert.equal(tools.has(TICKET_CHECKOUT_DRY_RUN_TOOL_NAME), false);
+    assert.equal(tools.has(PRIVATE_SETTINGS_CONFIGURE_TOOL_NAME), true);
   });
 
   it("enables claim and ticket tool groups explicitly", () => {
@@ -66,6 +69,19 @@ describe("dbhopper top-level settings", () => {
       featureSettingForToolName(PRIVATE_SETTINGS_STATUS_TOOL_NAME),
       undefined,
     );
+    assert.equal(
+      featureSettingForToolName(PRIVATE_SETTINGS_CONFIGURE_TOOL_NAME),
+      undefined,
+    );
+  });
+
+  it("suggests the configure tool when a workflow is disabled", () => {
+    const suggestion = featureSettingEnableSuggestion("use_ticket_purchase");
+
+    assert.equal(suggestion.suggestedTool, PRIVATE_SETTINGS_CONFIGURE_TOOL_NAME);
+    assert.deepEqual(suggestion.suggestedChange, {
+      use_ticket_purchase: true,
+    });
   });
 });
 
@@ -88,6 +104,7 @@ function settingsToml({
     'path_clm = "../dbhopper-private/profiles"',
     'path_buy = "../dbhopper-private/profiles"',
     'path_pym = "../dbhopper-private/credentials"',
+    'path_prc = "../dbhopper-private/purchases"',
     'delay_provider = "bahn-web"',
     'delay_fallback = "none"',
     "",

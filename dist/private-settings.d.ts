@@ -15,6 +15,7 @@ export interface DBhopperPrivateSettings {
     PATH_CLM: string;
     PATH_BUY: string;
     PATH_PYM: string;
+    PATH_PRC: string;
     DELAY_PROVIDER: DBhopperDelayProviderSetting;
     DELAY_FALLBACK: DBhopperDelayFallbackSetting;
 }
@@ -26,6 +27,28 @@ export interface LoadedPrivateSettings {
     claimProfilesDir: string;
     buyingProfilesDir: string;
     paymentProfilesDir: string;
+    purchaseArtifactsDir: string;
+}
+export interface DBhopperRuntimeConfigUpdates {
+    use_delay_retrieval?: boolean;
+    use_claim_requests?: boolean;
+    use_ticket_purchase?: boolean;
+    delay_provider?: DBhopperDelayProviderSetting;
+    delay_fallback?: DBhopperDelayFallbackSetting;
+    purchase_mode?: DBhopperPurchaseMode;
+}
+export interface DBhopperRuntimeConfigChange {
+    field: keyof DBhopperRuntimeConfigUpdates;
+    from: boolean | string;
+    to: boolean | string;
+    meaning: string;
+}
+export interface DBhopperRuntimeConfigPreview {
+    current: Required<DBhopperRuntimeConfigUpdates>;
+    requested: Partial<DBhopperRuntimeConfigUpdates>;
+    changes: DBhopperRuntimeConfigChange[];
+    needsUserAction: boolean;
+    message: string;
 }
 export interface PrivateIdFile {
     id: string;
@@ -82,6 +105,7 @@ export declare function configuredUserCredentialsDir(config?: DBhopperConfig): P
 export declare function configuredClaimProfilesDir(config?: DBhopperConfig): Promise<string>;
 export declare function configuredBuyingProfilesDir(config?: DBhopperConfig): Promise<string>;
 export declare function configuredPaymentProfilesDir(config?: DBhopperConfig): Promise<string>;
+export declare function configuredPurchaseArtifactsDir(config?: DBhopperConfig): Promise<string>;
 export declare function privateSettingsStatus(config?: DBhopperConfig): Promise<{
     ok: boolean;
     settings: {
@@ -99,12 +123,14 @@ export declare function privateSettingsStatus(config?: DBhopperConfig): Promise<
         PATH_CLM: string;
         PATH_BUY: string;
         PATH_PYM: string;
+        PATH_PRC: string;
         DELAY_PROVIDER: "auto" | "db-timetables" | "bahn-web";
         DELAY_FALLBACK: "db-timetables" | "bahn-web" | "none";
         userCredentialsDir: string;
         claimProfilesDir: string;
         buyingProfilesDir: string;
         paymentProfilesDir: string;
+        purchaseArtifactsDir: string;
     };
     credentials: {
         currentId: string;
@@ -138,7 +164,6 @@ export declare function writePrivateSettingsIds(updates: {
     claimProfileId?: string;
     buyingProfileId?: string;
     paymentProfileId?: string;
-    purchaseMode?: DBhopperPurchaseMode;
 }, config?: DBhopperConfig): Promise<{
     ok: boolean;
     settings: {
@@ -156,12 +181,14 @@ export declare function writePrivateSettingsIds(updates: {
         PATH_CLM: string;
         PATH_BUY: string;
         PATH_PYM: string;
+        PATH_PRC: string;
         DELAY_PROVIDER: "auto" | "db-timetables" | "bahn-web";
         DELAY_FALLBACK: "db-timetables" | "bahn-web" | "none";
         userCredentialsDir: string;
         claimProfilesDir: string;
         buyingProfilesDir: string;
         paymentProfilesDir: string;
+        purchaseArtifactsDir: string;
     };
     credentials: {
         currentId: string;
@@ -188,6 +215,62 @@ export declare function writePrivateSettingsIds(updates: {
         files: PrivateIdFile[];
     };
     messages: ValidationMessage[];
+}>;
+export declare function previewPrivateSettingsRuntimeConfig(updates: DBhopperRuntimeConfigUpdates, config?: DBhopperConfig): Promise<DBhopperRuntimeConfigPreview>;
+export declare function writePrivateSettingsRuntimeConfig(updates: DBhopperRuntimeConfigUpdates, config?: DBhopperConfig): Promise<{
+    preview: DBhopperRuntimeConfigPreview;
+    status: {
+        ok: boolean;
+        settings: {
+            exists: boolean;
+            settingsPath: string;
+            USE_DELAY_RETRIEVAL: boolean;
+            USE_CLAIM_REQUESTS: boolean;
+            USE_TICKET_PURCHASE: boolean;
+            ID_USR: string;
+            ID_CLM: string;
+            ID_BUY: string;
+            ID_PYM: string;
+            PURCHASE_MODE: DBhopperPurchaseMode;
+            PATH_USR: string;
+            PATH_CLM: string;
+            PATH_BUY: string;
+            PATH_PYM: string;
+            PATH_PRC: string;
+            DELAY_PROVIDER: "auto" | "db-timetables" | "bahn-web";
+            DELAY_FALLBACK: "db-timetables" | "bahn-web" | "none";
+            userCredentialsDir: string;
+            claimProfilesDir: string;
+            buyingProfilesDir: string;
+            paymentProfilesDir: string;
+            purchaseArtifactsDir: string;
+        };
+        credentials: {
+            currentId: string;
+            selected: PrivateIdFile | undefined;
+            availableIds: string[];
+            files: PrivateIdFile[];
+        };
+        paymentProfiles: {
+            currentId: string;
+            selected: PrivateIdFile | undefined;
+            availableIds: string[];
+            files: PrivateIdFile[];
+        };
+        claimProfiles: {
+            currentId: string;
+            selected: PrivateIdFile | undefined;
+            availableIds: string[];
+            files: PrivateIdFile[];
+        };
+        buyingProfiles: {
+            currentId: string;
+            selected: PrivateIdFile | undefined;
+            availableIds: string[];
+            files: PrivateIdFile[];
+        };
+        messages: ValidationMessage[];
+    };
 }>;
 export declare function normalizePrivateId(value: string, field: PrivateIdField): string;
 export declare function privateDirectoryLocationError(dir: string, idField: PrivateIdField, root: string): Promise<ValidationMessage | undefined>;

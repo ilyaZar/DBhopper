@@ -6,8 +6,9 @@ import { createCredentialsToolDefinitions } from "./credentials-tools.js";
 import { createDbDelayToolDefinitions } from "./db-delay-tools.js";
 import { BAHN_WEB_TRANSPORTS, DELAY_PROVIDERS, } from "./delay-provider-options.js";
 import { createPrivateSettingsToolDefinitions } from "./private-settings-tools.js";
+import { PRIVATE_SETTINGS_CONFIGURE_TOOL_NAME } from "./tool-contracts.js";
 import { createTicketBuyingToolDefinitions } from "./ticket-buying.js";
-import { featureSettingForToolName, featureSettingLabel, featureSettingsSummary, readTopLevelSettings, } from "./plugin-settings.js";
+import { featureSettingEnableSuggestion, featureSettingForToolName, featureSettingLabel, featureSettingsSummary, readTopLevelSettings, } from "./plugin-settings.js";
 import { buildDBhopperApprovalDescription, createDBhopperTools, resolveApprovalToolNames, } from "./tools.js";
 const configSchema = Type.Object({
     workspaceRoot: Type.Optional(Type.String({
@@ -143,9 +144,10 @@ function featureDisabledResult(toolName, setting, settings) {
         requiredSetting: setting,
         needs_configuration: true,
         settings: featureSettingsSummary(settings),
+        ...featureSettingEnableSuggestion(setting),
         message: [
             `${featureSettingLabel(setting)} is disabled in assets/private/settings.toml.`,
-            `Set ${setting} = true to enable ${toolName}.`,
+            `Ask to set ${setting} = true with ${PRIVATE_SETTINGS_CONFIGURE_TOOL_NAME} to enable ${toolName}.`,
         ].join(" "),
     };
 }

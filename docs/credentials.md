@@ -31,22 +31,25 @@ path_usr = "../dbhopper-private/credentials"
 path_clm = "../dbhopper-private/profiles"
 path_buy = "../dbhopper-private/profiles"
 path_pym = "../dbhopper-private/credentials"
+path_prc = "../dbhopper-private/purchases"
 delay_provider = "bahn-web"
 delay_fallback = "none"
 ```
 
 `path_usr`, `path_clm`, `path_buy`, and `path_pym` are user-controlled scan
-directories outside the plugin workspace. They may be relative to the plugin
+directories outside the plugin workspace. `path_prc` stores sensitive purchase
+review screenshots outside the workspace. They may be relative to the plugin
 directory or absolute within the user file system, but DBhopper rejects paths
 inside the workspace, including `assets/private/`. OpenClaw agents should only
-change `ID_USR`, `ID_CLM`, `ID_BUY`, `ID_PYM`, and `purchase_mode` through
-`dbhopper_private_settings_select`.
+change `ID_USR`, `ID_CLM`, `ID_BUY`, and `ID_PYM` through
+`dbhopper_private_settings_select`. Runtime modes, including `purchase_mode`,
+are changed through `dbhopper_private_settings_configure` with an explicit
+preview and confirmation.
 
 `purchase_mode` defaults to `"review"`, which captures a sensitive DB
-Check-page screenshot artifact under `assets/private/purchases/` and stops
-before final order controls. `"auto"` records that automatic buying was
-requested, but final buying is not enabled yet, so checkout still stops before
-the final order button.
+Check-page screenshot artifact under `path_prc` and stops before final order
+controls. `"auto"` records that automatic buying was requested, but final buying
+is not enabled yet, so checkout still stops before the final order button.
 
 Use the selected external private paths inside this single settings TOML file.
 The settings file itself always remains at `assets/private/settings.toml`.

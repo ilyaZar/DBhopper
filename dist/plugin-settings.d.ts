@@ -15,3 +15,9 @@ export declare function featureSettingsSummary(settings: DBhopperFeatureSettings
     autonomous_claims: boolean;
     autonomous_ticket_purchase: boolean;
 };
+export declare function featureSettingEnableSuggestion(setting: DBhopperFeatureSettingName): {
+    suggestedTool: string;
+    suggestedChange: {
+        [setting]: boolean;
+    };
+};
