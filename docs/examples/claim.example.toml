@@ -1,0 +1,60 @@
+# Selects this claim from assets/private/settings.toml.
+ID_CLM = "01"
+
+# Optional local workflow state for humans and tools.
+status = "draft"
+
+# Claimant identity and contact data for the personal details page.
+[claimant]
+salutation = "Herr"
+first_name = "Max"
+last_name = "Mustermann"
+email = "max.mustermann@example.org"
+phone = "+49 221 1234 5678"
+
+# Claimant address for the personal details page.
+[claimant.address]
+street_number = "Musterstrasse 12"
+zip = "50667"
+city = "Köln"
+country = "Deutschland"
+
+# Bank account for the reimbursement page.
+[claimant.bank]
+account_owner = "Max Mustermann"
+iban = "DE00 0000 0000 0000 0000 00"
+
+# Delayed local journey facts for station, date, time, and train selection.
+[journey]
+date = "2026-06-18"
+scheduled_departure_time = "12:42"
+start_station = "Duisburg Hbf"
+end_station = "Köln Messe/Deutz Bf"
+planned_line = "RE5"
+disruption_type = "delay"
+replacement_started_at = "12:49"
+
+# Ticket and replacement-service facts for the ticket page.
+[ticket]
+base_ticket_name = "Semesterticket"
+base_ticket_category = "Sonstiges Ticket"
+tariff_area = "NRW-Tarif"
+substitute_type = "long_distance"
+substitute_cost = 38.00
+companions = 0
+description = "Anbei auch Bilder, die die Verspätung verifizieren. Vielen Dank für die Bearbeitung!"
+
+# Original local, NRW, or Deutschlandticket proof.
+[[files]]
+role = "base_ticket"
+path = "base-ticket.png"
+
+# Replacement ticket receipt or invoice.
+[[files]]
+role = "substitute_receipt"
+path = "replacement-ticket-receipt.pdf"
+
+# Optional delay proof screenshots. Keep this list at three files or fewer.
+[[files]]
+role = "delay_evidence"
+paths = ["delay-evidence-1.png", "delay-evidence-2.png"]
