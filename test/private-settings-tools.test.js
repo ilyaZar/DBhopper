@@ -38,10 +38,13 @@ describe("dbhopper private settings tools", () => {
 
     assert.equal(configureTool.parameters.additionalProperties, false);
     assert.deepEqual(properties, [
+      "claim_request_mode",
       "confirm",
       "delay_fallback",
       "delay_provider",
       "purchase_mode",
+      "test_run_claim_request",
+      "test_run_purchase",
       "use_claim_requests",
       "use_delay_retrieval",
       "use_ticket_purchase",
@@ -125,6 +128,9 @@ describe("dbhopper private settings tools", () => {
         use_delay_retrieval: false,
         use_claim_requests: true,
         use_ticket_purchase: true,
+        test_run_claim_request: true,
+        test_run_purchase: true,
+        claim_request_mode: "auto",
         delay_provider: "auto",
         delay_fallback: "bahn-web",
         purchase_mode: "auto",
@@ -139,6 +145,9 @@ describe("dbhopper private settings tools", () => {
     assert.match(settings, /use_delay_retrieval = false/);
     assert.match(settings, /use_claim_requests = true/);
     assert.match(settings, /use_ticket_purchase = true/);
+    assert.match(settings, /test_run_claim_request = true/);
+    assert.match(settings, /test_run_purchase = true/);
+    assert.match(settings, /claim_request_mode = "auto"/);
     assert.match(settings, /delay_provider = "auto"/);
     assert.match(settings, /delay_fallback = "bahn-web"/);
     assert.match(settings, /purchase_mode = "auto"/);

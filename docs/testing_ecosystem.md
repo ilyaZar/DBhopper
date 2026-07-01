@@ -174,9 +174,10 @@ Safety rules:
 - Do not store CVC, CVV, CID, PIN, or similar authentication secrets in
   DBhopper files.
 - Do not capture page text after payment-profile fields are filled.
-- Capture per-stage page text and screenshots only when the caller passes
-  `test_drive_purchase: true` for an explicit purchase test drive. Test-drive
-  files under `tmp/` are prefixed with visit numbers such as `01_`.
+- Capture per-stage page text and screenshots only when `test_run_purchase =
+  true` is set in `settings.toml` for an explicit purchase test run. Test-run
+  files under external `path_prc/test-runs` are prefixed with visit numbers
+  such as `01_`.
 - Capture screenshots after payment-profile fields only for the explicit
   review-mode Check-page artifact. Mark those artifacts sensitive and keep the
   user-facing copy under configured `path_prc`.
@@ -195,7 +196,7 @@ Safety rules:
 deterministic plan only. With `open_browser: true`, it opens the official DB
 website, applies the supplied route and outbound date/time, and stops after
 search/results. It writes no page-by-page artifact trail unless
-`test_drive_purchase: true` is set.
+`test_run_purchase = true` is set in `settings.toml`.
 
 When `login_before_search: true`, the dry run logs into the configured
 `[bahn_account]` before searching. `stay_logged_in` defaults to `true`.
@@ -211,9 +212,9 @@ When the Check page is reached in review mode, `finalSafetyStop` is
 `reviewScreenshot` points to the sensitive local screenshot artifact under
 configured `path_prc`. In auto mode, `reviewGate.status` is `auto_unavailable`;
 the plugin does not click the final buying button. The optional
-`test_drive_purchase: true` flag also records the pre-payment page text and
-screenshots, plus a numbered copy of the review screenshot, in the ignored
-timestamped `tmp/ticket-purchase-test-drive-*` directory.
+`test_run_purchase = true` settings flag also records the pre-payment page text
+and screenshots, plus a numbered copy of the review screenshot, in the ignored
+timestamped `path_prc/test-runs/ticket-purchase-test-run-*` directory.
 
 ## Delay Retrieval Tests
 

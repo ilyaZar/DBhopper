@@ -15,26 +15,8 @@ before copying `docs/examples/credentials.example.toml` into it, then set the
 
 ## Settings Router
 
-The single settings file is `assets/private/settings.toml`:
-
-```toml
-use_delay_retrieval = true
-use_claim_requests = false
-use_ticket_purchase = false
-
-ID_USR = "01"
-ID_CLM = "01"
-ID_BUY = "01"
-ID_PYM = "01"
-purchase_mode = "review"
-path_usr = "../dbhopper-private/credentials"
-path_clm = "../dbhopper-private/claims"
-path_buy = "../dbhopper-private/profiles"
-path_pym = "../dbhopper-private/credentials"
-path_prc = "../dbhopper-private/purchases"
-delay_provider = "bahn-web"
-delay_fallback = "none"
-```
+The single settings file is `assets/private/settings.toml`. Use the canonical
+settings shape from `docs/examples/settings.example.toml`.
 
 `path_usr`, `path_clm`, `path_buy`, and `path_pym` are user-controlled scan
 directories outside the plugin workspace. `path_prc` stores sensitive purchase

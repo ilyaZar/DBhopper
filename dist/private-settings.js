@@ -18,10 +18,13 @@ const SETTINGS_KEYS = new Set([
     "USE_DELAY_RETRIEVAL",
     "USE_CLAIM_REQUESTS",
     "USE_TICKET_PURCHASE",
+    "TEST_RUN_CLAIM_REQUEST",
+    "TEST_RUN_PURCHASE",
     "ID_USR",
     "ID_CLM",
     "ID_BUY",
     "ID_PYM",
+    "CLAIM_REQUEST_MODE",
     "PURCHASE_MODE",
     "PATH_USR",
     "PATH_CLM",
@@ -56,6 +59,9 @@ const PRIVATE_SETTINGS_ALIASES = {
         use_delay_retrieval: "USE_DELAY_RETRIEVAL",
         use_claim_requests: "USE_CLAIM_REQUESTS",
         use_ticket_purchase: "USE_TICKET_PURCHASE",
+        test_run_claim_request: "TEST_RUN_CLAIM_REQUEST",
+        test_run_purchase: "TEST_RUN_PURCHASE",
+        claim_request_mode: "CLAIM_REQUEST_MODE",
         purchase_mode: "PURCHASE_MODE",
         path_usr: "PATH_USR",
         path_clm: "PATH_CLM",
@@ -68,6 +74,7 @@ const PRIVATE_SETTINGS_ALIASES = {
 };
 const DELAY_PROVIDER_VALUES = new Set(DELAY_PROVIDERS);
 const DELAY_FALLBACK_VALUES = new Set(DELAY_FALLBACKS);
+const CLAIM_REQUEST_MODE_VALUES = new Set(["review", "auto"]);
 const PURCHASE_MODE_VALUES = new Set(["review", "auto"]);
 export function privateSettingsPath(config = {}) {
     return path.resolve(config.settingsPath || path.join(PACKAGE_ROOT, SETTINGS_RELATIVE_PATH));
@@ -80,10 +87,13 @@ export function defaultPrivateSettings() {
         USE_DELAY_RETRIEVAL: true,
         USE_CLAIM_REQUESTS: false,
         USE_TICKET_PURCHASE: false,
+        TEST_RUN_CLAIM_REQUEST: false,
+        TEST_RUN_PURCHASE: false,
         ID_USR: DEFAULT_ID,
         ID_CLM: DEFAULT_ID,
         ID_BUY: DEFAULT_ID,
         ID_PYM: DEFAULT_ID,
+        CLAIM_REQUEST_MODE: "review",
         PURCHASE_MODE: "review",
         PATH_USR: DEFAULT_USER_CREDENTIALS_PATH,
         PATH_CLM: DEFAULT_CLAIM_PROFILES_PATH,
@@ -129,11 +139,14 @@ export function stringifyPrivateSettingsToml(settings) {
         `use_delay_retrieval = ${tomlBoolean(settings.USE_DELAY_RETRIEVAL)}`,
         `use_claim_requests = ${tomlBoolean(settings.USE_CLAIM_REQUESTS)}`,
         `use_ticket_purchase = ${tomlBoolean(settings.USE_TICKET_PURCHASE)}`,
+        `test_run_claim_request = ${tomlBoolean(settings.TEST_RUN_CLAIM_REQUEST)}`,
+        `test_run_purchase = ${tomlBoolean(settings.TEST_RUN_PURCHASE)}`,
         "",
         `ID_USR = ${tomlString(settings.ID_USR)}`,
         `ID_CLM = ${tomlString(settings.ID_CLM)}`,
         `ID_BUY = ${tomlString(settings.ID_BUY)}`,
         `ID_PYM = ${tomlString(settings.ID_PYM)}`,
+        `claim_request_mode = ${tomlString(settings.CLAIM_REQUEST_MODE)}`,
         `purchase_mode = ${tomlString(settings.PURCHASE_MODE)}`,
         `path_usr = ${tomlString(settings.PATH_USR)}`,
         `path_clm = ${tomlString(settings.PATH_CLM)}`,
@@ -248,10 +261,13 @@ export async function privateSettingsStatus(config = {}) {
             USE_DELAY_RETRIEVAL: settings.settings.USE_DELAY_RETRIEVAL,
             USE_CLAIM_REQUESTS: settings.settings.USE_CLAIM_REQUESTS,
             USE_TICKET_PURCHASE: settings.settings.USE_TICKET_PURCHASE,
+            TEST_RUN_CLAIM_REQUEST: settings.settings.TEST_RUN_CLAIM_REQUEST,
+            TEST_RUN_PURCHASE: settings.settings.TEST_RUN_PURCHASE,
             ID_USR: settings.settings.ID_USR,
             ID_CLM: settings.settings.ID_CLM,
             ID_BUY: settings.settings.ID_BUY,
             ID_PYM: settings.settings.ID_PYM,
+            CLAIM_REQUEST_MODE: settings.settings.CLAIM_REQUEST_MODE,
             PURCHASE_MODE: settings.settings.PURCHASE_MODE,
             PATH_USR: settings.settings.PATH_USR,
             PATH_CLM: settings.settings.PATH_CLM,
@@ -340,6 +356,9 @@ export async function writePrivateSettingsRuntimeConfig(updates, config = {}) {
         USE_DELAY_RETRIEVAL: normalized.use_delay_retrieval ?? loaded.settings.USE_DELAY_RETRIEVAL,
         USE_CLAIM_REQUESTS: normalized.use_claim_requests ?? loaded.settings.USE_CLAIM_REQUESTS,
         USE_TICKET_PURCHASE: normalized.use_ticket_purchase ?? loaded.settings.USE_TICKET_PURCHASE,
+        TEST_RUN_CLAIM_REQUEST: normalized.test_run_claim_request ?? loaded.settings.TEST_RUN_CLAIM_REQUEST,
+        TEST_RUN_PURCHASE: normalized.test_run_purchase ?? loaded.settings.TEST_RUN_PURCHASE,
+        CLAIM_REQUEST_MODE: normalized.claim_request_mode ?? loaded.settings.CLAIM_REQUEST_MODE,
         DELAY_PROVIDER: normalized.delay_provider ?? loaded.settings.DELAY_PROVIDER,
         DELAY_FALLBACK: normalized.delay_fallback ?? loaded.settings.DELAY_FALLBACK,
         PURCHASE_MODE: normalized.purchase_mode ?? loaded.settings.PURCHASE_MODE,
@@ -381,6 +400,9 @@ function normalizePrivateSettings(value, source) {
     const table = normalizedValue;
     assertKnownKeys(table, SETTINGS_KEYS, source);
     table.PATH_PRC ??= defaultPrivateSettings().PATH_PRC;
+    table.TEST_RUN_CLAIM_REQUEST ??= defaultPrivateSettings().TEST_RUN_CLAIM_REQUEST;
+    table.TEST_RUN_PURCHASE ??= defaultPrivateSettings().TEST_RUN_PURCHASE;
+    table.CLAIM_REQUEST_MODE ??= defaultPrivateSettings().CLAIM_REQUEST_MODE;
     assertPrivateSettingsShape(table, source);
     return table;
 }
@@ -394,10 +416,13 @@ function assertPrivateSettingsShape(value, source) {
     assertBoolean(value.USE_DELAY_RETRIEVAL, `${source}.use_delay_retrieval`);
     assertBoolean(value.USE_CLAIM_REQUESTS, `${source}.use_claim_requests`);
     assertBoolean(value.USE_TICKET_PURCHASE, `${source}.use_ticket_purchase`);
+    assertBoolean(value.TEST_RUN_CLAIM_REQUEST, `${source}.test_run_claim_request`);
+    assertBoolean(value.TEST_RUN_PURCHASE, `${source}.test_run_purchase`);
     assertString(value.ID_USR, `${source}.ID_USR`);
     assertString(value.ID_CLM, `${source}.ID_CLM`);
     assertString(value.ID_BUY, `${source}.ID_BUY`);
     assertString(value.ID_PYM, `${source}.ID_PYM`);
+    assertString(value.CLAIM_REQUEST_MODE, `${source}.claim_request_mode`);
     assertString(value.PATH_USR, `${source}.path_usr`);
     assertString(value.PATH_CLM, `${source}.path_clm`);
     assertString(value.PATH_BUY, `${source}.path_buy`);
@@ -410,9 +435,14 @@ function assertPrivateSettingsShape(value, source) {
     normalizePrivateId(value.ID_CLM, "ID_CLM");
     normalizePrivateId(value.ID_BUY, "ID_BUY");
     normalizePrivateId(value.ID_PYM, "ID_PYM");
+    assertOneOf(value.CLAIM_REQUEST_MODE, CLAIM_REQUEST_MODE_VALUES, `${source}.claim_request_mode`);
     assertOneOf(value.PURCHASE_MODE, PURCHASE_MODE_VALUES, `${source}.purchase_mode`);
     assertOneOf(value.DELAY_PROVIDER, DELAY_PROVIDER_VALUES, `${source}.DELAY_PROVIDER`);
     assertOneOf(value.DELAY_FALLBACK, DELAY_FALLBACK_VALUES, `${source}.DELAY_FALLBACK`);
+}
+function normalizeClaimRequestMode(value, source) {
+    assertOneOf(value, CLAIM_REQUEST_MODE_VALUES, source);
+    return value;
 }
 function normalizePurchaseMode(value, source) {
     assertOneOf(value, PURCHASE_MODE_VALUES, source);
@@ -431,6 +461,17 @@ function normalizeRuntimeConfigUpdates(updates) {
     if ("use_ticket_purchase" in updates) {
         assertBoolean(updates.use_ticket_purchase, "use_ticket_purchase");
         normalized.use_ticket_purchase = updates.use_ticket_purchase;
+    }
+    if ("test_run_claim_request" in updates) {
+        assertBoolean(updates.test_run_claim_request, "test_run_claim_request");
+        normalized.test_run_claim_request = updates.test_run_claim_request;
+    }
+    if ("test_run_purchase" in updates) {
+        assertBoolean(updates.test_run_purchase, "test_run_purchase");
+        normalized.test_run_purchase = updates.test_run_purchase;
+    }
+    if ("claim_request_mode" in updates) {
+        normalized.claim_request_mode = normalizeClaimRequestMode(updates.claim_request_mode, "claim_request_mode");
     }
     if ("delay_provider" in updates) {
         assertOneOf(updates.delay_provider, DELAY_PROVIDER_VALUES, "delay_provider");
@@ -475,6 +516,9 @@ function runtimeConfigSettings(settings) {
         use_delay_retrieval: settings.USE_DELAY_RETRIEVAL,
         use_claim_requests: settings.USE_CLAIM_REQUESTS,
         use_ticket_purchase: settings.USE_TICKET_PURCHASE,
+        test_run_claim_request: settings.TEST_RUN_CLAIM_REQUEST,
+        test_run_purchase: settings.TEST_RUN_PURCHASE,
+        claim_request_mode: settings.CLAIM_REQUEST_MODE,
         delay_provider: settings.DELAY_PROVIDER,
         delay_fallback: settings.DELAY_FALLBACK,
         purchase_mode: settings.PURCHASE_MODE,
@@ -494,12 +538,32 @@ function runtimeConfigMeaning(field, value) {
             return value
                 ? "Enable ticket search and checkout dry-run tools."
                 : "Disable ticket search and checkout dry-run tools.";
+        case "test_run_claim_request":
+            return value
+                ? "Save page-by-page claim browser text and screenshots in external artifacts."
+                : "Save only the claim summary review screenshot by default.";
+        case "test_run_purchase":
+            return value
+                ? "Save numbered purchase browser text and screenshots in external artifacts."
+                : "Save only the purchase review screenshot by default.";
+        case "claim_request_mode":
+            return claimRequestModeMeaning(value);
         case "delay_provider":
             return delayProviderMeaning(value);
         case "delay_fallback":
             return delayFallbackMeaning(value);
         case "purchase_mode":
             return purchaseModeMeaning(value);
+    }
+}
+function claimRequestModeMeaning(value) {
+    switch (value) {
+        case "review":
+            return "Stop claim filing at the summary page, save a review screenshot, and do not submit.";
+        case "auto":
+            return "Allow claim submit mode only when the tool call also passes mode submit and confirmSubmit true.";
+        default:
+            return "Unknown claim request mode.";
     }
 }
 function delayProviderMeaning(value) {

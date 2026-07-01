@@ -22,7 +22,7 @@ const configSchema = Type.Object({
         description: "Optional Chromium or Chrome executable path for browser filing.",
     })),
     artifactRoot: Type.Optional(Type.String({
-        description: "Optional directory for ignored local browser-run artifacts.",
+        description: "Optional external directory for claim browser-run artifacts.",
     })),
     headless: Type.Optional(Type.Boolean({
         default: true,

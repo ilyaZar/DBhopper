@@ -4,6 +4,7 @@ import { BAHNHOF_SUFFIX_CHECKS, probeBrowser, runBrowserClaim, } from "./browser
 import { claimSchemaReference, validateClaim } from "./validation.js";
 import { errorMessage } from "./errors.js";
 import { listClaims, prepareClaim, readClaim, redactEmail, validateWorkspaceTomlFiles, writeSubmittedRecipe, } from "./workspace.js";
+import { readPrivateSettings } from "./private-settings.js";
 const SIDE_EFFECT_TOOL_NAMES = new Set([
     ...SIDE_EFFECT_CLAIM_TOOL_NAMES,
     PRIVATE_SETTINGS_CONFIGURE_TOOL_NAME,
@@ -245,6 +246,10 @@ function runClaimTool() {
                     throw new Error("claimId is required");
                 }
                 const prepared = await readClaim(params.claimId, this.config);
+                const privateSettings = await readPrivateSettings(this.config);
+                const claimRequestMode = privateSettings.settings.CLAIM_REQUEST_MODE;
+                const requestedMode = params.mode || "dry_run";
+                const browserMode = claimRequestMode === "auto" ? requestedMode : "dry_run";
                 const validation = validateClaim(prepared.claim);
                 if (!validation.readyForBrowser) {
                     return textResult({
@@ -256,7 +261,7 @@ function runClaimTool() {
                         message: "claim is not ready for browser filing",
                     });
                 }
-                if (params.mode === "submit" && !validation.readyForSubmit) {
+                if (browserMode === "submit" && !validation.readyForSubmit) {
                     return textResult({
                         ok: false,
                         operation: "run_claim",
@@ -269,7 +274,7 @@ function runClaimTool() {
                 const result = await runBrowserClaim({
                     claim: prepared.claim,
                     claimDir: prepared.claimDir,
-                    mode: params.mode || "dry_run",
+                    mode: browserMode,
                     confirmSubmit: params.confirmSubmit,
                     stopAfterStationResolution: params.stop_after_station_resolution,
                     checkBahnhofSuffix: params.check_bahnhof_suffix,
@@ -279,7 +284,7 @@ function runClaimTool() {
                     exactStationArrival: params.exact_station_arrival,
                     headless: params.headless ?? this.config.headless,
                     browserExecutablePath: this.config.browserExecutablePath,
-                    artifactRoot: this.config.artifactRoot,
+                    testRunClaimRequest: privateSettings.settings.TEST_RUN_CLAIM_REQUEST,
                     timeoutMs: this.config.timeoutMs,
                 });
                 const recipePath = result.submitted && result.ok ? await writeSubmittedRecipe(prepared) : undefined;
@@ -287,6 +292,8 @@ function runClaimTool() {
                     ok: result.ok,
                     operation: "run_claim",
                     claimId: prepared.claimId,
+                    claimRequestMode,
+                    requestedMode,
                     recipePath,
                     validation,
                     result,

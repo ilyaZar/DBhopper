@@ -13,7 +13,7 @@ export interface BrowserRunParams {
     exactStationArrival?: string;
     headless?: boolean;
     browserExecutablePath?: string;
-    artifactRoot?: string;
+    testRunClaimRequest?: boolean;
     timeoutMs?: number;
 }
 export interface BrowserRunResult {

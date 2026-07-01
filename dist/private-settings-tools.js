@@ -71,7 +71,7 @@ export function createPrivateSettingsToolDefinitions(tool) {
             description: [
                 "Preview or confirm important DBhopper settings changes.",
                 "Controls workflow gates, delay backend mode, fallback mode,",
-                "and purchase review mode in assets/private/settings.toml.",
+                "claim review mode, and purchase review mode in assets/private/settings.toml.",
             ].join(" "),
             optional: true,
             parameters: Type.Object({
@@ -83,6 +83,15 @@ export function createPrivateSettingsToolDefinitions(tool) {
                 })),
                 use_ticket_purchase: Type.Optional(Type.Boolean({
                     description: "Enable or disable ticket search and checkout dry-run tools.",
+                })),
+                test_run_claim_request: Type.Optional(Type.Boolean({
+                    description: "When true, save page-by-page claim browser text and screenshots externally.",
+                })),
+                test_run_purchase: Type.Optional(Type.Boolean({
+                    description: "When true, save numbered purchase browser text and screenshots externally.",
+                })),
+                claim_request_mode: Type.Optional(Type.Union([Type.Literal("review"), Type.Literal("auto")], {
+                    description: "Final claim filing mode. review stops for summary screenshot inspection; auto allows confirmed submit mode.",
                 })),
                 delay_provider: Type.Optional(Type.Union(DELAY_PROVIDERS.map((provider) => Type.Literal(provider)), {
                     description: "Delay backend mode: bahn-web, db-timetables, or auto.",
@@ -102,6 +111,9 @@ export function createPrivateSettingsToolDefinitions(tool) {
                     use_delay_retrieval: params.use_delay_retrieval,
                     use_claim_requests: params.use_claim_requests,
                     use_ticket_purchase: params.use_ticket_purchase,
+                    test_run_claim_request: params.test_run_claim_request,
+                    test_run_purchase: params.test_run_purchase,
+                    claim_request_mode: params.claim_request_mode,
                     delay_provider: params.delay_provider,
                     delay_fallback: params.delay_fallback,
                     purchase_mode: params.purchase_mode,

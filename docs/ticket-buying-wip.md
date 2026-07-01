@@ -60,8 +60,9 @@ unless there is a documented and permitted purchasing API.
 
 Ticket dry-run safety rules and the current testing tool shape are documented
 in `docs/testing_ecosystem.md`. Per-stage text and screenshots are explicit
-purchase test-drive artifacts, enabled only by `test_drive_purchase: true`; the
-normal review screenshot is stored under configured `path_prc`.
+purchase test-run artifacts, enabled only by `test_run_purchase = true` in
+`settings.toml`; the normal review screenshot is stored under configured
+`path_prc`.
 
 ## Future Work
 

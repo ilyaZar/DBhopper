@@ -23,15 +23,17 @@ North Rhine-Westphalia.
    to those external directories. Use
    `dbhopper_private_settings_status` to list IDs and
    `dbhopper_private_settings_select` to change only `ID_USR`, `ID_CLM`,
-   `ID_BUY`, `ID_PYM`, and `purchase_mode`.
+   `ID_BUY`, and `ID_PYM`. Use `dbhopper_private_settings_configure` for
+   runtime modes such as `claim_request_mode` and `purchase_mode`.
 5. Put reusable sensitive personal data in claim profile TOML files selected by
    `ID_CLM`; do not read those files into the conversation.
 6. Put DB API and DB website credentials in private credential TOML files
    selected by `ID_USR`; do not read those files into the conversation.
 7. Put payment details in private payment profile TOML files selected by
    `ID_PYM`; do not read those files into the conversation.
-8. Browser-run artifacts are saved under the configured ignored artifact
-   directory. Inspect screenshots there before asking for real submission.
+8. Normal browser runs save only explicit review checkpoint screenshots:
+   `summaryScreenshot` for claims and `reviewScreenshot` for ticket checkout.
+   Send or show those images to the user before asking for real submission.
 
 ## Workflow
 
@@ -54,9 +56,10 @@ North Rhine-Westphalia.
    fields to force and verify that exact station. If the choices are ambiguous,
    stop and ask the user for the exact station name before rerunning.
 6. Call `dbhopper_run_claim` with `mode: "dry_run"` for the full review pass.
-   It must stop at the summary page and save artifacts.
+   It must stop at the summary page and return `summaryScreenshot`.
 7. Submit only after the user explicitly confirms the exact claim and the dry
-   run artifacts look correct. Use `mode: "submit"` and `confirmSubmit: true`.
+   run summary screenshot looks correct. `claim_request_mode` must be `auto`,
+   and the tool call must use `mode: "submit"` and `confirmSubmit: true`.
 8. After a successful submit, the claim folder should contain the confirmation
    PDF and `claim_submitted_recipe.toml`. Send the saved confirmation PDF path
    back through the active user channel. If a configured email tool is
@@ -71,10 +74,10 @@ North Rhine-Westphalia.
    `dbhopper_ticket_checkout_dry_run` to explore checkout boundaries. These
    tools must not buy a ticket. In default review mode, checkout runs stop on
    DB's Check page and return a sensitive screenshot artifact under
-   `assets/private/purchases/` for user review. Pass
-   `test_drive_purchase: true` only when the user explicitly asks for the
-   numbered per-stage purchase test-drive text and screenshot trail under
-   ignored `tmp/`.
+   `assets/private/purchases/` for user review. Set
+   `test_run_purchase = true` in `settings.toml` only when the user explicitly
+   asks for the numbered per-stage purchase test-run text and screenshot trail
+   under external `path_prc/test-runs`.
    If `purchase_mode` is `auto`, expect `auto_unavailable` until final
    purchase-capable automation is deliberately implemented.
 
@@ -122,6 +125,11 @@ station values as guesses, not as exact accepted form values.
   form's private `/api/public/complaint/create` endpoint.
 - Do not inspect `claim.toml` or claim profile files unless the user asks.
   Treat claim data and browser artifacts as sensitive by default.
+- Set `test_run_claim_request = true` only when the user explicitly asks for a
+  page-by-page claim browser text and screenshot trail. Otherwise use only the
+  returned `summaryScreenshot`.
+- Keep `claim_request_mode = "review"` for ordinary claim dry-runs. Switch it
+  to `"auto"` only after the user explicitly wants final submission enabled.
 - Do not inspect credential or payment TOML files unless the user explicitly
   asks. Use `dbhopper_credentials_validate` for shape checks without exposing
   secrets.
