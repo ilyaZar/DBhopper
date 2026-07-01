@@ -374,12 +374,12 @@ It was run against the live embedded form and stopped at the final summary page
 without submitting. Local artifacts are under:
 
 ```text
-/home/iz/Documents/dbhopper-own-tests/tmp/browser-runs/live-dummy-essen-koeln-re1-2026-07-01T17-11-27-306Z/
+/home/iz/Documents/dbhopper-own-tests/tmp/browser-runs/live-dummy-essen-koeln-re1-2026-07-01T17-20-57-893Z/
 ```
 
 Verified summary facts:
 
-- start station: `Duisburg Hbf (Osteingang), Duisburg`
+- start station: `Duisburg Hbf, Duisburg`
 - destination: `Köln Messe/Deutz Bf, Köln`
 - station resolution returned the TOML guess, dropdown choices, and selected
   live option for both station fields
