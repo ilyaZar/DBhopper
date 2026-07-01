@@ -143,19 +143,19 @@ Default free text:
 
 ## Screenshot Flow
 
-| Step | Screenshot | Page State                | Required Automation |
-| ---- | ---------- | ------------------------- | ------------------- |
-| 1    | `01_*`     | NRW info page             | Open entry URL and click the orange online-form button. |
-| 2    | `02_*`     | consent iframe/modal      | Click `Akzeptieren`. |
-| 3    | `03_*`     | legal questions           | Tick only the first required rule checkbox, then save. |
-| 4    | `04_*`     | claimant data             | Fill from selected external claim TOML. |
-| 5    | `05_*`     | incident date/time        | Fill date, time, start, and destination. |
-| 6    | `06_*`     | station text fields       | Try normalized station candidates. |
-| 7    | `07_*`     | station suggestion menu   | Select the exact live menu option, not arbitrary text. |
-| 8    | `08_*`     | connection result table   | Select the intended delayed local service. |
-| 9    | `09_*`     | ticket and evidence       | Fill ticket facts, upload evidence, fill description. |
-| 10   | `10_*`    | bank data                 | Check prefill and fill IBAN from private profile. |
-| 11   | `11_*`    | final summary             | Save screenshot and stop before submit. |
+| Step | Screenshot                                      | Size      | Page State              | Required Automation |
+| ---- | ----------------------------------------------- | --------- | ----------------------- | ------------------- |
+| 1    | `01_first_page.png`                             | `935x743` | NRW info page           | Open entry URL and click the orange online-form button. |
+| 2    | `02_accept_mobilitaetsgarantie_form.png`        | `1196x438` | consent iframe/modal    | Click `Akzeptieren`. |
+| 3    | `03_acceptance_pass_01.png`                     | `930x379` | legal questions         | Tick only the first required rule checkbox, then save. |
+| 4    | `04_personal_data.png`                          | `865x852` | claimant data           | Fill from selected external claim TOML. |
+| 5    | `05_place_date_meta_info.png`                   | `878x340` | incident date/time      | Fill date, time, start, and destination. |
+| 6    | `06_how_to_guess.png`                           | `835x134` | station text fields     | Try normalized station candidates. |
+| 7    | `07_how_to_guess_2.png`                         | `881x294` | station suggestion menu | Select the exact live menu option, not arbitrary text. |
+| 8    | `08_long_train_list.png`                        | `938x577` | connection result table | Select the intended delayed local service. |
+| 9    | `09_base_ticket.png`                            | `717x801` | ticket and evidence     | Fill ticket facts, upload evidence, fill description. |
+| 10   | `10_banking.png`                                | `716x243` | bank data               | Check prefill and fill IBAN from private profile. |
+| 11   | `11_final_page.png`                             | `749x747` | final summary           | Save screenshot and stop before submit. |
 
 Keep the external screenshot filenames stable; they are the manual reference for
 this spec. Do not commit the screenshots unless a separate task deliberately
