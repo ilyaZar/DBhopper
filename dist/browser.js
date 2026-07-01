@@ -311,6 +311,11 @@ async function chooseAutocomplete(page, selector, value, field) {
         if (selected) {
             await page.waitForTimeout(500);
             await page.keyboard.press("Escape").catch(() => undefined);
+            await control.press("Tab").catch(() => undefined);
+            await autocompleteOptions(page, selector)
+                .first()
+                .waitFor({ state: "hidden", timeout: 1500 })
+                .catch(() => undefined);
             return {
                 field,
                 input: value,
@@ -341,7 +346,7 @@ async function clickMatchingAutocompleteOption(page, selector, value) {
         return undefined;
     }
     const candidates = autocompleteCandidates(value).map(normalizeStationMatchText);
-    return autocompleteOptions(page, selector).evaluateAll((nodes, payload) => {
+    const match = await autocompleteOptions(page, selector).evaluateAll((nodes, payload) => {
         const normalize = (text) => text
             .normalize("NFKD")
             .replace(/\p{Diacritic}/gu, "")
@@ -368,7 +373,11 @@ async function clickMatchingAutocompleteOption(page, selector, value) {
                     score += 1;
                 }
             }
-            return score / Math.max(1, new Set(inputTokens).size);
+            const inputSet = new Set(inputTokens);
+            const extraTokens = [...new Set(optionTokens)]
+                .filter((token) => !inputSet.has(token));
+            const extraPenalty = Math.min(1.5, extraTokens.length * 0.75);
+            return (score / Math.max(1, inputSet.size)) - extraPenalty;
         };
         const isHbfMatch = (input, option) => {
             const inputText = normalize(input);
@@ -387,7 +396,7 @@ async function clickMatchingAutocompleteOption(page, selector, value) {
                 (optionText.includes("hbf") || optionText.includes("hauptbahnhof"));
         };
         let best;
-        for (const node of nodes) {
+        for (const [index, node] of nodes.entries()) {
             const text = node.textContent || "";
             const normalizedOption = normalize(text);
             const exactScore = payload.candidates.some((candidate) => normalizedOption.includes(candidate))
@@ -395,19 +404,22 @@ async function clickMatchingAutocompleteOption(page, selector, value) {
                 : 0;
             const hbfScore = isHbfMatch(payload.value, text) ? 50 : 0;
             const overlapScore = scoreOption(payload.value, text);
-            const score = Math.max(exactScore, hbfScore, overlapScore);
+            const specificityScore = scoreOption(payload.value, text);
+            const score = Math.max(exactScore, hbfScore, overlapScore) + specificityScore;
             if (score >= 2 && (!best || score > best.score)) {
-                best = { node, text: text.trim().replace(/\s+/g, " "), score };
+                best = { index, text: text.trim().replace(/\s+/g, " "), score };
             }
         }
         if (!best) {
             return undefined;
         }
-        best.node.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
-        best.node.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
-        best.node.click();
-        return best.text;
+        return { index: best.index, text: best.text };
     }, { candidates, value });
+    if (!match) {
+        return undefined;
+    }
+    await autocompleteOptions(page, selector).nth(match.index).click({ force: true });
+    return match.text;
 }
 async function readAutocompleteOptions(page, selector) {
     await waitForAutocompleteOptions(page, selector);
@@ -585,10 +597,21 @@ function autocompleteCandidates(value) {
 }
 function stationCandidateVariants(value) {
     const cityOnly = value
-        .replace(/\b(?:Hbf|Hauptbahnhof)\b.*$/i, "")
+        .replace(/\b(?:Hbf|HBF|Hauptbahnhof)\b/gi, "")
+        .replace(/[()\\/,-]/g, " ")
         .replace(/\s+/g, " ")
         .trim();
     const hbfReordered = value.replace(/^(.+?)\s+(Hbf|HBF|Hauptbahnhof)$/i, "$2 $1");
+    if (/\b(?:Hbf|HBF|Hauptbahnhof)\b/.test(value) && cityOnly) {
+        return [
+            `${cityOnly} Hbf`,
+            value,
+            hbfReordered,
+            cityOnly,
+            `${cityOnly} Hb`,
+            value.replace(/\bHbf\b/gi, "Hauptbahnhof"),
+        ];
+    }
     return [
         value,
         cityOnly,
@@ -621,7 +644,10 @@ export function scoreStationOption(input, option) {
             score += 1;
         }
     }
-    return score / Math.max(1, new Set(inputTokens).size);
+    const inputSet = new Set(inputTokens);
+    const extraTokens = [...new Set(optionTokens)].filter((token) => !inputSet.has(token));
+    const extraPenalty = Math.min(1.5, extraTokens.length * 0.75);
+    return (score / Math.max(1, inputSet.size)) - extraPenalty;
 }
 function stationTokens(value) {
     return normalizeStationMatchText(value)

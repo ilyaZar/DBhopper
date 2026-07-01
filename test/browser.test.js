@@ -17,9 +17,19 @@ describe("dbhopper browser claim fields", () => {
   });
 
   it("scores reordered and case-varied hbf station options", () => {
+    const plainDuisburg = scoreStationOption(
+      "Duisburg HBF",
+      "Duisburg Hbf, Duisburg",
+    );
+    const eastEntrance = scoreStationOption(
+      "Duisburg HBF",
+      "Duisburg Hbf (Osteingang), Duisburg",
+    );
+
+    assert.ok(plainDuisburg > eastEntrance);
     assert.ok(
       scoreStationOption(
-        "Duisburg HBF",
+        "Duisburg Hbf Osteingang",
         "Duisburg Hbf (Osteingang), Duisburg",
       ) >= 2,
     );
@@ -27,13 +37,13 @@ describe("dbhopper browser claim fields", () => {
       scoreStationOption(
         "Hbf Duisburg",
         "Duisburg Hbf (Osteingang), Duisburg",
-      ) >= 2,
+      ) > 1,
     );
     assert.ok(
       scoreStationOption(
         "Koeln Messe Deutz",
         "Köln Messe/Deutz Bf, Köln",
-      ) >= 2,
+      ) > 1,
     );
   });
 });
