@@ -43,20 +43,30 @@ North Rhine-Westphalia.
    folder and merges claim profile data internally without writing it into
    `claim.toml`.
 4. Call `dbhopper_validate_claim` before any browser work.
-5. Call `dbhopper_run_claim` with `mode: "dry_run"` first. It must stop at the
-   summary page and save artifacts.
-6. Submit only after the user explicitly confirms the exact claim and the dry
+5. For station-name uncertainty, call `dbhopper_run_claim` with
+   `mode: "dry_run"` and `stop_after_station_resolution: true` first. Pass
+   `check_bahnhof_suffix`, `start_check_bahnhof_suffix`, or
+   `end_check_bahnhof_suffix` as `both`, `hbf_only`, or `bf_only` to tune
+   whether the browser probes Hauptbahnhof/Hbf candidates, Bahnhof/Bf
+   candidates, or both. Leave `exact_station_departure` and
+   `exact_station_arrival` empty on the first invocation so the plugin probes
+   dropdown choices. On a later invocation, pass a returned live label in those
+   fields to force and verify that exact station. If the choices are ambiguous,
+   stop and ask the user for the exact station name before rerunning.
+6. Call `dbhopper_run_claim` with `mode: "dry_run"` for the full review pass.
+   It must stop at the summary page and save artifacts.
+7. Submit only after the user explicitly confirms the exact claim and the dry
    run artifacts look correct. Use `mode: "submit"` and `confirmSubmit: true`.
-7. After a successful submit, the claim folder should contain the confirmation
+8. After a successful submit, the claim folder should contain the confirmation
    PDF and `claim_submitted_recipe.toml`. Send the saved confirmation PDF path
    back through the active user channel. If a configured email tool is
    available and the user asked for email delivery, send the same PDF by email
    from that tool.
-8. Use `dbhopper_db_standard_login_check`,
+9. Use `dbhopper_db_standard_login_check`,
    `dbhopper_db_marketplace_access_check`, and
    `dbhopper_db_api_credential_probe` for one-time credential onboarding
    diagnostics without printing secrets.
-9. For replacement-ticket experiments, call
+10. For replacement-ticket experiments, call
    `dbhopper_ticket_buying_dry_run` for search/results only or
    `dbhopper_ticket_checkout_dry_run` to explore checkout boundaries. These
    tools must not buy a ticket. In default review mode, checkout runs stop on
@@ -67,6 +77,33 @@ North Rhine-Westphalia.
    ignored `tmp/`.
    If `purchase_mode` is `auto`, expect `auto_unavailable` until final
    purchase-capable automation is deliberately implemented.
+
+## Station Probing
+
+Mobilitätsgarantie station fields are live autocomplete controls. Treat TOML
+station values as guesses, not as exact accepted form values.
+
+- Use a station-resolution dry run before full filing when station spelling or
+  suffixes may be ambiguous.
+- Let the browser collect dropdown choices from public station probes, then use
+  the returned `stationSelections` to decide whether a station is clear.
+- Station probes should be limited to plain city, city plus `B`, and city plus
+  `Hb`; compare the resulting dropdown lists against the TOML intent.
+- On the first probing invocation, omit `exact_station_departure` and
+  `exact_station_arrival`. On a rerun, use those fields only after the LLM or
+  user has chosen a specific live dropdown label.
+- Exact station fields must be labels returned by the live dropdown. If the
+  forced label is not pickable from the dropdown, treat the probe as failed and
+  ask again instead of leaving arbitrary text in the form.
+- Prefer `hbf_only` when the user likely means a Hauptbahnhof, such as
+  `Duisburg Hbf`. Prefer `bf_only` when the station is a plain Bahnhof, such as
+  `Köln Messe/Deutz Bf`. Use `both` when the suffix intent is unclear.
+- Do not select unrelated street or bus-stop suggestions when the user wrote an
+  Hbf or Bf station. Ask the user for the exact station name if the dropdown
+  choices do not contain one clear match.
+- After a clear live option is found, update the public station fields in the
+  external claim TOML or rerun the tool with the narrowed suffix arguments so
+  the full dry run is deterministic.
 
 ## Guardrails
 

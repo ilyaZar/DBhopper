@@ -4,8 +4,12 @@ import { createTimestampedArtifactDir, safeArtifactSegment, } from "./artifacts.
 import { errorMessage } from "./errors.js";
 import { resolveClaimFilePath } from "./workspace.js";
 import { fillSensitiveTextControl } from "./sensitive-input.js";
+export const BAHNHOF_SUFFIX_CHECKS = ["both", "hbf_only", "bf_only"];
+const ENTRY_URL = "https://www.mobil.nrw/fahren/mobigarantie.html";
+const FORM_PAGE_URL = "https://www.mobil.nrw/fahren/mobigarantie/einreichen.html";
 const FORM_URL = "https://mg.kcm-nrw.de/elmapublic/";
 const DEFAULT_TIMEOUT_MS = 180000;
+const LIVE_FORM_SETTLE_MS = 5000;
 export async function probeBrowser(config = {}) {
     const browser = await launchBrowser(config);
     const page = await browser.newPage({
@@ -37,6 +41,7 @@ export async function runBrowserClaim(params) {
     const started = Date.now();
     const artifacts = [];
     const stationSelections = [];
+    let entryFlow = defaultEntryFlow();
     const artifactDir = await createArtifactDir(params);
     let browser;
     let page;
@@ -50,9 +55,8 @@ export async function runBrowserClaim(params) {
         });
         page.setDefaultTimeout(Math.min(30000, timeoutMs));
         page.setDefaultNavigationTimeout(Math.min(45000, timeoutMs));
-        stage = "open_form";
-        await page.goto(FORM_URL, { waitUntil: "domcontentloaded" });
-        await page.waitForSelector("#formCreator");
+        stage = "entry";
+        entryFlow = await openClaimForm(page, artifactDir, artifacts);
         await captureStage(page, artifactDir, "open-form", artifacts);
         stage = "legal";
         await clickText(page, /Ich habe die Regeln/i);
@@ -63,7 +67,30 @@ export async function runBrowserClaim(params) {
         await clickVisibleSave(page);
         await captureStage(page, artifactDir, "claimant", artifacts);
         stage = "journey";
-        stationSelections.push(...await fillJourney(page, params.claim));
+        const defaultBahnhofSuffixCheck = params.checkBahnhofSuffix || "both";
+        const journeyResult = await fillJourney(page, params.claim, {
+            startStation: params.startCheckBahnhofSuffix || defaultBahnhofSuffixCheck,
+            endStation: params.endCheckBahnhofSuffix || defaultBahnhofSuffixCheck,
+            exactDeparture: params.exactStationDeparture,
+            exactArrival: params.exactStationArrival,
+        }, params.stopAfterStationResolution === true);
+        stationSelections.push(...journeyResult.stationSelections);
+        if (journeyResult.stoppedAfterStationResolution) {
+            await captureStage(page, artifactDir, "station-resolution", artifacts);
+            return {
+                ok: true,
+                mode,
+                stage: "station_resolution",
+                claimDir: params.claimDir,
+                artifactDir,
+                artifacts,
+                entryFlow,
+                stationSelections,
+                submitted: false,
+                needsUserAction: false,
+                message: "stopped after station resolution; no claim was submitted",
+            };
+        }
         await clickVisibleSave(page);
         await captureStage(page, artifactDir, "journey", artifacts);
         stage = "ticket";
@@ -88,6 +115,7 @@ export async function runBrowserClaim(params) {
                 claimDir: params.claimDir,
                 artifactDir,
                 artifacts,
+                entryFlow,
                 stationSelections,
                 summaryScreenshot,
                 submitted: false,
@@ -108,6 +136,7 @@ export async function runBrowserClaim(params) {
             claimDir: params.claimDir,
             artifactDir,
             artifacts,
+            entryFlow,
             stationSelections,
             summaryScreenshot,
             submitted: true,
@@ -131,6 +160,7 @@ export async function runBrowserClaim(params) {
             claimDir: params.claimDir,
             artifactDir,
             artifacts,
+            entryFlow,
             stationSelections,
             submitted: false,
             needsUserAction: true,
@@ -140,6 +170,136 @@ export async function runBrowserClaim(params) {
     finally {
         await browser?.close();
     }
+}
+function defaultEntryFlow() {
+    return {
+        entryUrl: ENTRY_URL,
+        formPageUrl: FORM_PAGE_URL,
+        formUrl: FORM_URL,
+        startedAtPublicEntry: false,
+        storedEntryCookieServices: false,
+        acceptedFormConsent: false,
+        usedFormPageFallback: false,
+        usedDirectFormFallback: false,
+    };
+}
+async function openClaimForm(page, artifactDir, artifacts) {
+    const entryFlow = defaultEntryFlow();
+    try {
+        await page.goto(ENTRY_URL, { waitUntil: "domcontentloaded" });
+        entryFlow.startedAtPublicEntry = true;
+        await page.waitForLoadState("networkidle", { timeout: 5000 }).catch(() => undefined);
+        entryFlow.storedEntryCookieServices = await storeDefaultCookieServicesIfVisible(page);
+        if (entryFlow.storedEntryCookieServices) {
+            await page.waitForTimeout(1000);
+        }
+        await captureStage(page, artifactDir, "entry", artifacts);
+        const openedFormPage = await openPublicFormPage(page);
+        entryFlow.usedFormPageFallback = !openedFormPage;
+        await page.waitForLoadState("domcontentloaded", { timeout: 10000 }).catch(() => undefined);
+        entryFlow.storedEntryCookieServices =
+            await storeDefaultCookieServicesIfVisible(page) ||
+                entryFlow.storedEntryCookieServices;
+        await captureStage(page, artifactDir, "consent", artifacts);
+        entryFlow.acceptedFormConsent = await acceptConsentUntilFormVisible(page);
+        await waitForFormCreator(page);
+        return entryFlow;
+    }
+    catch {
+        entryFlow.usedDirectFormFallback = true;
+        await page.goto(FORM_URL, { waitUntil: "domcontentloaded" });
+        entryFlow.storedEntryCookieServices =
+            await storeDefaultCookieServicesIfVisible(page) ||
+                entryFlow.storedEntryCookieServices;
+        await waitForFormCreator(page);
+        return entryFlow;
+    }
+}
+async function storeDefaultCookieServicesIfVisible(page) {
+    const cookieDialogVisible = await page
+        .getByText(/Cookie-Einstellungen|Wir schätzen Ihre Privatsphäre/i)
+        .first()
+        .isVisible({ timeout: 1000 })
+        .catch(() => false);
+    if (!cookieDialogVisible) {
+        return false;
+    }
+    const button = await visibleButtonByName(page, /^Services speichern$/i) ||
+        await visibleButtonByName(page, /^Alles akzeptieren$/i);
+    if (!button) {
+        return false;
+    }
+    await button
+        .evaluate((element) => {
+        element.click();
+    })
+        .catch(async () => {
+        await button.click({ force: true });
+    });
+    await page
+        .getByText(/Cookie-Einstellungen|Wir schätzen Ihre Privatsphäre/i)
+        .first()
+        .waitFor({ state: "hidden", timeout: 5000 })
+        .catch(() => undefined);
+    return true;
+}
+async function visibleButtonByName(page, name) {
+    const button = page.getByRole("button", { name }).filter({ visible: true }).first();
+    if ((await button.count()) === 0) {
+        return undefined;
+    }
+    return button;
+}
+async function openPublicFormPage(page) {
+    const formPagePattern = /\/fahren\/mobigarantie\/einreichen\.html(?:$|[?#])/;
+    const link = page
+        .locator('a[href*="/fahren/mobigarantie/einreichen.html"]')
+        .filter({ visible: true })
+        .first();
+    if ((await link.count()) > 0) {
+        const href = await link.getAttribute("href");
+        await link.click({ force: true }).catch(() => undefined);
+        await page.waitForURL(formPagePattern, { timeout: 5000 }).catch(() => undefined);
+        if (formPagePattern.test(page.url())) {
+            return true;
+        }
+        if (href) {
+            await page.goto(new URL(href, ENTRY_URL).href, { waitUntil: "domcontentloaded" });
+            return false;
+        }
+    }
+    await page.goto(FORM_PAGE_URL, { waitUntil: "domcontentloaded" });
+    return false;
+}
+async function acceptConsentUntilFormVisible(page) {
+    let accepted = false;
+    for (let index = 0; index < 3; index += 1) {
+        await storeDefaultCookieServicesIfVisible(page);
+        if ((await page.locator("#formCreator").count()) > 0) {
+            return accepted;
+        }
+        const clicked = await clickVisibleAccept(page);
+        if (!clicked) {
+            break;
+        }
+        accepted = true;
+        await page.waitForTimeout(2500);
+    }
+    return accepted;
+}
+async function clickVisibleAccept(page) {
+    const buttons = page
+        .getByRole("button", { name: /^Akzeptieren$/i })
+        .filter({ visible: true });
+    const count = await buttons.count();
+    if (count === 0) {
+        return false;
+    }
+    await buttons.nth(count - 1).click({ force: true });
+    return true;
+}
+async function waitForFormCreator(page) {
+    await page.waitForSelector("#formCreator", { timeout: 45000 });
 }
 export async function launchBrowser(config) {
     const { chromium } = await import("playwright-core");
@@ -196,21 +356,24 @@ async function fillClaimant(page, claim) {
     await fill(page, "#city", claimant.address?.city);
     await fill(page, "#country", claimant.address?.country || "Deutschland");
 }
-async function fillJourney(page, claim) {
+async function fillJourney(page, claim, checkBahnhofSuffix, stopAfterStationResolution = false) {
     const journey = claim.journey || {};
     const stationSelections = [];
     await fillDate(page, "#dateOfEvent", journey.date);
     await fillTime(page, "#complaintTime", journey.scheduledDepartureTime);
-    const startSelection = await chooseAutocomplete(page, "#startStation", journey.startStation, "startStation");
-    const endSelection = await chooseAutocomplete(page, "#endStation", journey.endStation, "endStation");
+    const startSelection = await chooseAutocomplete(page, "#startStation", journey.startStation, "startStation", checkBahnhofSuffix.startStation, checkBahnhofSuffix.exactDeparture, stopAfterStationResolution && !checkBahnhofSuffix.exactDeparture);
     if (startSelection) {
         stationSelections.push(startSelection);
     }
+    const endSelection = await chooseAutocomplete(page, "#endStation", journey.endStation, "endStation", checkBahnhofSuffix.endStation, checkBahnhofSuffix.exactArrival, stopAfterStationResolution && !checkBahnhofSuffix.exactArrival);
     if (endSelection) {
         stationSelections.push(endSelection);
     }
+    if (stopAfterStationResolution) {
+        return { stationSelections, stoppedAfterStationResolution: true };
+    }
     await clickSearchRoutes(page);
-    await page.waitForTimeout(4000);
+    await page.waitForTimeout(LIVE_FORM_SETTLE_MS);
     const line = journey.plannedLine || journey.plannedTrainLabel;
     let selected = false;
     if (line) {
@@ -239,7 +402,7 @@ async function fillJourney(page, claim) {
             journey.disruptionType || "delay",
         ].filter(Boolean).join("; "));
     }
-    return stationSelections;
+    return { stationSelections, stoppedAfterStationResolution: false };
 }
 async function fillTicket(page, claim, claimDir) {
     const ticket = claim.ticket || {};
@@ -266,7 +429,7 @@ async function fillTicket(page, claim, claimDir) {
     }
     if (uploadPaths.length > 0) {
         await page.locator('input[type="file"]').first().setInputFiles(uploadPaths);
-        await page.waitForTimeout(3000);
+        await page.waitForTimeout(LIVE_FORM_SETTLE_MS);
     }
 }
 function claimFilePaths(file) {
@@ -296,32 +459,67 @@ async function submitAndDownload(page, claimDir) {
     await download.saveAs(target);
     return target;
 }
-async function chooseAutocomplete(page, selector, value, field) {
+async function chooseAutocomplete(page, selector, value, field, checkBahnhofSuffix, exactStation, probeOnly = false) {
     if (!value) {
         return undefined;
     }
     const control = await visibleOrFirst(page, selector);
-    const candidatesTried = autocompleteCandidates(value);
+    if (exactStation?.trim()) {
+        return forceExactAutocompleteSelection(page, selector, control, value, field, checkBahnhofSuffix, exactStation.trim());
+    }
+    const candidatesTried = stationAutocompleteCandidates(value, checkBahnhofSuffix);
     const dropdownChoices = [];
+    const observedChoices = [];
     for (const candidate of candidatesTried) {
         await fillPlainControl(control, candidate, { tab: false });
         await waitForAutocompleteOptions(page, selector);
-        dropdownChoices.push(...await readAutocompleteOptions(page, selector));
-        const selected = await clickMatchingAutocompleteOption(page, selector, value);
+        const choices = await readAutocompleteOptions(page, selector);
+        dropdownChoices.push(...choices);
+        observedChoices.push({ candidate, choices });
+    }
+    if (probeOnly) {
+        await closeAutocompleteFlyout(page, selector, control);
+        return {
+            field,
+            input: value,
+            checkBahnhofSuffix,
+            candidatesTried,
+            dropdownChoices: uniqueStrings(dropdownChoices),
+            matched: false,
+        };
+    }
+    const bestChoice = bestAutocompleteChoice(value, dropdownChoices);
+    if (bestChoice) {
+        const observed = observedChoices.find((entry) => entry.choices.includes(bestChoice));
+        if (observed) {
+            await fillPlainControl(control, observed.candidate, { tab: false });
+            await waitForAutocompleteOptions(page, selector);
+        }
+        const selected = await clickAutocompleteOptionByText(page, selector, bestChoice) ||
+            await clickMatchingAutocompleteOption(page, selector, value, checkBahnhofSuffix);
         if (selected) {
-            await page.waitForTimeout(500);
-            await page.keyboard.press("Escape").catch(() => undefined);
-            await control.press("Tab").catch(() => undefined);
-            await autocompleteOptions(page, selector)
-                .first()
-                .waitFor({ state: "hidden", timeout: 1500 })
-                .catch(() => undefined);
+            const committed = await commitAutocompleteSelection(page, selector, control);
+            const verified = stationValuesMatch(committed, selected)
+                ? committed
+                : await retryAutocompleteSelection(page, selector, control, selected);
+            if (!stationValuesMatch(verified, selected)) {
+                return {
+                    field,
+                    input: value,
+                    checkBahnhofSuffix,
+                    candidatesTried,
+                    dropdownChoices: uniqueStrings([...dropdownChoices, selected, verified || ""]),
+                    selected: verified,
+                    matched: false,
+                };
+            }
             return {
                 field,
                 input: value,
+                checkBahnhofSuffix,
                 candidatesTried,
-                dropdownChoices: uniqueStrings([...dropdownChoices, selected]),
-                selected,
+                dropdownChoices: uniqueStrings([...dropdownChoices, verified || selected]),
+                selected: verified || selected,
                 matched: true,
             };
         }
@@ -335,17 +533,135 @@ async function chooseAutocomplete(page, selector, value, field) {
     return {
         field,
         input: value,
+        checkBahnhofSuffix,
         candidatesTried,
         dropdownChoices: uniqueStrings(dropdownChoices),
         selected: await controlInputValue(control),
         matched: false,
     };
 }
-async function clickMatchingAutocompleteOption(page, selector, value) {
+async function forceExactAutocompleteSelection(page, selector, control, input, field, checkBahnhofSuffix, exactStation) {
+    await fillPlainControl(control, exactStation, { tab: false });
+    await waitForAutocompleteOptions(page, selector);
+    const dropdownChoices = await readAutocompleteOptions(page, selector);
+    const exactChoice = dropdownChoices.find((choice) => stationValuesMatch(choice, exactStation));
+    if (!exactChoice) {
+        await closeAutocompleteFlyout(page, selector, control);
+        return {
+            field,
+            input,
+            checkBahnhofSuffix,
+            candidatesTried: [exactStation],
+            dropdownChoices: uniqueStrings(dropdownChoices),
+            selected: await controlInputValue(control),
+            matched: false,
+        };
+    }
+    const selected = await clickAutocompleteOptionByText(page, selector, exactChoice);
+    const committed = selected
+        ? await commitAutocompleteSelection(page, selector, control)
+        : await controlInputValue(control);
+    return {
+        field,
+        input,
+        checkBahnhofSuffix,
+        candidatesTried: [exactStation],
+        dropdownChoices: uniqueStrings([...dropdownChoices, exactChoice]),
+        selected: committed,
+        matched: stationValuesMatch(committed, exactChoice),
+    };
+}
+async function commitAutocompleteSelection(page, selector, control) {
+    await page.waitForTimeout(500);
+    await closeAutocompleteFlyout(page, selector, control);
+    return controlInputValue(control);
+}
+async function closeAutocompleteFlyout(page, selector, control) {
+    await page.keyboard.press("Escape").catch(() => undefined);
+    await control.evaluate((element) => {
+        element.blur();
+    }).catch(() => undefined);
+    await page.mouse.click(10, 10).catch(() => undefined);
+    await page.keyboard.press("Escape").catch(() => undefined);
+    await activeAutocompleteFlyout(page, selector)
+        .first()
+        .waitFor({ state: "hidden", timeout: 1500 })
+        .catch(() => undefined);
+}
+async function retryAutocompleteSelection(page, selector, control, selected) {
+    await fillPlainControl(control, selected, { tab: false });
+    await waitForAutocompleteOptions(page, selector);
+    await clickAutocompleteOptionByText(page, selector, selected);
+    return commitAutocompleteSelection(page, selector, control);
+}
+function stationValuesMatch(left, right) {
+    if (!left || !right) {
+        return false;
+    }
+    const normalizedLeft = normalizeStationMatchText(left);
+    const normalizedRight = normalizeStationMatchText(right);
+    return normalizedLeft === normalizedRight ||
+        normalizedLeft.includes(normalizedRight) ||
+        normalizedRight.includes(normalizedLeft);
+}
+async function clickAutocompleteOptionByText(page, selector, value) {
+    const normalizedValue = normalizeStationMatchText(value);
+    const options = autocompleteOptions(page, selector);
+    const match = await options.evaluateAll((nodes, target) => {
+        const normalize = (text) => text
+            .normalize("NFKD")
+            .replace(/\p{Diacritic}/gu, "")
+            .replace(/\b(?:hauptbahnhof|hbf)\b/gi, " hbf ")
+            .replace(/[()\\/,-]/g, " ")
+            .replace(/\s+/g, " ")
+            .trim()
+            .toLowerCase();
+        for (const [index, node] of nodes.entries()) {
+            const text = (node.textContent || "").trim().replace(/\s+/g, " ");
+            if (normalize(text) === target) {
+                return { index, text };
+            }
+        }
+        return undefined;
+    }, normalizedValue);
+    if (!match) {
+        return undefined;
+    }
+    await options.nth(match.index).click({ force: true });
+    return match.text;
+}
+export function bestAutocompleteChoice(input, choices) {
+    let best;
+    for (const choice of uniqueStrings(choices)) {
+        if (expectsMainStation(input) && !looksLikeMainStationChoice(input, choice)) {
+            continue;
+        }
+        const score = scoreStationOption(input, choice);
+        if (score >= 2 && (!best || score > best.score)) {
+            best = { choice, score };
+        }
+    }
+    return best?.choice;
+}
+function expectsMainStation(input) {
+    return /\b(?:hbf|hauptbahnhof)\b/i.test(input);
+}
+function looksLikeMainStationChoice(input, choice) {
+    const inputTokens = stationTokens(input);
+    const choiceTokens = stationTokens(choice);
+    if (!inputTokens.includes("hbf")) {
+        return true;
+    }
+    const cityTokens = inputTokens.filter((token) => token !== "hbf");
+    return choiceTokens.includes("hbf") &&
+        cityTokens.some((token) => choiceTokens.includes(token));
+}
+async function clickMatchingAutocompleteOption(page, selector, value, checkBahnhofSuffix = "both") {
     if (!value) {
         return undefined;
     }
-    const candidates = autocompleteCandidates(value).map(normalizeStationMatchText);
+    const candidates = stationAutocompleteCandidates(value, checkBahnhofSuffix)
+        .map(normalizeStationMatchText);
     const match = await autocompleteOptions(page, selector).evaluateAll((nodes, payload) => {
         const normalize = (text) => text
             .normalize("NFKD")
@@ -395,9 +711,22 @@ async function clickMatchingAutocompleteOption(page, selector, value) {
                 optionText.includes(city) &&
                 (optionText.includes("hbf") || optionText.includes("hauptbahnhof"));
         };
+        const isHbfExpected = (input, option) => {
+            const inputTokens = tokens(input);
+            if (!inputTokens.includes("hbf")) {
+                return true;
+            }
+            const optionTokens = tokens(option);
+            const cityTokens = inputTokens.filter((token) => token !== "hbf");
+            return optionTokens.includes("hbf") &&
+                cityTokens.some((token) => optionTokens.includes(token));
+        };
         let best;
         for (const [index, node] of nodes.entries()) {
             const text = node.textContent || "";
+            if (!isHbfExpected(payload.value, text)) {
+                continue;
+            }
             const normalizedOption = normalize(text);
             const exactScore = payload.candidates.some((candidate) => normalizedOption.includes(candidate))
                 ? 100
@@ -440,6 +769,10 @@ function autocompleteOptions(page, selector) {
         ".MuiAutocomplete-option",
         "[role='option']",
     ].join(", "));
+}
+function activeAutocompleteFlyout(page, selector) {
+    const id = selector.replace(/^#/, "");
+    return page.locator(`#wrapper${id}.flyout-active, #wrapper${id} .flyout-active`);
 }
 async function waitForAutocompleteOptions(page, selector) {
     await autocompleteOptions(page, selector)
@@ -580,44 +913,42 @@ export function normalizeIbanForBrowser(value) {
 function normalizeWhitespaceSeparatedNumber(value) {
     return value?.replace(/\s+/g, "").trim();
 }
-function autocompleteCandidates(value) {
+export function stationAutocompleteCandidates(value, checkBahnhofSuffix = "both") {
     const normalized = value.replace(/\bHBF\b/gi, "Hbf").trim();
-    const queue = [normalized];
     const candidates = new Set();
-    for (const candidate of queue) {
-        for (const expanded of stationCandidateVariants(candidate)) {
-            const trimmed = expanded.trim();
-            if (trimmed && !candidates.has(trimmed)) {
-                candidates.add(trimmed);
-                queue.push(trimmed);
-            }
+    for (const expanded of stationCandidateVariants(normalized, checkBahnhofSuffix)) {
+        const trimmed = expanded.trim();
+        if (trimmed) {
+            candidates.add(trimmed);
         }
     }
     return [...candidates];
 }
-function stationCandidateVariants(value) {
+function stationCandidateVariants(value, checkBahnhofSuffix) {
     const cityOnly = value
-        .replace(/\b(?:Hbf|HBF|Hauptbahnhof)\b/gi, "")
+        .replace(/\b(?:Hbf|HBF|Hauptbahnhof|Bf|BF|Bahnhof)\b/gi, "")
         .replace(/[()\\/,-]/g, " ")
         .replace(/\s+/g, " ")
         .trim();
-    const hbfReordered = value.replace(/^(.+?)\s+(Hbf|HBF|Hauptbahnhof)$/i, "$2 $1");
-    if (/\b(?:Hbf|HBF|Hauptbahnhof)\b/.test(value) && cityOnly) {
-        return [
-            `${cityOnly} Hbf`,
-            value,
-            hbfReordered,
-            cityOnly,
-            `${cityOnly} Hb`,
-            value.replace(/\bHbf\b/gi, "Hauptbahnhof"),
-        ];
+    if (checkBahnhofSuffix === "hbf_only") {
+        return stationProbeVectors(cityOnly || value, ["city", "hb"]);
     }
-    return [
-        value,
-        cityOnly,
-        hbfReordered,
-        value.replace(/\bHbf\b/gi, "Hauptbahnhof"),
-    ];
+    if (checkBahnhofSuffix === "bf_only") {
+        return stationProbeVectors(cityOnly || value, ["city", "b"]);
+    }
+    return stationProbeVectors(cityOnly || value, ["city", "b", "hb"]);
+}
+function stationProbeVectors(city, suffixes) {
+    const trimmedCity = city.trim();
+    return suffixes.map((suffix) => {
+        if (suffix === "b") {
+            return `${trimmedCity} B`;
+        }
+        if (suffix === "hb") {
+            return `${trimmedCity} Hb`;
+        }
+        return trimmedCity;
+    });
 }
 function normalizeStationMatchText(value) {
     return value

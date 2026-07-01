@@ -43,15 +43,14 @@ The repo already has the basic ownership split:
   claimant/bank fields for external `path_clm` TOML and multi-file evidence
   entries via `paths = [...]`.
 - `src/validation.ts` checks core eligibility and required browser fields.
-- `src/browser.ts` opens `https://mg.kcm-nrw.de/elmapublic/`, resolves live
-  autocomplete station choices, uploads claim-local evidence, and stops at the
-  final summary page in dry-run mode.
+- `src/browser.ts` starts from the public mobil.nrw entry page, accepts the
+  consent prompts, resolves live autocomplete station choices from joined
+  dropdown evidence, uploads claim-local evidence, and stops at the final
+  summary page in dry-run mode.
 
-The current browser implementation starts directly at the embedded form, so the
-public entry page and consent screen from screenshots 1-2 remain the main
-full-parity gap. Train matching is deterministic for a configured
-`planned_line` when the live form returns a selectable row, with an explicit
-non-submit dry-run boundary at screenshot 11.
+Train matching is deterministic for a configured `planned_line` when the live
+form returns a selectable row, with an explicit non-submit dry-run boundary at
+screenshot 11.
 
 ## Data Ownership
 
@@ -216,21 +215,22 @@ as offered by the form menu.
 Recommended station resolution loop:
 
 1. Start with `journey.start_station` and `journey.end_station`.
-2. Build safe public candidates from the claim text, for example:
-   - `HBF` -> `Hbf`
-   - `Hauptbahnhof` -> `Hbf`
-   - ASCII and umlaut spellings normalize to the same match text
-   - reordered variants such as `Hbf Duisburg` and `Duisburg Hbf`
-   - city-only input -> likely `Hbf` candidate
-3. Enter one candidate and capture the visible suggestion labels.
-4. If there is a high-confidence exact or normalized match, click that option.
-5. If several options are plausible, return the options to the agent and ask
-   the user to choose.
-6. Let the LLM side make the public-data guess from the TOML station text and
-   the returned dropdown labels. If one label is clearly correct, it should call
-   a small claim-update tool or write the public `claim.toml` fields with the
-   selected live values. If not, it should show the candidate labels to the user
-   and ask for the exact station.
+2. Derive the city-like prefix from the TOML guess.
+3. Probe only these dropdown query vectors:
+   - plain city, for example `Duisburg`
+   - city plus `B`, for example `Duisburg B`
+   - city plus `Hb`, for example `Duisburg Hb`
+4. In `stop_after_station_resolution` mode, collect the visible dropdown
+   choices from those probes and stop without committing a station value.
+5. Let the LLM compare the returned choices against the TOML intent. If one
+   pickable live label is clearly best, rerun with `exact_station_departure`
+   and/or `exact_station_arrival` set to that exact returned label. If several
+   labels are plausible, show the choices to the user and ask for the exact
+   station.
+6. Forced exact station fields must still be pickable from the live dropdown.
+   The browser should type the exact label, verify it appears in the dropdown,
+   click that option, and verify the input committed to it. If not, return the
+   live choices and ask again instead of leaving arbitrary text in the form.
 7. Persist the selected live labels back into the correct TOML fields,
    `journey.start_station` and/or `journey.end_station`, so a second browser
    pass is deterministic and does not depend on repeated fuzzy guessing.
@@ -330,8 +330,9 @@ schema problems should prevent browser execution.
 - Replace direct station autocomplete with the resolution loop described above.
 - Replace first-row fallback train selection with explicit row matching and
   clarification on ambiguity.
-- Route the browser flow through the entry and consent pages for full live
-  parity, while keeping the direct form URL as a lower-level probe if useful.
+- Keep the browser flow routed through the entry and consent pages for full
+  live parity, while keeping the direct form URL as a lower-level probe if
+  useful.
 - Ensure dry-run/review mode stops at screenshot 11 and cannot submit.
 - Save the summary screenshot as the user-review artifact.
 - Add focused tests for TOML validation, upload-count validation, station option
@@ -370,19 +371,23 @@ under:
 /home/iz/Documents/dbhopper-own-tests/claims/live-dummy-essen-koeln-re1/claim.toml
 ```
 
-It was run against the live embedded form and stopped at the final summary page
-without submitting. Local artifacts are under:
+It was run against the live public entry page, accepted the consent prompts, and
+stopped at the final summary page without submitting. Local artifacts are under:
 
 ```text
-/home/iz/Documents/dbhopper-own-tests/tmp/browser-runs/live-dummy-essen-koeln-re1-2026-07-01T17-20-57-893Z/
+/home/iz/Documents/dbhopper-own-tests/tmp/browser-runs/live-dummy-essen-koeln-re1-2026-07-01T17-30-41-507Z/
+/home/iz/Documents/dbhopper-own-tests/tmp/browser-runs/live-dummy-essen-koeln-re1-2026-07-01T17-59-49-766Z/
 ```
 
 Verified summary facts:
 
+- entry flow: public mobil.nrw page opened, cookie modal handled, direct
+  `elmapublic` fallback not used
 - start station: `Duisburg Hbf, Duisburg`
 - destination: `Köln Messe/Deutz Bf, Köln`
-- station resolution returned the TOML guess, dropdown choices, and selected
-  live option for both station fields
+- station resolution probe returned candidate vectors `city`, `city B`, and
+  `city Hb`; the follow-up run forced exact pickable dropdown labels with
+  `exact_station_departure` and `exact_station_arrival`
 - delayed local service fallback field: `RE5; delay`
 - replacement service: `Fernverkehrszug (IC/EC/ICE)`
 - ticket name/category: `Semesterticket`, `Sonstiges Ticket`

@@ -8,6 +8,7 @@ import { BAHN_WEB_TRANSPORTS, DELAY_PROVIDERS, } from "./delay-provider-options.
 import { createPrivateSettingsToolDefinitions } from "./private-settings-tools.js";
 import { PRIVATE_SETTINGS_CONFIGURE_TOOL_NAME } from "./tool-contracts.js";
 import { createTicketBuyingToolDefinitions } from "./ticket-buying.js";
+import { BAHNHOF_SUFFIX_CHECKS } from "./browser.js";
 import { featureSettingEnableSuggestion, featureSettingForToolName, featureSettingLabel, featureSettingsSummary, readTopLevelSettings, } from "./plugin-settings.js";
 import { buildDBhopperApprovalDescription, createDBhopperTools, resolveApprovalToolNames, } from "./tools.js";
 const configSchema = Type.Object({
@@ -195,10 +196,37 @@ function createClaimToolDefinitions(tool) {
                 confirmSubmit: Type.Optional(Type.Boolean({
                     description: "Must be true only after the user explicitly confirms final submission.",
                 })),
+                stop_after_station_resolution: Type.Optional(Type.Boolean({
+                    description: [
+                        "Stop after filling and selecting station autocomplete fields.",
+                        "Use this for LLM station probing before a full dry run.",
+                    ].join(" "),
+                })),
+                check_bahnhof_suffix: Type.Optional(bahnhofSuffixType([
+                    "Default station suffix probe strategy for browser station fields.",
+                    "Use both to gather Hbf and Bf dropdown choices, then rerun or",
+                    "ask the user when choices are ambiguous.",
+                ].join(" "))),
+                start_check_bahnhof_suffix: Type.Optional(bahnhofSuffixType("Optional suffix probe strategy for the departure station field.")),
+                end_check_bahnhof_suffix: Type.Optional(bahnhofSuffixType("Optional suffix probe strategy for the destination station field.")),
+                exact_station_departure: Type.Optional(exactStationType("Optional exact live dropdown label for the departure station.")),
+                exact_station_arrival: Type.Optional(exactStationType("Optional exact live dropdown label for the arrival station.")),
                 headless: Type.Optional(Type.Boolean()),
             }, { additionalProperties: false }),
         }),
     ];
+}
+function bahnhofSuffixType(description) {
+    return Type.Union(BAHNHOF_SUFFIX_CHECKS.map((mode) => Type.Literal(mode)), { default: "both", description });
+}
+function exactStationType(description) {
+    return Type.String({
+        description: [
+            description,
+            "Leave empty or omit to probe dropdown choices; pass a returned live",
+            "label to force and verify that exact station on a rerun.",
+        ].join(" "),
+    });
 }
 function claimToolDefinition(tool, definition) {
     return tool({

@@ -5,6 +5,12 @@ export interface BrowserRunParams {
     claimDir: string;
     mode?: "dry_run" | "submit";
     confirmSubmit?: boolean;
+    stopAfterStationResolution?: boolean;
+    checkBahnhofSuffix?: BahnhofSuffixCheck;
+    startCheckBahnhofSuffix?: BahnhofSuffixCheck;
+    endCheckBahnhofSuffix?: BahnhofSuffixCheck;
+    exactStationDeparture?: string;
+    exactStationArrival?: string;
     headless?: boolean;
     browserExecutablePath?: string;
     artifactRoot?: string;
@@ -17,20 +23,34 @@ export interface BrowserRunResult {
     claimDir: string;
     artifactDir: string;
     artifacts: string[];
+    entryFlow: BrowserEntryFlow;
     stationSelections: StationSelection[];
     summaryScreenshot?: string;
     submitted: boolean;
     needsUserAction: boolean;
     message: string;
 }
+export interface BrowserEntryFlow {
+    entryUrl: string;
+    formPageUrl: string;
+    formUrl: string;
+    startedAtPublicEntry: boolean;
+    storedEntryCookieServices: boolean;
+    acceptedFormConsent: boolean;
+    usedFormPageFallback: boolean;
+    usedDirectFormFallback: boolean;
+}
 export interface StationSelection {
     field: "startStation" | "endStation";
     input: string;
+    checkBahnhofSuffix: BahnhofSuffixCheck;
     candidatesTried: string[];
     dropdownChoices: string[];
     selected?: string;
     matched: boolean;
 }
+export declare const BAHNHOF_SUFFIX_CHECKS: readonly ["both", "hbf_only", "bf_only"];
+export type BahnhofSuffixCheck = typeof BAHNHOF_SUFFIX_CHECKS[number];
 export declare function probeBrowser(config?: DBhopperConfig): Promise<{
     ok: boolean;
     url: string;
@@ -47,6 +67,8 @@ export declare function probeBrowser(config?: DBhopperConfig): Promise<{
 export declare function runBrowserClaim(params: BrowserRunParams): Promise<BrowserRunResult>;
 export declare function launchBrowser(config: DBhopperConfig | BrowserRunParams): Promise<Browser>;
 export declare function resolveBrowserExecutablePath(config: DBhopperConfig | BrowserRunParams): Promise<string>;
+export declare function bestAutocompleteChoice(input: string, choices: string[]): string | undefined;
 export declare function normalizePhoneForBrowser(value?: string): string | undefined;
 export declare function normalizeIbanForBrowser(value?: string): string | undefined;
+export declare function stationAutocompleteCandidates(value: string, checkBahnhofSuffix?: BahnhofSuffixCheck): string[];
 export declare function scoreStationOption(input: string, option: string): number;
