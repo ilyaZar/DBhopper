@@ -290,8 +290,6 @@ The main ticket tools are:
 
 - `dbhopper_db_standard_login_check` verifies the selected Bahn account and
   browser profile.
-- `dbhopper_ticket_buying_research` returns the deterministic purchase-path
-  assumptions.
 - `dbhopper_ticket_buying_dry_run` searches for replacement-ticket options.
 - `dbhopper_ticket_checkout_dry_run` explores checkout with hard safety gates.
 

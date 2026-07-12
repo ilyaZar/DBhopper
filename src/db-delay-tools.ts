@@ -24,10 +24,7 @@ import {
   type DBhopperDelayProviderSetting,
   type DBhopperSelectedDelayProvider,
 } from "./delay-provider-options.js";
-import {
-  DB_DELAY_RESEARCH_TOOL_NAME,
-  QUERY_DB_DELAY_TOOL_NAME,
-} from "./tool-contracts.js";
+import { QUERY_DB_DELAY_TOOL_NAME } from "./tool-contracts.js";
 import {
   DEFAULT_DELAY_THRESHOLD_MINUTES,
   DEFAULT_LONG_DISTANCE_REPLACEMENT_TYPES,
@@ -148,14 +145,6 @@ export interface DbDelayProviderParityProbeResult {
 
 export function createDbDelayToolDefinitions(tool: any) {
   return [
-    tool({
-      name: DB_DELAY_RESEARCH_TOOL_NAME,
-      label: "DBhopper DB Delay Research",
-      description:
-        "Return the documented API stack and deterministic semantics used by DBhopper delay queries.",
-      parameters: Type.Object({}, { additionalProperties: false }),
-      execute: () => dbDelayResearchResult(),
-    }),
     tool({
       name: QUERY_DB_DELAY_TOOL_NAME,
       label: "DBhopper Query DB Delay",
@@ -552,57 +541,6 @@ async function runDbDelayQueryWithProvider(
     station_matches: {
       departure: departureMatches.slice(0, 10).map(stationRefOutput),
       arrival: arrivalMatches.slice(0, 10).map(stationRefOutput),
-    },
-    research: combinedResearchSummary(),
-  };
-}
-
-function dbDelayResearchResult() {
-  return {
-    ok: true,
-    operation: "db_delay_research",
-    semantics: {
-      bounds: "inclusive",
-      lower_bound: "query_time - window_width_minutes",
-      upper_bound: "query_time + window_width_minutes",
-      boarding_station: "input departure station",
-      delay_measurement: "live delay at the boarding station",
-      route_matching: "departure and arrival stations must occur in order",
-      regional_window:
-        "planned or realtime boarding event must be inside the inclusive window",
-      force_query_departure_time:
-        "when true, realtime boarding event must be >= query_time",
-      replacements:
-        "direct only, same route/window, category defaults to ICE/IC/EC, reachable if realtime boarding event >= query_time",
-      output_cleaning:
-        "the tool returns deterministic normalized candidates and table_rows; no LLM cleanup of raw API payloads is required",
-    },
-    field_mapping: {
-      timetables: {
-        station_id: "Timetables station eva attribute",
-        train_category: "tl.c",
-        train_number: "tl.n",
-        line_number: "tl.l",
-        journey_id: "s.id",
-        planned_arrival: "ar.pt",
-        planned_departure: "dp.pt",
-        realtime_arrival: "ar.ct from fchg/rchg merge",
-        realtime_departure: "dp.ct from fchg/rchg merge",
-        cancellation_flags: "ar/dp status fields from fchg/rchg merge",
-        platform: "ar.pp/dp.pp and ar.cp/dp.cp",
-        station_sequence: "ar/dp ppth or cpth path fields, if supplied",
-      },
-      bahn_web: {
-        station_id: "orte[].extId",
-        train_category: "verkehrmittel.produktGattung plus mittelText category",
-        train_number: "verkehrmittel.name/langText/mittelText",
-        line_number: "verkehrmittel.linienNummer",
-        journey_id: "journeyId",
-        planned_departure: "zeit",
-        realtime_departure: "ezZeit",
-        platform: "gleis",
-        station_sequence: "ueber plus terminus",
-      },
     },
     research: combinedResearchSummary(),
   };

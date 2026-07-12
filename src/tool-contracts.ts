@@ -17,11 +17,8 @@ export const DB_MARKETPLACE_ACCESS_CHECK_TOOL_NAME =
 export const DB_API_CREDENTIAL_PROBE_TOOL_NAME =
   "dbhopper_db_api_credential_probe";
 
-export const DB_DELAY_RESEARCH_TOOL_NAME = "dbhopper_db_delay_research";
 export const QUERY_DB_DELAY_TOOL_NAME = "dbhopper_query_db_delay";
 
-export const TICKET_BUYING_RESEARCH_TOOL_NAME =
-  "dbhopper_ticket_buying_research";
 export const TICKET_BUYING_DRY_RUN_TOOL_NAME =
   "dbhopper_ticket_buying_dry_run";
 export const TICKET_CHECKOUT_DRY_RUN_TOOL_NAME =
@@ -44,12 +41,10 @@ export const DELAY_RETRIEVAL_ACCESS_TOOL_NAMES = [
 ] as const;
 
 export const DB_DELAY_TOOL_NAMES = [
-  DB_DELAY_RESEARCH_TOOL_NAME,
   QUERY_DB_DELAY_TOOL_NAME,
 ] as const;
 
 export const TICKET_BUYING_WORKFLOW_TOOL_NAMES = [
-  TICKET_BUYING_RESEARCH_TOOL_NAME,
   TICKET_BUYING_DRY_RUN_TOOL_NAME,
   TICKET_CHECKOUT_DRY_RUN_TOOL_NAME,
 ] as const;

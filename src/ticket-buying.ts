@@ -45,7 +45,6 @@ import { resolveCredentialUserDataDir } from "./access-browser.js";
 import { performDbAccountLogin } from "./db-login.js";
 import {
   TICKET_BUYING_DRY_RUN_TOOL_NAME,
-  TICKET_BUYING_RESEARCH_TOOL_NAME,
   TICKET_CHECKOUT_DRY_RUN_TOOL_NAME,
 } from "./tool-contracts.js";
 import type {
@@ -170,18 +169,6 @@ export const TICKET_BUYING_RESEARCH_SUMMARY = {
 
 export function createTicketBuyingToolDefinitions(tool: any) {
   return [
-    tool({
-      name: TICKET_BUYING_RESEARCH_TOOL_NAME,
-      label: "DBhopper Ticket Buying Research",
-      description:
-        "Return WIP ticket-buying interface candidates and safety constraints.",
-      parameters: Type.Object({}, { additionalProperties: false }),
-      execute: () => ({
-        ok: true,
-        operation: "ticket_buying_research",
-        research: TICKET_BUYING_RESEARCH_SUMMARY,
-      }),
-    }),
     tool({
       name: TICKET_BUYING_DRY_RUN_TOOL_NAME,
       label: "DBhopper Ticket Buying Dry Run",
