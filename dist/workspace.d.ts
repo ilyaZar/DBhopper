@@ -39,6 +39,7 @@ export declare function resolveClaimPaths(claimId: string, config?: DBhopperConf
 export declare function readClaim(claimId: string, config?: DBhopperConfig): Promise<PreparedClaim>;
 export declare function listClaims(config?: DBhopperConfig): Promise<({
     claimId: string;
+    storedClaimId: string;
     status: string;
     profileId: string | undefined;
     profileFile: string | undefined;
@@ -67,14 +68,22 @@ export declare function listClaims(config?: DBhopperConfig): Promise<({
     claimId: string;
     status: string;
     fileCount: number;
+    storedClaimId?: undefined;
     profileId?: undefined;
     profileFile?: undefined;
     journey?: undefined;
     claimant?: undefined;
 })[]>;
+export declare function findExistingSubmissionProof(claimDir: string): Promise<string | undefined>;
 export declare function prepareClaim(params: PrepareClaimParams, config?: DBhopperConfig): Promise<PreparedClaim>;
 export declare function recordClaimArtifact(claimId: string, file: ClaimFile, config?: DBhopperConfig): Promise<DBhopperClaim>;
-export declare function writeSubmittedRecipe(prepared: PreparedClaim): Promise<string>;
+export declare function writeSubmittedRecipe(prepared: PreparedClaim, params?: {
+    submittedAt?: Date;
+    mode?: string;
+    summaryScreenshot?: string;
+    submittedScreenshot?: string;
+    submissionPdf?: string;
+}): Promise<string>;
 export declare function validateWorkspaceTomlFiles(config?: DBhopperConfig): Promise<{
     ok: boolean;
     messages: import("./types.js").ValidationMessage[];

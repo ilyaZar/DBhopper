@@ -132,7 +132,7 @@ export function claimSchemaReference() {
       ],
     },
     submittedRecipeShape:
-      "claim_submitted_recipe.toml records the selected claim after successful submit.",
+      "claim_submitted_recipe.toml records submission status and proof paths.",
   };
 }
 

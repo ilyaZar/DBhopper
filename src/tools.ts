@@ -17,6 +17,7 @@ import { claimSchemaReference, validateClaim } from "./validation.js";
 import { errorMessage } from "./errors.js";
 import {
   claimPaths,
+  findExistingSubmissionProof,
   listClaims,
   prepareClaim,
   readClaim,
@@ -26,6 +27,11 @@ import {
   type PrepareClaimParams,
 } from "./workspace.js";
 import { readPrivateSettings } from "./private-settings.js";
+import {
+  type DBhopperFeatureSettings,
+  featureSettingForToolName,
+  readTopLevelSettings,
+} from "./plugin-settings.js";
 
 const SIDE_EFFECT_TOOL_NAMES = new Set<string>([
   ...SIDE_EFFECT_CLAIM_TOOL_NAMES,
@@ -37,7 +43,7 @@ const CLAIM_TOOL_NAME_SET = new Set<string>([
 ]);
 
 export function resolveApprovalToolNames(config: DBhopperConfig = {}) {
-  const mode = config.approvalMode || "all";
+  const mode = config.approvalMode || "none";
   if (mode === "none") {
     return new Set<string>();
   }
@@ -45,6 +51,61 @@ export function resolveApprovalToolNames(config: DBhopperConfig = {}) {
     return new Set(SIDE_EFFECT_TOOL_NAMES);
   }
   return new Set(CLAIM_TOOL_NAME_SET);
+}
+
+export function requiresMandatoryHumanApproval({
+  toolName,
+  params = {},
+}: {
+  toolName: string;
+  params?: Record<string, unknown>;
+}) {
+  return (
+    toolName === CLAIM_TOOL_CONTRACTS.dbhopper_run_claim.name &&
+    params.mode === "submit"
+  );
+}
+
+export function registerClaimApprovalHook(
+  api: any,
+  readFeatureSettings: () => DBhopperFeatureSettings = readTopLevelSettings,
+) {
+  const approvalToolNames = resolveApprovalToolNames(api.pluginConfig ?? {});
+
+  api.on?.(
+    "before_tool_call",
+    (event: any) => {
+      const mandatory = requiresMandatoryHumanApproval({
+        toolName: event.toolName,
+        params: event.params,
+      });
+      if (!approvalToolNames.has(event.toolName) && !mandatory) {
+        return;
+      }
+      const featureSetting = featureSettingForToolName(event.toolName);
+      if (featureSetting && !readFeatureSettings()[featureSetting]) {
+        return;
+      }
+
+      return {
+        requireApproval: {
+          title: mandatory
+            ? "Confirm DBhopper submission boundary"
+            : "Run DBhopper claim operation",
+          description: buildDBhopperApprovalDescription({
+            toolName: event.toolName,
+            params: event.params,
+          }),
+          severity: mandatory ? "critical" : "warning",
+          allowedDecisions: mandatory
+            ? ["allow-once", "deny"]
+            : ["allow-once", "allow-always", "deny"],
+          timeoutMs: 120000,
+        },
+      };
+    },
+    { priority: 80, timeoutMs: 5000 },
+  );
 }
 
 export function buildDBhopperApprovalDescription({
@@ -69,13 +130,19 @@ export function buildDBhopperApprovalDescription({
     lines.push(`Mode: ${mode}`);
   }
   if (params.confirmSubmit === true) {
-    lines.push("Submit: explicitly confirmed");
+    lines.push("Submit requested: requires separate human approval");
+  }
+  if (typeof params.claim_request_mode === "string") {
+    lines.push(`Claim request mode: ${params.claim_request_mode}`);
   }
   if (typeof params.check_bahnhof_suffix === "string") {
     lines.push(`Station suffix check: ${params.check_bahnhof_suffix}`);
   }
-  if (params.confirm === true) {
-    lines.push("Settings change: explicitly confirmed");
+  if (
+    toolName === PRIVATE_SETTINGS_CONFIGURE_TOOL_NAME &&
+    params.confirm === true
+  ) {
+    lines.push("Settings write requested");
   }
 
   const claim = params.claim as DBhopperClaim | undefined;
@@ -332,6 +399,24 @@ function runClaimTool() {
         const claimRequestMode = privateSettings.settings.CLAIM_REQUEST_MODE;
         const requestedMode = params.mode || "dry_run";
         const browserMode = claimRequestMode === "auto" ? requestedMode : "dry_run";
+        if (browserMode === "submit") {
+          const existingSubmissionProof = await findExistingSubmissionProof(
+            prepared.claimDir,
+          );
+          if (existingSubmissionProof) {
+            return textResult({
+              ok: false,
+              operation: "run_claim",
+              claimId: prepared.claimId,
+              claimRequestMode,
+              requestedMode,
+              existingSubmissionProof,
+              needsUserAction: true,
+              message:
+                "refusing duplicate claim submission because existing submission proof was found",
+            });
+          }
+        }
         const validation = validateClaim(prepared.claim);
         if (!validation.readyForBrowser) {
           return textResult({
@@ -370,8 +455,14 @@ function runClaimTool() {
           testRunClaimRequest: privateSettings.settings.TEST_RUN_CLAIM_REQUEST,
           timeoutMs: this.config.timeoutMs,
         });
-        const recipePath =
-          result.submitted && result.ok ? await writeSubmittedRecipe(prepared) : undefined;
+        const recipePath = result.submitted && result.ok
+          ? await writeSubmittedRecipe(prepared, {
+              mode: result.mode,
+              summaryScreenshot: result.summaryScreenshot,
+              submittedScreenshot: result.submittedScreenshot,
+              submissionPdf: result.submissionPdf,
+            })
+          : undefined;
         return textResult({
           ok: result.ok,
           operation: "run_claim",

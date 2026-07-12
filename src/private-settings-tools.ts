@@ -32,7 +32,6 @@ export function createPrivateSettingsToolDefinitions(tool: any) {
           "List current DBhopper private user, claim, buying, and payment IDs.",
           "Returns file metadata and presence only, never secret values.",
         ].join(" "),
-      optional: true,
       parameters: Type.Object({}, { additionalProperties: false }),
       execute: async (_params: unknown, config: DBhopperConfig = {}) => ({
         ok: true,
@@ -48,7 +47,6 @@ export function createPrivateSettingsToolDefinitions(tool: any) {
           "Update ID_USR, ID_CLM, ID_BUY, and/or ID_PYM",
           "in assets/private/settings.toml.",
         ].join(" "),
-      optional: true,
       parameters: Type.Object(
         {
           user_id: Type.Optional(
@@ -116,7 +114,6 @@ export function createPrivateSettingsToolDefinitions(tool: any) {
           "Controls workflow gates, delay backend mode, fallback mode,",
           "claim review mode, and purchase review mode in assets/private/settings.toml.",
         ].join(" "),
-      optional: true,
       parameters: Type.Object(
         {
           use_delay_retrieval: Type.Optional(
@@ -151,7 +148,11 @@ export function createPrivateSettingsToolDefinitions(tool: any) {
           claim_request_mode: Type.Optional(
             Type.Union([Type.Literal("review"), Type.Literal("auto")], {
               description:
-                "Final claim filing mode. review stops for summary screenshot inspection; auto allows confirmed submit mode.",
+                [
+                  "Final claim filing mode. review stops for summary screenshot inspection.",
+                  "auto permits a separately approved submit call after a summary screenshot",
+                  "and must not be inferred from an initial publish request.",
+                ].join(" "),
             }),
           ),
           delay_provider: Type.Optional(
@@ -175,7 +176,7 @@ export function createPrivateSettingsToolDefinitions(tool: any) {
           confirm: Type.Optional(
             Type.Boolean({
               description:
-                "Must be true only after the user explicitly confirms the previewed settings changes.",
+                "Must be true only after the user explicitly confirms the previewed settings changes; the model cannot provide that confirmation on the user's behalf.",
             }),
           ),
         },

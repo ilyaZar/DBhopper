@@ -12,7 +12,6 @@ export function createPrivateSettingsToolDefinitions(tool) {
                 "List current DBhopper private user, claim, buying, and payment IDs.",
                 "Returns file metadata and presence only, never secret values.",
             ].join(" "),
-            optional: true,
             parameters: Type.Object({}, { additionalProperties: false }),
             execute: async (_params, config = {}) => ({
                 ok: true,
@@ -27,7 +26,6 @@ export function createPrivateSettingsToolDefinitions(tool) {
                 "Update ID_USR, ID_CLM, ID_BUY, and/or ID_PYM",
                 "in assets/private/settings.toml.",
             ].join(" "),
-            optional: true,
             parameters: Type.Object({
                 user_id: Type.Optional(Type.String({
                     description: 'User credential ID_USR to select, for example "01".',
@@ -73,7 +71,6 @@ export function createPrivateSettingsToolDefinitions(tool) {
                 "Controls workflow gates, delay backend mode, fallback mode,",
                 "claim review mode, and purchase review mode in assets/private/settings.toml.",
             ].join(" "),
-            optional: true,
             parameters: Type.Object({
                 use_delay_retrieval: Type.Optional(Type.Boolean({
                     description: "Enable or disable DB delay-query tools.",
@@ -91,7 +88,11 @@ export function createPrivateSettingsToolDefinitions(tool) {
                     description: "When true, save numbered purchase browser text and screenshots externally.",
                 })),
                 claim_request_mode: Type.Optional(Type.Union([Type.Literal("review"), Type.Literal("auto")], {
-                    description: "Final claim filing mode. review stops for summary screenshot inspection; auto allows confirmed submit mode.",
+                    description: [
+                        "Final claim filing mode. review stops for summary screenshot inspection.",
+                        "auto permits a separately approved submit call after a summary screenshot",
+                        "and must not be inferred from an initial publish request.",
+                    ].join(" "),
                 })),
                 delay_provider: Type.Optional(Type.Union(DELAY_PROVIDERS.map((provider) => Type.Literal(provider)), {
                     description: "Delay backend mode: bahn-web, db-timetables, or auto.",
@@ -103,7 +104,7 @@ export function createPrivateSettingsToolDefinitions(tool) {
                     description: "Final ticket checkout mode. review stops for screenshot inspection; auto is not purchase-enabled yet.",
                 })),
                 confirm: Type.Optional(Type.Boolean({
-                    description: "Must be true only after the user explicitly confirms the previewed settings changes.",
+                    description: "Must be true only after the user explicitly confirms the previewed settings changes; the model cannot provide that confirmation on the user's behalf.",
                 })),
             }, { additionalProperties: false }),
             execute: async (params = {}, config = {}) => {

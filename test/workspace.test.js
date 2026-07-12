@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 import {
+  findExistingSubmissionProof,
   listClaims,
   prepareClaim,
   readClaim,
@@ -81,6 +82,41 @@ describe("dbhopper workspace", () => {
       claims.map((claim) => claim.claimId).sort(),
       ["flat-claim", "nested-claim"],
     );
+  });
+
+  it("lists a callable storage ID when the stored claim ID differs", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-claim-id-"));
+    await writePrivateSettingsFixture(root);
+    const claimRoot = path.join(defaultExternalPrivateRoot(root), "profiles");
+    await fs.mkdir(path.join(claimRoot, "claim-02"), { recursive: true });
+    await fs.writeFile(
+      path.join(claimRoot, "claim-02", "claim.toml"),
+      minimalClaimToml("02"),
+      "utf8",
+    );
+
+    const [listed] = await listClaims(configWithPrivateSettings(root));
+    const prepared = await readClaim(
+      listed.claimId,
+      configWithPrivateSettings(root),
+    );
+
+    assert.equal(listed.claimId, "claim-02");
+    assert.equal(listed.storedClaimId, "02");
+    assert.equal(prepared.claimId, "claim-02");
+    assert.equal(prepared.claim.ID_CLM, "02");
+  });
+
+  it("detects existing submission proof before a repeat submit", async () => {
+    const claimDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), "dbhopper-submission-proof-"),
+    );
+    assert.equal(await findExistingSubmissionProof(claimDir), undefined);
+
+    const proofPath = path.join(claimDir, "submission-confirmation.pdf");
+    await fs.writeFile(proofPath, "proof", "utf8");
+
+    assert.equal(await findExistingSubmissionProof(claimDir), proofPath);
   });
 
   it("requires confirmation before writing", async () => {
@@ -312,7 +348,7 @@ describe("dbhopper workspace", () => {
     );
   });
 
-  it("writes a submitted recipe with profile and claim data joined", async () => {
+  it("writes a submitted recipe without private profile data", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-recipe-"));
     await writePrivateSettingsFixture(root);
     await writePrivateProfileFixture(
@@ -336,11 +372,19 @@ describe("dbhopper workspace", () => {
       configWithPrivateSettings(root),
     );
 
-    const recipePath = await writeSubmittedRecipe(prepared);
+    const recipePath = await writeSubmittedRecipe(prepared, {
+      submittedAt: new Date("2026-07-01T12:00:00.000Z"),
+      mode: "submit",
+      summaryScreenshot: path.join(prepared.claimDir, "summary.png"),
+      submissionPdf: path.join(prepared.claimDir, "submission-confirmation.pdf"),
+    });
     const recipe = await fs.readFile(recipePath, "utf8");
 
-    assert.match(recipe, /email = "maria@example.org"/);
-    assert.match(recipe, /start_station = "Koeln Hbf"/);
+    assert.match(recipe, /submitted = true/);
+    assert.match(recipe, /mode = "submit"/);
+    assert.match(recipe, /submission_pdf = /);
+    assert.doesNotMatch(recipe, /maria@example\.org/);
+    assert.doesNotMatch(recipe, /first_name|iban|start_station/);
   });
 });
 

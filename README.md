@@ -8,12 +8,32 @@ and replacement-ticket workflows.
 DBhopper keeps private values in local files and returns deterministic tool
 results. Agents should not clean raw DB or website payloads with the LLM.
 
-## Local Setup
+## OpenClaw Setup
+
+Install the native plugin from ClawHub:
 
 ```bash
-openclaw plugins install -l /home/iz/Dropbox/projects/openclaw/own-plugins/dbhopper
-openclaw plugins enable dbhopper
+openclaw plugins install clawhub:dbhopper
 ```
+
+The installer enables DBhopper. For local development, link this checkout with
+`openclaw plugins install --link .` instead.
+
+Fresh OpenClaw onboarding uses the `coding` tool profile. Keep that profile and
+admit only DBhopper:
+
+```json5
+{
+  tools: {
+    profile: "coding",
+    alsoAllow: ["dbhopper"],
+  },
+}
+```
+
+Sandboxed agents need the same plugin ID in
+`tools.sandbox.tools.alsoAllow`. These are operator-owned OpenClaw choices;
+DBhopper never changes OpenClaw source or configuration.
 
 Configure `plugins.entries.dbhopper.config.workspaceRoot` to this plugin
 directory. DBhopper uses one local settings file:
@@ -59,7 +79,7 @@ profile scan directories, and delay-provider defaults:
 
 ```toml
 use_delay_retrieval = true
-use_claim_requests = false
+use_claim_requests = true
 use_ticket_purchase = false
 test_run_claim_request = false
 test_run_purchase = false
@@ -149,7 +169,8 @@ The free Timetables subscription currently offers 60 calls per minute.
 
 ### 2. Autonomous claims
 
-Autonomous claim tools are disabled by default. Enable them explicitly:
+Claim tools are enabled by default in mandatory review mode. Keep this setting
+enabled to prepare claims and run visible dry-runs:
 
 ```toml
 use_claim_requests = true
@@ -158,8 +179,8 @@ use_claim_requests = true
 Claim-specific journey, ticket, and file data is stored in
 `claims/<claim-id>/claim.toml`. Claimant and bank details stay in the selected
 claim profile and are joined in memory for validation and browser filing. A
-successful submit writes `claim_submitted_recipe.toml` next to the downloaded
-confirmation PDF as the joined audit recipe.
+successful submit writes a PII-free `claim_submitted_recipe.toml` marker next
+to any downloaded confirmation PDF.
 
 Use `assets/private/settings.toml` to select the claim profile and credential
 IDs used for claim filing. Claim filing uses `ID_CLM` from `path_clm`.
@@ -167,7 +188,8 @@ IDs used for claim filing. Claim filing uses `ID_CLM` from `path_clm`.
 `claim_request_mode = "review"` is the default. Claim filing stops at the
 Mobilitätsgarantie summary page, returns `summaryScreenshot`, and does not click
 `Angaben absenden`. `claim_request_mode = "auto"` allows submit mode only when
-the tool call also passes `mode: "submit"` and `confirmSubmit: true`.
+the tool call also passes `mode: "submit"` and `confirmSubmit: true`; the native
+plugin then requires a critical, one-time human approval before execution.
 
 ### 3. Autonomous ticket buying
 
@@ -255,10 +277,9 @@ Mobilitätsgarantie claims:
 - `dbhopper_validate_claim` checks deterministic eligibility facts.
 - `dbhopper_run_claim` drives the browser filing flow for a prepared claim.
 
-`dbhopper_run_claim` defaults to dry-run behavior and submits only after the
-explicit confirmation fields are set. OpenClaw approval hooks can require
-approval for all claim tools or only mutating claim tools, depending on
-`approvalMode`.
+`dbhopper_run_claim` defaults to dry-run behavior. Routine calls do not require
+plugin approval by default. Final submission always triggers a separate
+one-time human approval, even when `approvalMode` is `none`.
 
 ### Autonomous ticket buying
 
@@ -269,8 +290,6 @@ The main ticket tools are:
 
 - `dbhopper_db_standard_login_check` verifies the selected Bahn account and
   browser profile.
-- `dbhopper_ticket_buying_research` returns the deterministic purchase-path
-  assumptions.
 - `dbhopper_ticket_buying_dry_run` searches for replacement-ticket options.
 - `dbhopper_ticket_checkout_dry_run` explores checkout with hard safety gates.
 
@@ -374,8 +393,9 @@ unless the user chooses to inspect or share them.
 ## Troubleshooting
 
 If an OpenClaw-routed agent can describe the skill but cannot call `dbhopper_*`,
-check the sandbox tool policy. The local config needs DBhopper in both
-`tools.alsoAllow` and `tools.sandbox.tools.alsoAllow`.
+check that the plugin is enabled and admitted by the active tool policy. The
+stock `coding` profile needs `dbhopper` in `tools.alsoAllow`; sandboxed agents
+also need it in `tools.sandbox.tools.alsoAllow`.
 
 If a workflow tool returns `feature_disabled`, check
 `assets/private/settings.toml` or ask the agent to use

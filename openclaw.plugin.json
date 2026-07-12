@@ -34,6 +34,10 @@
         "type": "string",
         "description": "Top-level directory containing claims/ and assets/. Defaults to the plugin package directory."
       },
+      "settingsPath": {
+        "type": "string",
+        "description": "Optional explicit path to settings.toml. Defaults to the plugin package assets/private/settings.toml."
+      },
       "browserExecutablePath": {
         "type": "string",
         "description": "Optional Chromium or Chrome executable path for browser filing."
@@ -44,7 +48,7 @@
       },
       "headless": {
         "type": "boolean",
-        "default": true,
+        "default": false,
         "description": "Whether browser filing runs headless by default."
       },
       "timeoutMs": {
@@ -68,8 +72,8 @@
             "const": "none"
           }
         ],
-        "default": "all",
-        "description": "Approval behavior. Defaults to all claim tools; use mutating for read-only claim tools without approval."
+        "default": "none",
+        "description": "Routine approval behavior. Defaults to none; final claim submission always requires separate human approval."
       },
       "timetableBaseUrl": {
         "type": "string",
@@ -152,67 +156,9 @@
       "dbhopper_db_standard_login_check",
       "dbhopper_db_marketplace_access_check",
       "dbhopper_db_api_credential_probe",
-      "dbhopper_db_delay_research",
       "dbhopper_query_db_delay",
-      "dbhopper_ticket_buying_research",
       "dbhopper_ticket_buying_dry_run",
       "dbhopper_ticket_checkout_dry_run"
     ]
-  },
-  "toolMetadata": {
-    "dbhopper_claim_schema": {
-      "optional": true
-    },
-    "dbhopper_list_claims": {
-      "optional": true
-    },
-    "dbhopper_prepare_claim": {
-      "optional": true
-    },
-    "dbhopper_validate_claim": {
-      "optional": true
-    },
-    "dbhopper_browser_probe": {
-      "optional": true
-    },
-    "dbhopper_run_claim": {
-      "optional": true
-    },
-    "dbhopper_private_settings_status": {
-      "optional": true
-    },
-    "dbhopper_private_settings_select": {
-      "optional": true
-    },
-    "dbhopper_private_settings_configure": {
-      "optional": true
-    },
-    "dbhopper_credentials_validate": {
-      "optional": true
-    },
-    "dbhopper_db_standard_login_check": {
-      "optional": true
-    },
-    "dbhopper_db_marketplace_access_check": {
-      "optional": true
-    },
-    "dbhopper_db_api_credential_probe": {
-      "optional": true
-    },
-    "dbhopper_db_delay_research": {
-      "optional": true
-    },
-    "dbhopper_query_db_delay": {
-      "optional": true
-    },
-    "dbhopper_ticket_buying_research": {
-      "optional": true
-    },
-    "dbhopper_ticket_buying_dry_run": {
-      "optional": true
-    },
-    "dbhopper_ticket_checkout_dry_run": {
-      "optional": true
-    }
   }
 }

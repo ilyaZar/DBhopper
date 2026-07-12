@@ -26,6 +26,8 @@ export interface BrowserRunResult {
     entryFlow: BrowserEntryFlow;
     stationSelections: StationSelection[];
     summaryScreenshot?: string;
+    submittedScreenshot?: string;
+    submissionPdf?: string;
     submitted: boolean;
     needsUserAction: boolean;
     message: string;

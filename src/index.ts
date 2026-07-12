@@ -27,9 +27,8 @@ import {
   readTopLevelSettings,
 } from "./plugin-settings.js";
 import {
-  buildDBhopperApprovalDescription,
   createDBhopperTools,
-  resolveApprovalToolNames,
+  registerClaimApprovalHook,
 } from "./tools.js";
 import type { DBhopperConfig } from "./types.js";
 
@@ -60,7 +59,7 @@ const configSchema = Type.Object(
     ),
     headless: Type.Optional(
       Type.Boolean({
-        default: true,
+        default: false,
         description: "Whether browser filing runs headless by default.",
       }),
     ),
@@ -77,9 +76,9 @@ const configSchema = Type.Object(
         Type.Literal("mutating"),
         Type.Literal("none"),
       ], {
-        default: "all",
+        default: "none",
         description:
-          "Approval behavior. Defaults to all claim tools; use mutating for read-only claim tools without approval.",
+          "Routine approval behavior. Defaults to none; final claim submission always requires separate human approval.",
       }),
     ),
     timetableBaseUrl: Type.Optional(
@@ -154,7 +153,6 @@ interface ToolDefinition {
   label?: string;
   description?: string;
   parameters?: unknown;
-  optional?: boolean;
   execute?: (...args: any[]) => unknown;
   factory?: (...args: any[]) => unknown;
   [key: string]: unknown;
@@ -312,7 +310,11 @@ function createClaimToolDefinitions(tool: any) {
           confirmSubmit: Type.Optional(
             Type.Boolean({
               description:
-                "Must be true only after the user explicitly confirms final submission.",
+                [
+                  "Must be true only after the user reviews the returned summary screenshot",
+                  "and explicitly confirms final submission in a new message.",
+                  "An initial publish request or model inference is not confirmation.",
+                ].join(" "),
             }),
           ),
           stop_after_station_resolution: Type.Optional(
@@ -349,7 +351,12 @@ function createClaimToolDefinitions(tool: any) {
           exact_station_arrival: Type.Optional(
             exactStationType("Optional exact live dropdown label for the arrival station."),
           ),
-          headless: Type.Optional(Type.Boolean()),
+          headless: Type.Optional(
+            Type.Boolean({
+              description:
+                "Omit to preserve the configured visible-browser default; use true only when the user explicitly requests headless operation.",
+            }),
+          ),
         },
         { additionalProperties: false },
       ),
@@ -386,41 +393,9 @@ function claimToolDefinition(
 ) {
   return tool({
     ...definition,
-    optional: true,
     factory: ({ config }: { config: DBhopperConfig }) =>
       createDBhopperTools(config).find((entry) => entry.name === definition.name) ?? null,
   });
-}
-
-function registerClaimApprovalHook(api: any) {
-  const approvalToolNames = resolveApprovalToolNames(api.pluginConfig ?? {});
-
-  api.on?.(
-    "before_tool_call",
-    (event: any) => {
-      if (!approvalToolNames.has(event.toolName)) {
-        return;
-      }
-      const featureSetting = featureSettingForToolName(event.toolName);
-      if (featureSetting && !readTopLevelSettings()[featureSetting]) {
-        return;
-      }
-
-      return {
-        requireApproval: {
-          title: "Run DBhopper claim operation",
-          description: buildDBhopperApprovalDescription({
-            toolName: event.toolName,
-            params: event.params,
-          }),
-          severity: event.params?.mode === "submit" ? "danger" : "warning",
-          timeoutMs: 120000,
-          timeoutBehavior: "deny",
-        },
-      };
-    },
-    { priority: 80, timeoutMs: 5000 },
-  );
 }
 
 function prepareClaimParameters() {

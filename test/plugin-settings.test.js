@@ -18,14 +18,14 @@ import {
 } from "../dist/tool-contracts.js";
 
 describe("dbhopper top-level settings", () => {
-  it("defaults to delay retrieval only", () => {
+  it("defaults to delay retrieval and review-mode claims", () => {
     const settings = parseTopLevelSettings(settingsToml());
 
     assert.deepEqual(settings, DEFAULT_FEATURE_SETTINGS);
 
     const tools = enabledToolNames(settings);
     assert.equal(tools.has(QUERY_DB_DELAY_TOOL_NAME), true);
-    assert.equal(tools.has("dbhopper_prepare_claim"), false);
+    assert.equal(tools.has("dbhopper_prepare_claim"), true);
     assert.equal(tools.has(TICKET_CHECKOUT_DRY_RUN_TOOL_NAME), false);
     assert.equal(tools.has(PRIVATE_SETTINGS_CONFIGURE_TOOL_NAME), true);
   });
@@ -87,7 +87,7 @@ describe("dbhopper top-level settings", () => {
 
 function settingsToml({
   useDelayRetrieval = true,
-  useClaimRequests = false,
+  useClaimRequests = true,
   useTicketPurchase = false,
 } = {}) {
   return [

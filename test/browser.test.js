@@ -16,22 +16,22 @@ describe("dbhopper browser claim fields", () => {
     );
   });
 
-  it("uses short station probes before exact station text", () => {
+  it("uses complete station suffixes so capped dropdowns include the intended station", () => {
     assert.deepEqual(
       stationAutocompleteCandidates("Duisburg HBF"),
-      ["Duisburg", "Duisburg Hb", "Duisburg B"],
+      ["Duisburg", "Duisburg Hbf", "Duisburg Bf"],
     );
     assert.deepEqual(
       stationAutocompleteCandidates("Duisburg HBF", "hbf_only"),
-      ["Duisburg", "Duisburg Hb"],
+      ["Duisburg", "Duisburg Hbf"],
     );
     assert.deepEqual(
       stationAutocompleteCandidates("Duisburg HBF", "bf_only"),
-      ["Duisburg", "Duisburg B"],
+      ["Duisburg", "Duisburg Bf"],
     );
     assert.deepEqual(
       stationAutocompleteCandidates("Koeln Messe Deutz Bf", "bf_only"),
-      ["Koeln Messe Deutz", "Koeln Messe Deutz B"],
+      ["Koeln Messe Deutz", "Koeln Messe Deutz Bf"],
     );
   });
 });

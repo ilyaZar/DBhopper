@@ -11,7 +11,7 @@ import { errorMessage } from "./errors.js";
 import { configuredPurchaseArtifactsDir, readPrivateSettings, } from "./private-settings.js";
 import { resolveCredentialUserDataDir } from "./access-browser.js";
 import { performDbAccountLogin } from "./db-login.js";
-import { TICKET_BUYING_DRY_RUN_TOOL_NAME, TICKET_BUYING_RESEARCH_TOOL_NAME, TICKET_CHECKOUT_DRY_RUN_TOOL_NAME, } from "./tool-contracts.js";
+import { TICKET_BUYING_DRY_RUN_TOOL_NAME, TICKET_CHECKOUT_DRY_RUN_TOOL_NAME, } from "./tool-contracts.js";
 import { fillSensitiveTextControl } from "./sensitive-input.js";
 const DB_HOME_URL = "https://int.bahn.de/en";
 const DEFAULT_BROWSER_TIMEOUT_MS = 60000;
@@ -79,25 +79,12 @@ export const TICKET_BUYING_RESEARCH_SUMMARY = {
 export function createTicketBuyingToolDefinitions(tool) {
     return [
         tool({
-            name: TICKET_BUYING_RESEARCH_TOOL_NAME,
-            label: "DBhopper Ticket Buying Research",
-            description: "Return WIP ticket-buying interface candidates and safety constraints.",
-            optional: true,
-            parameters: Type.Object({}, { additionalProperties: false }),
-            execute: () => ({
-                ok: true,
-                operation: "ticket_buying_research",
-                research: TICKET_BUYING_RESEARCH_SUMMARY,
-            }),
-        }),
-        tool({
             name: TICKET_BUYING_DRY_RUN_TOOL_NAME,
             label: "DBhopper Ticket Buying Dry Run",
             description: [
                 "Test DB ticket-buying navigation for a replacement train.",
                 "This is dry-run only and never submits payment.",
             ].join(" "),
-            optional: true,
             parameters: Type.Object({
                 departure_station: Type.String(),
                 arrival_station: Type.String(),
@@ -131,7 +118,6 @@ export function createTicketBuyingToolDefinitions(tool) {
                 "Explore DB ticket checkout as far as safely possible.",
                 "Never submits payment or clicks a legally binding order button.",
             ].join(" "),
-            optional: true,
             parameters: Type.Object({
                 departure_station: Type.Optional(Type.String({
                     default: DEFAULT_CHECKOUT_DEPARTURE,
