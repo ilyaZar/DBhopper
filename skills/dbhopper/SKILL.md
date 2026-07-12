@@ -12,7 +12,9 @@ North Rhine-Westphalia.
 
 ## Requirements
 
-1. Install and enable the `dbhopper` OpenClaw plugin.
+1. Install the native `dbhopper` OpenClaw plugin. On the stock `coding`
+   profile, the operator must include `dbhopper` in `tools.alsoAllow` and, for
+   sandboxed agents, in `tools.sandbox.tools.alsoAllow`.
 2. Configure `plugins.entries.dbhopper.config.workspaceRoot`.
 3. Keep real tickets, receipts, screenshots, IBANs, and claim PDFs in local
    DBhopper runtime paths, not in chat.
@@ -34,6 +36,10 @@ North Rhine-Westphalia.
 8. Normal browser runs save only explicit review checkpoint screenshots:
    `summaryScreenshot` for claims and `reviewScreenshot` for ticket checkout.
    Send or show those images to the user before asking for real submission.
+
+If the native tools are unavailable, report the missing OpenClaw policy. Do not
+edit OpenClaw configuration, invoke DBhopper through `exec`, or substitute an
+MCP implementation.
 
 ## Workflow
 

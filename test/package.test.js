@@ -25,9 +25,7 @@ describe("dbhopper package metadata", () => {
     });
     assert.deepEqual(manifest.skills, ["./skills"]);
     assert.deepEqual(manifest.contracts.tools, [...PUBLIC_TOOL_NAMES]);
-    for (const toolName of manifest.contracts.tools) {
-      assert.equal(manifest.toolMetadata[toolName].optional, true);
-    }
+    assert.equal(manifest.toolMetadata, undefined);
   });
 
   it("keeps runtime claim data out of the npm file list", async () => {

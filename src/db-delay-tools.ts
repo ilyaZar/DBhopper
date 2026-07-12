@@ -153,7 +153,6 @@ export function createDbDelayToolDefinitions(tool: any) {
       label: "DBhopper DB Delay Research",
       description:
         "Return the documented API stack and deterministic semantics used by DBhopper delay queries.",
-      optional: true,
       parameters: Type.Object({}, { additionalProperties: false }),
       execute: () => dbDelayResearchResult(),
     }),
@@ -165,7 +164,6 @@ export function createDbDelayToolDefinitions(tool: any) {
           "Find delayed direct regional train candidates and reachable direct",
           "ICE/IC/EC replacement candidates for a Deutsche Bahn route/time window.",
         ].join(" "),
-      optional: true,
       parameters: Type.Object(
         {
           provider: Type.Optional(

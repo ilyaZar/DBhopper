@@ -17,7 +17,6 @@ export function createAccessToolDefinitions(tool: any) {
       label: "DBhopper DB Standard Login Check",
       description:
         "One-time diagnostic for selected Bahn account credentials and browser profile.",
-      optional: true,
       parameters: Type.Object(
         {
           stay_logged_in: Type.Optional(
@@ -50,7 +49,6 @@ export function createAccessToolDefinitions(tool: any) {
       label: "DBhopper DB Marketplace Access Check",
       description:
         "One-time diagnostic for DB API Marketplace browser reachability and login proof.",
-      optional: true,
       parameters: Type.Object(
         {
           stay_logged_in: Type.Optional(Type.Boolean({ default: true })),
@@ -77,7 +75,6 @@ export function createAccessToolDefinitions(tool: any) {
       label: "DBhopper DB API Credential Probe",
       description:
         "Probe official DB Timetables API credentials without returning secrets.",
-      optional: true,
       parameters: Type.Object(
         {
           station_pattern: Type.Optional(

@@ -32,7 +32,6 @@ export function createPrivateSettingsToolDefinitions(tool: any) {
           "List current DBhopper private user, claim, buying, and payment IDs.",
           "Returns file metadata and presence only, never secret values.",
         ].join(" "),
-      optional: true,
       parameters: Type.Object({}, { additionalProperties: false }),
       execute: async (_params: unknown, config: DBhopperConfig = {}) => ({
         ok: true,
@@ -48,7 +47,6 @@ export function createPrivateSettingsToolDefinitions(tool: any) {
           "Update ID_USR, ID_CLM, ID_BUY, and/or ID_PYM",
           "in assets/private/settings.toml.",
         ].join(" "),
-      optional: true,
       parameters: Type.Object(
         {
           user_id: Type.Optional(
@@ -116,7 +114,6 @@ export function createPrivateSettingsToolDefinitions(tool: any) {
           "Controls workflow gates, delay backend mode, fallback mode,",
           "claim review mode, and purchase review mode in assets/private/settings.toml.",
         ].join(" "),
-      optional: true,
       parameters: Type.Object(
         {
           use_delay_retrieval: Type.Optional(

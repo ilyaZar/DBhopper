@@ -82,7 +82,6 @@ export function createTicketBuyingToolDefinitions(tool) {
             name: TICKET_BUYING_RESEARCH_TOOL_NAME,
             label: "DBhopper Ticket Buying Research",
             description: "Return WIP ticket-buying interface candidates and safety constraints.",
-            optional: true,
             parameters: Type.Object({}, { additionalProperties: false }),
             execute: () => ({
                 ok: true,
@@ -97,7 +96,6 @@ export function createTicketBuyingToolDefinitions(tool) {
                 "Test DB ticket-buying navigation for a replacement train.",
                 "This is dry-run only and never submits payment.",
             ].join(" "),
-            optional: true,
             parameters: Type.Object({
                 departure_station: Type.String(),
                 arrival_station: Type.String(),
@@ -131,7 +129,6 @@ export function createTicketBuyingToolDefinitions(tool) {
                 "Explore DB ticket checkout as far as safely possible.",
                 "Never submits payment or clicks a legally binding order button.",
             ].join(" "),
-            optional: true,
             parameters: Type.Object({
                 departure_station: Type.Optional(Type.String({
                     default: DEFAULT_CHECKOUT_DEPARTURE,

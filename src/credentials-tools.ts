@@ -14,7 +14,6 @@ export function createCredentialsToolDefinitions(tool: any) {
       label: "DBhopper Credentials Validate",
       description:
         "Validate DBhopper private credentials TOML files without returning secrets.",
-      optional: true,
       parameters: Type.Object({}, { additionalProperties: false }),
       execute: async (_params: unknown, config: DBhopperConfig = {}) => {
         const result = await validateCredentialsFiles(config);

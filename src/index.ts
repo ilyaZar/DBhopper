@@ -154,7 +154,6 @@ interface ToolDefinition {
   label?: string;
   description?: string;
   parameters?: unknown;
-  optional?: boolean;
   execute?: (...args: any[]) => unknown;
   factory?: (...args: any[]) => unknown;
   [key: string]: unknown;
@@ -386,7 +385,6 @@ function claimToolDefinition(
 ) {
   return tool({
     ...definition,
-    optional: true,
     factory: ({ config }: { config: DBhopperConfig }) =>
       createDBhopperTools(config).find((entry) => entry.name === definition.name) ?? null,
   });

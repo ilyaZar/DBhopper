@@ -231,7 +231,6 @@ function exactStationType(description) {
 function claimToolDefinition(tool, definition) {
     return tool({
         ...definition,
-        optional: true,
         factory: ({ config }) => createDBhopperTools(config).find((entry) => entry.name === definition.name) ?? null,
     });
 }

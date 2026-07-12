@@ -8,12 +8,32 @@ and replacement-ticket workflows.
 DBhopper keeps private values in local files and returns deterministic tool
 results. Agents should not clean raw DB or website payloads with the LLM.
 
-## Local Setup
+## OpenClaw Setup
+
+Install the native plugin from ClawHub:
 
 ```bash
-openclaw plugins install -l /home/iz/Dropbox/projects/openclaw/own-plugins/dbhopper
-openclaw plugins enable dbhopper
+openclaw plugins install clawhub:dbhopper
 ```
+
+The installer enables DBhopper. For local development, link this checkout with
+`openclaw plugins install --link .` instead.
+
+Fresh OpenClaw onboarding uses the `coding` tool profile. Keep that profile and
+admit only DBhopper:
+
+```json5
+{
+  tools: {
+    profile: "coding",
+    alsoAllow: ["dbhopper"],
+  },
+}
+```
+
+Sandboxed agents need the same plugin ID in
+`tools.sandbox.tools.alsoAllow`. These are operator-owned OpenClaw choices;
+DBhopper never changes OpenClaw source or configuration.
 
 Configure `plugins.entries.dbhopper.config.workspaceRoot` to this plugin
 directory. DBhopper uses one local settings file:
@@ -374,8 +394,9 @@ unless the user chooses to inspect or share them.
 ## Troubleshooting
 
 If an OpenClaw-routed agent can describe the skill but cannot call `dbhopper_*`,
-check the sandbox tool policy. The local config needs DBhopper in both
-`tools.alsoAllow` and `tools.sandbox.tools.alsoAllow`.
+check that the plugin is enabled and admitted by the active tool policy. The
+stock `coding` profile needs `dbhopper` in `tools.alsoAllow`; sandboxed agents
+also need it in `tools.sandbox.tools.alsoAllow`.
 
 If a workflow tool returns `feature_disabled`, check
 `assets/private/settings.toml` or ask the agent to use
