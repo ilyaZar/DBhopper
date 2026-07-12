@@ -25,7 +25,7 @@ const configSchema = Type.Object({
         description: "Optional external directory for claim browser-run artifacts.",
     })),
     headless: Type.Optional(Type.Boolean({
-        default: true,
+        default: false,
         description: "Whether browser filing runs headless by default.",
     })),
     timeoutMs: Type.Optional(Type.Number({
@@ -215,7 +215,9 @@ function createClaimToolDefinitions(tool) {
                 end_check_bahnhof_suffix: Type.Optional(bahnhofSuffixType("Optional suffix probe strategy for the destination station field.")),
                 exact_station_departure: Type.Optional(exactStationType("Optional exact live dropdown label for the departure station.")),
                 exact_station_arrival: Type.Optional(exactStationType("Optional exact live dropdown label for the arrival station.")),
-                headless: Type.Optional(Type.Boolean()),
+                headless: Type.Optional(Type.Boolean({
+                    description: "Omit to preserve the configured visible-browser default; use true only when the user explicitly requests headless operation.",
+                })),
             }, { additionalProperties: false }),
         }),
     ];

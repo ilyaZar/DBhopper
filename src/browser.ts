@@ -39,6 +39,8 @@ export interface BrowserRunResult {
   entryFlow: BrowserEntryFlow;
   stationSelections: StationSelection[];
   summaryScreenshot?: string;
+  submittedScreenshot?: string;
+  submissionPdf?: string;
   submitted: boolean;
   needsUserAction: boolean;
   message: string;
@@ -207,11 +209,13 @@ export async function runBrowserClaim(params: BrowserRunParams): Promise<Browser
     }
 
     stage = "submit";
-    const download = await submitAndDownload(page, params.claimDir);
-    if (download) {
-      artifacts.push(download);
+    const proof = await submitAndCollectProof(page, params.claimDir, artifactDir);
+    if (proof.submittedScreenshot) {
+      artifacts.push(proof.submittedScreenshot);
     }
-    await captureDebugStage(page, artifactDir, "submitted", artifacts, testRunClaimRequest);
+    if (proof.submissionPdf) {
+      artifacts.push(proof.submissionPdf);
+    }
 
     return {
       ok: true,
@@ -223,6 +227,8 @@ export async function runBrowserClaim(params: BrowserRunParams): Promise<Browser
       entryFlow,
       stationSelections,
       summaryScreenshot,
+      submittedScreenshot: proof.submittedScreenshot,
+      submissionPdf: proof.submissionPdf,
       submitted: true,
       needsUserAction: false,
       message: "claim submitted and available artifacts were saved",
@@ -342,9 +348,18 @@ async function openPublicFormPage(page: Page) {
     .filter({ visible: true })
     .first();
   if ((await link.count()) === 0) {
-    throw new Error("public claim form link was not found");
+    await page.goto(FORM_PAGE_URL, { waitUntil: "domcontentloaded" });
+    await page.waitForURL(formPagePattern, { timeout: 10000 });
+    return;
   }
-  await link.click({ force: true });
+  await link.click({ force: true }).catch(async () => {
+    await link.evaluate((element) => {
+      (element as HTMLElement).click();
+    });
+  });
+  if (!formPagePattern.test(page.url())) {
+    await page.goto(FORM_PAGE_URL, { waitUntil: "domcontentloaded" });
+  }
   await page.waitForURL(formPagePattern, { timeout: 10000 });
 }
 
@@ -400,7 +415,7 @@ export async function launchBrowser(config: DBhopperConfig | BrowserRunParams): 
   const executablePath = await resolveBrowserExecutablePath(config);
   return chromium.launch({
     executablePath,
-    headless: config.headless !== false,
+    headless: config.headless === true,
     args: ["--disable-dev-shm-usage"],
   });
 }
@@ -505,38 +520,18 @@ async function fillJourney(
   await clickSearchRoutes(page);
   await page.waitForTimeout(LIVE_FORM_SETTLE_MS);
 
-  const line = journey.plannedLine || journey.plannedTrainLabel;
-  let selected = false;
-  if (line) {
-    const rowButton = page
-      .locator("tr")
-      .filter({ hasText: new RegExp(escapeRegExp(line), "i") })
-      .getByRole("button", { name: /Ausw/i })
-      .first();
-    if ((await rowButton.count()) > 0) {
-      await rowButton.click();
-      selected = true;
-    }
-  }
-  if (!selected) {
-    const first = page.getByRole("button", { name: /Ausw/i }).first();
-    if ((await first.count()) > 0) {
-      await first.click();
-      selected = true;
-    }
-  }
-  if (!selected) {
-    await page.getByRole("button", { name: /Fahrt nicht/i }).first().click();
-    await fill(
-      page,
-      "#tripNotFoundDescription",
-      [
-        journey.plannedLine || journey.plannedTrainLabel || "planned local service",
-        journey.delayMinutes ? `${journey.delayMinutes} minutes delay` : undefined,
-        journey.disruptionType || "delay",
-      ].filter(Boolean).join("; "),
-    );
-  }
+  await page.locator("#descriptionControl").click();
+  await fill(
+    page,
+    "#tripNotFoundDescription",
+    [
+      journey.plannedLine || journey.plannedTrainLabel || "planned local service",
+      typeof journey.delayMinutes === "number"
+        ? `${journey.delayMinutes} minutes delay`
+        : undefined,
+      journey.disruptionType || "delay",
+    ].filter(Boolean).join("; "),
+  );
   return { stationSelections, stoppedAfterStationResolution: false };
 }
 
@@ -584,21 +579,36 @@ async function fillBank(page: Page, claim: DBhopperClaim) {
   await page.waitForTimeout(1500);
 }
 
-async function submitAndDownload(page: Page, claimDir: string) {
+async function submitAndCollectProof(
+  page: Page,
+  claimDir: string,
+  artifactDir: string,
+) {
   const downloadPromise = page.waitForEvent("download", { timeout: 60000 }).catch(() => null);
   await page.getByRole("button", { name: /Angaben absenden/i }).click();
   await page.waitForTimeout(3000);
-  const downloadButton = page.getByRole("button", { name: /download|pdf|herunterladen/i }).first();
-  if ((await downloadButton.count()) > 0) {
+  const submittedScreenshot = await saveScreenshot(
+    page,
+    artifactDir,
+    "submitted",
+  ).catch(() => undefined);
+  const downloadButton = page
+    .getByRole("button", { name: /download|pdf|herunterladen|bestätigung/i })
+    .or(page.getByRole("link", { name: /download|pdf|herunterladen|bestätigung/i }))
+    .first();
+  if (await downloadButton.isVisible().catch(() => false)) {
     await downloadButton.click().catch(() => undefined);
   }
   const download = await downloadPromise;
   if (!download) {
-    return undefined;
+    return { submittedScreenshot };
   }
   const target = path.join(claimDir, "submission-confirmation.pdf");
-  await download.saveAs(target);
-  return target;
+  const submissionPdf = await download.saveAs(target).then(
+    () => target,
+    () => undefined,
+  );
+  return { submittedScreenshot, submissionPdf };
 }
 
 async function chooseAutocomplete(
@@ -636,6 +646,7 @@ async function chooseAutocomplete(
     dropdownChoices.push(...choices);
     await closeAutocompleteFlyout(page, selector, control);
   }
+  await hideAutocompleteFlyout(page, selector);
   return {
     field,
     input: value,
@@ -738,9 +749,11 @@ async function closeAutocompleteFlyout(
 async function deactivateAutocompleteFlyout(page: Page, selector: string) {
   const id = selector.replace(/^#/, "");
   await page.evaluate((controlId) => {
-    const wrapper = document.getElementById(`wrapper${controlId}`);
-    wrapper?.classList.remove("flyout-active");
-    wrapper?.setAttribute("aria-hidden", "true");
+    for (const wrapperId of [`wrapper${controlId}`, `wrapper_${controlId}`]) {
+      const wrapper = document.getElementById(wrapperId);
+      wrapper?.classList.remove("flyout-active");
+      wrapper?.setAttribute("aria-hidden", "true");
+    }
     const control = document.getElementById(controlId);
     control?.setAttribute("aria-expanded", "false");
   }, id);
@@ -749,12 +762,14 @@ async function deactivateAutocompleteFlyout(page: Page, selector: string) {
 async function hideAutocompleteFlyout(page: Page, selector: string) {
   const id = selector.replace(/^#/, "");
   await page.evaluate((controlId) => {
-    const wrapper = document.getElementById(`wrapper${controlId}`);
-    if (wrapper instanceof HTMLElement) {
-      wrapper.classList.remove("flyout-active");
-      wrapper.setAttribute("aria-hidden", "true");
-      wrapper.style.display = "none";
-      wrapper.style.pointerEvents = "none";
+    for (const wrapperId of [`wrapper${controlId}`, `wrapper_${controlId}`]) {
+      const wrapper = document.getElementById(wrapperId);
+      if (wrapper instanceof HTMLElement) {
+        wrapper.classList.remove("flyout-active");
+        wrapper.setAttribute("aria-hidden", "true");
+        wrapper.style.display = "none";
+        wrapper.style.pointerEvents = "none";
+      }
     }
     const control = document.getElementById(controlId);
     control?.setAttribute("aria-expanded", "false");
@@ -798,6 +813,7 @@ async function clickAutocompleteOptionByText(
     for (const [index, node] of nodes.entries()) {
       const text = (node.textContent || "").trim().replace(/\s+/g, " ");
       if (normalize(text) === target) {
+        (node as HTMLElement).click();
         return { index, text };
       }
     }
@@ -806,7 +822,6 @@ async function clickAutocompleteOptionByText(
   if (!match) {
     return undefined;
   }
-  await options.nth(match.index).click({ force: true });
   return match.text;
 }
 
@@ -829,14 +844,18 @@ function autocompleteOptions(page: Page, selector: string) {
   return page.locator(
     [
       `#wrapper${id} button[role="option"]`,
+      `#wrapper_${id} button[role="option"]`,
       `button[role="option"][id^="${id}_"]`,
     ].join(", "),
-  );
+  ).filter({ visible: true });
 }
 
 function activeAutocompleteFlyout(page: Page, selector: string) {
   const id = selector.replace(/^#/, "");
-  return page.locator(`#wrapper${id}.flyout-active, #wrapper${id} .flyout-active`);
+  return page.locator(
+    `#wrapper${id}.flyout-active, #wrapper${id} .flyout-active, ` +
+    `#wrapper_${id}.flyout-active, #wrapper_${id} .flyout-active`,
+  );
 }
 
 async function waitForAutocompleteOptions(page: Page, selector: string) {
@@ -1079,10 +1098,10 @@ function stationProbeVectors(
   const trimmedCity = city.trim();
   return suffixes.map((suffix) => {
     if (suffix === "b") {
-      return `${trimmedCity} B`;
+      return `${trimmedCity} Bf`;
     }
     if (suffix === "hb") {
-      return `${trimmedCity} Hb`;
+      return `${trimmedCity} Hbf`;
     }
     return trimmedCity;
   });

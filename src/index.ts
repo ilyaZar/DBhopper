@@ -59,7 +59,7 @@ const configSchema = Type.Object(
     ),
     headless: Type.Optional(
       Type.Boolean({
-        default: true,
+        default: false,
         description: "Whether browser filing runs headless by default.",
       }),
     ),
@@ -351,7 +351,12 @@ function createClaimToolDefinitions(tool: any) {
           exact_station_arrival: Type.Optional(
             exactStationType("Optional exact live dropdown label for the arrival station."),
           ),
-          headless: Type.Optional(Type.Boolean()),
+          headless: Type.Optional(
+            Type.Boolean({
+              description:
+                "Omit to preserve the configured visible-browser default; use true only when the user explicitly requests headless operation.",
+            }),
+          ),
         },
         { additionalProperties: false },
       ),

@@ -79,6 +79,10 @@ export declare function prepareClaim(params: PrepareClaimParams, config?: DBhopp
 export declare function recordClaimArtifact(claimId: string, file: ClaimFile, config?: DBhopperConfig): Promise<DBhopperClaim>;
 export declare function writeSubmittedRecipe(prepared: PreparedClaim, params?: {
     submittedAt?: Date;
+    mode?: string;
+    summaryScreenshot?: string;
+    submittedScreenshot?: string;
+    submissionPdf?: string;
 }): Promise<string>;
 export declare function validateWorkspaceTomlFiles(config?: DBhopperConfig): Promise<{
     ok: boolean;

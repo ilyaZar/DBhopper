@@ -48,7 +48,7 @@
       },
       "headless": {
         "type": "boolean",
-        "default": true,
+        "default": false,
         "description": "Whether browser filing runs headless by default."
       },
       "timeoutMs": {

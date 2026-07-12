@@ -455,8 +455,14 @@ function runClaimTool() {
           testRunClaimRequest: privateSettings.settings.TEST_RUN_CLAIM_REQUEST,
           timeoutMs: this.config.timeoutMs,
         });
-        const recipePath =
-          result.submitted && result.ok ? await writeSubmittedRecipe(prepared) : undefined;
+        const recipePath = result.submitted && result.ok
+          ? await writeSubmittedRecipe(prepared, {
+              mode: result.mode,
+              summaryScreenshot: result.summaryScreenshot,
+              submittedScreenshot: result.submittedScreenshot,
+              submissionPdf: result.submissionPdf,
+            })
+          : undefined;
         return textResult({
           ok: result.ok,
           operation: "run_claim",

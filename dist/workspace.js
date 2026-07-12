@@ -224,6 +224,14 @@ export async function writeSubmittedRecipe(prepared, params = {}) {
         ID_CLM: prepared.claimId,
         submitted: true,
         submitted_at: (params.submittedAt || new Date()).toISOString(),
+        ...(params.mode ? { mode: params.mode } : {}),
+        ...(params.summaryScreenshot
+            ? { summary_screenshot: params.summaryScreenshot }
+            : {}),
+        ...(params.submittedScreenshot
+            ? { submitted_screenshot: params.submittedScreenshot }
+            : {}),
+        ...(params.submissionPdf ? { submission_pdf: params.submissionPdf } : {}),
     };
     await fs.writeFile(`${prepared.recipePath}.tmp`, stringify(recipe), "utf8");
     await fs.rename(`${prepared.recipePath}.tmp`, prepared.recipePath);

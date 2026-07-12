@@ -374,10 +374,15 @@ describe("dbhopper workspace", () => {
 
     const recipePath = await writeSubmittedRecipe(prepared, {
       submittedAt: new Date("2026-07-01T12:00:00.000Z"),
+      mode: "submit",
+      summaryScreenshot: path.join(prepared.claimDir, "summary.png"),
+      submissionPdf: path.join(prepared.claimDir, "submission-confirmation.pdf"),
     });
     const recipe = await fs.readFile(recipePath, "utf8");
 
     assert.match(recipe, /submitted = true/);
+    assert.match(recipe, /mode = "submit"/);
+    assert.match(recipe, /submission_pdf = /);
     assert.doesNotMatch(recipe, /maria@example\.org/);
     assert.doesNotMatch(recipe, /first_name|iban|start_station/);
   });

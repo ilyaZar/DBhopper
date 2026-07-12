@@ -58,7 +58,8 @@ can authorize the separately human-approved submit boundary.
    folder and merges claim profile data internally without writing it into
    `claim.toml`.
 4. Call `dbhopper_validate_claim` before any browser work.
-5. For station-name uncertainty, call `dbhopper_run_claim` with
+5. For a new claim with genuine station-name uncertainty, call
+   `dbhopper_run_claim` with
    `mode: "dry_run"` and `stop_after_station_resolution: true` first. Pass
    `check_bahnhof_suffix`, `start_check_bahnhof_suffix`, or
    `end_check_bahnhof_suffix` as `both`, `hbf_only`, or `bf_only` to tune
@@ -69,15 +70,19 @@ can authorize the separately human-approved submit boundary.
    fields to force and verify that exact station. If the choices are ambiguous,
    stop and ask the user for the exact station name before rerunning.
 6. Call `dbhopper_run_claim` with `mode: "dry_run"` for the full review pass.
-   It must stop at the summary page and return `summaryScreenshot`.
-7. Submit only after the user explicitly confirms the exact claim and the dry
-   run summary screenshot looks correct. `claim_request_mode` must be `auto`,
-   and the tool call must use `mode: "submit"` and `confirmSubmit: true`.
-8. After a successful submit, the claim folder should contain the confirmation
-   PDF and `claim_submitted_recipe.toml`. Send the saved confirmation PDF path
-   back through the active user channel. If a configured email tool is
-   available and the user asked for email delivery, send the same PDF by email
-   from that tool.
+   It must stop at the summary page and return `summaryScreenshot`. Preserve the
+   configured visible-browser behavior by omitting `headless` unless the user
+   explicitly requests headless operation.
+7. Submit only after the user explicitly confirms the exact claim and the
+   dry-run summary screenshot looks correct. `claim_request_mode` must be
+   `auto`, and the tool call must use `mode: "submit"` and
+   `confirmSubmit: true`.
+8. After a successful submit, the claim folder should contain
+   `claim_submitted_recipe.toml`, `submittedScreenshot`, and the confirmation
+   PDF when the form provides one. Send the saved `submissionPdf` path back
+   through the active user channel. If a configured email tool is available
+   and the user asked for email delivery, send the same PDF by email from that
+   tool.
 9. Use `dbhopper_db_standard_login_check`,
    `dbhopper_db_marketplace_access_check`, and
    `dbhopper_db_api_credential_probe` for one-time credential onboarding
@@ -104,8 +109,8 @@ station values as guesses, not as exact accepted form values.
 - Let the browser collect dropdown choices from public station probes, then use
   the returned `stationSelections` and per-vector `probeChoices` to decide
   whether a station is clear.
-- Station probes should be limited to plain city, city plus `Hb`, and city plus
-  `B`; compare the resulting dropdown lists against the TOML intent.
+- Station probes should be limited to plain city, city plus `Hbf`, and city plus
+  `Bf`; compare the resulting dropdown lists against the TOML intent.
 - On the first probing invocation, omit `exact_station_departure` and
   `exact_station_arrival`. On a rerun, use those fields only after the LLM or
   user has chosen a specific live dropdown label.

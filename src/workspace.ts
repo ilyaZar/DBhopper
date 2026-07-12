@@ -316,6 +316,10 @@ export async function writeSubmittedRecipe(
   prepared: PreparedClaim,
   params: {
     submittedAt?: Date;
+    mode?: string;
+    summaryScreenshot?: string;
+    submittedScreenshot?: string;
+    submissionPdf?: string;
   } = {},
 ) {
   if (!prepared.recipePath) {
@@ -325,6 +329,14 @@ export async function writeSubmittedRecipe(
     ID_CLM: prepared.claimId,
     submitted: true,
     submitted_at: (params.submittedAt || new Date()).toISOString(),
+    ...(params.mode ? { mode: params.mode } : {}),
+    ...(params.summaryScreenshot
+      ? { summary_screenshot: params.summaryScreenshot }
+      : {}),
+    ...(params.submittedScreenshot
+      ? { submitted_screenshot: params.submittedScreenshot }
+      : {}),
+    ...(params.submissionPdf ? { submission_pdf: params.submissionPdf } : {}),
   };
   await fs.writeFile(
     `${prepared.recipePath}.tmp`,
