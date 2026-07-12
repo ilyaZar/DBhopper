@@ -168,7 +168,8 @@ export async function listClaims(config: DBhopperConfig = {}) {
     try {
       const raw = await fs.readFile(claimPath, "utf8");
       const storedClaim = parseClaimToml(raw, claimPath);
-      const claimId = normalizeClaimId(storedClaim.ID_CLM);
+      const claimId = claimListEntryId(entry);
+      const storedClaimId = normalizeClaimId(storedClaim.ID_CLM);
       const profileSelection = await resolveProfileSelection(config);
       const privateProfile = profileSelection
         ? await readPrivateProfile(profileSelection)
@@ -180,6 +181,7 @@ export async function listClaims(config: DBhopperConfig = {}) {
       );
       claims.push({
         claimId,
+        storedClaimId,
         status: claim.status || "draft",
         profileId: profileSelection?.profileId,
         profileFile: profileSelection?.profileFile,
@@ -482,6 +484,12 @@ function claimListEntryPath(claimRoot: string, entry: Dirent) {
     return path.join(claimRoot, entry.name);
   }
   return undefined;
+}
+
+function claimListEntryId(entry: Dirent) {
+  return normalizeClaimId(
+    entry.isDirectory() ? entry.name : path.basename(entry.name, ".toml"),
+  );
 }
 
 interface ProfileSelection {

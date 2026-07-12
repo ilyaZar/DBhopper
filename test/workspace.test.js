@@ -84,6 +84,29 @@ describe("dbhopper workspace", () => {
     );
   });
 
+  it("lists a callable storage ID when the stored claim ID differs", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-claim-id-"));
+    await writePrivateSettingsFixture(root);
+    const claimRoot = path.join(defaultExternalPrivateRoot(root), "profiles");
+    await fs.mkdir(path.join(claimRoot, "claim-02"), { recursive: true });
+    await fs.writeFile(
+      path.join(claimRoot, "claim-02", "claim.toml"),
+      minimalClaimToml("02"),
+      "utf8",
+    );
+
+    const [listed] = await listClaims(configWithPrivateSettings(root));
+    const prepared = await readClaim(
+      listed.claimId,
+      configWithPrivateSettings(root),
+    );
+
+    assert.equal(listed.claimId, "claim-02");
+    assert.equal(listed.storedClaimId, "02");
+    assert.equal(prepared.claimId, "claim-02");
+    assert.equal(prepared.claim.ID_CLM, "02");
+  });
+
   it("detects existing submission proof before a repeat submit", async () => {
     const claimDir = await fs.mkdtemp(
       path.join(os.tmpdir(), "dbhopper-submission-proof-"),

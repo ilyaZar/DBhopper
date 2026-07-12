@@ -39,6 +39,7 @@ export declare function resolveClaimPaths(claimId: string, config?: DBhopperConf
 export declare function readClaim(claimId: string, config?: DBhopperConfig): Promise<PreparedClaim>;
 export declare function listClaims(config?: DBhopperConfig): Promise<({
     claimId: string;
+    storedClaimId: string;
     status: string;
     profileId: string | undefined;
     profileFile: string | undefined;
@@ -67,6 +68,7 @@ export declare function listClaims(config?: DBhopperConfig): Promise<({
     claimId: string;
     status: string;
     fileCount: number;
+    storedClaimId?: undefined;
     profileId?: undefined;
     profileFile?: undefined;
     journey?: undefined;
