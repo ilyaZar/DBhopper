@@ -72,8 +72,8 @@
             "const": "none"
           }
         ],
-        "default": "all",
-        "description": "Approval behavior. Defaults to all claim tools; use mutating for read-only claim tools without approval."
+        "default": "none",
+        "description": "Routine approval behavior. Defaults to none; final claim submission always requires separate human approval."
       },
       "timetableBaseUrl": {
         "type": "string",

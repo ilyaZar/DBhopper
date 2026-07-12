@@ -38,10 +38,17 @@ North Rhine-Westphalia.
    Send or show those images to the user before asking for real submission.
 
 If the native tools are unavailable, report the missing OpenClaw policy. Do not
-edit OpenClaw configuration, invoke DBhopper through `exec`, or substitute an
-MCP implementation.
+edit OpenClaw configuration, invoke DBhopper through `exec`, or bypass the
+native tools.
 
 ## Workflow
+
+Treat short requests such as `publish 02` as authorization for validation and
+a visible full dry run to the final review page only. They never authorize
+changing `claim_request_mode` to `auto`, using submit mode, or setting
+`confirmSubmit`. After returning the summary screenshot, stop. Only a new user
+message that explicitly confirms submission after reviewing that screenshot
+can authorize the separately human-approved submit boundary.
 
 1. Gather the facts listed in
    [Eligibility And Evidence](references/eligibility-and-evidence.md).
@@ -134,8 +141,10 @@ station values as guesses, not as exact accepted form values.
 - Set `test_run_claim_request = true` only when the user explicitly asks for a
   page-by-page claim browser text and screenshot trail. Otherwise use only the
   returned `summaryScreenshot`.
-- Keep `claim_request_mode = "review"` for ordinary claim dry-runs. Switch it
-  to `"auto"` only after the user explicitly wants final submission enabled.
+- Keep `claim_request_mode = "review"` for ordinary claim dry-runs. Never
+  switch it to `"auto"` in the same turn that produced the summary screenshot.
+  A new explicit user confirmation and the separate human approval gate are
+  required.
 - Do not inspect credential or payment TOML files unless the user explicitly
   asks. Use `dbhopper_credentials_validate` for shape checks without exposing
   secrets.

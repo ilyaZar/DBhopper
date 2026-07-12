@@ -192,7 +192,7 @@ export function privateSettingsRoot(config: DBhopperConfig = {}) {
 export function defaultPrivateSettings(): DBhopperPrivateSettings {
   return {
     USE_DELAY_RETRIEVAL: true,
-    USE_CLAIM_REQUESTS: false,
+    USE_CLAIM_REQUESTS: true,
     USE_TICKET_PURCHASE: false,
     TEST_RUN_CLAIM_REQUEST: false,
     TEST_RUN_PURCHASE: false,

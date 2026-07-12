@@ -5,6 +5,7 @@ import { claimSchemaReference, validateClaim } from "./validation.js";
 import { errorMessage } from "./errors.js";
 import { listClaims, prepareClaim, readClaim, redactEmail, validateWorkspaceTomlFiles, writeSubmittedRecipe, } from "./workspace.js";
 import { readPrivateSettings } from "./private-settings.js";
+import { featureSettingForToolName, readTopLevelSettings, } from "./plugin-settings.js";
 const SIDE_EFFECT_TOOL_NAMES = new Set([
     ...SIDE_EFFECT_CLAIM_TOOL_NAMES,
     PRIVATE_SETTINGS_CONFIGURE_TOOL_NAME,
@@ -14,7 +15,7 @@ const CLAIM_TOOL_NAME_SET = new Set([
     PRIVATE_SETTINGS_CONFIGURE_TOOL_NAME,
 ]);
 export function resolveApprovalToolNames(config = {}) {
-    const mode = config.approvalMode || "all";
+    const mode = config.approvalMode || "none";
     if (mode === "none") {
         return new Set();
     }
@@ -22,6 +23,42 @@ export function resolveApprovalToolNames(config = {}) {
         return new Set(SIDE_EFFECT_TOOL_NAMES);
     }
     return new Set(CLAIM_TOOL_NAME_SET);
+}
+export function requiresMandatoryHumanApproval({ toolName, params = {}, }) {
+    return (toolName === CLAIM_TOOL_CONTRACTS.dbhopper_run_claim.name &&
+        (params.mode === "submit" || params.confirmSubmit === true));
+}
+export function registerClaimApprovalHook(api, readFeatureSettings = readTopLevelSettings) {
+    const approvalToolNames = resolveApprovalToolNames(api.pluginConfig ?? {});
+    api.on?.("before_tool_call", (event) => {
+        const mandatory = requiresMandatoryHumanApproval({
+            toolName: event.toolName,
+            params: event.params,
+        });
+        if (!approvalToolNames.has(event.toolName) && !mandatory) {
+            return;
+        }
+        const featureSetting = featureSettingForToolName(event.toolName);
+        if (featureSetting && !readFeatureSettings()[featureSetting]) {
+            return;
+        }
+        return {
+            requireApproval: {
+                title: mandatory
+                    ? "Confirm DBhopper submission boundary"
+                    : "Run DBhopper claim operation",
+                description: buildDBhopperApprovalDescription({
+                    toolName: event.toolName,
+                    params: event.params,
+                }),
+                severity: mandatory ? "critical" : "warning",
+                allowedDecisions: mandatory
+                    ? ["allow-once", "deny"]
+                    : ["allow-once", "allow-always", "deny"],
+                timeoutMs: 120000,
+            },
+        };
+    }, { priority: 80, timeoutMs: 5000 });
 }
 export function buildDBhopperApprovalDescription({ toolName, params = {}, }) {
     const lines = [
@@ -37,13 +74,17 @@ export function buildDBhopperApprovalDescription({ toolName, params = {}, }) {
         lines.push(`Mode: ${mode}`);
     }
     if (params.confirmSubmit === true) {
-        lines.push("Submit: explicitly confirmed");
+        lines.push("Submit requested: requires separate human approval");
+    }
+    if (typeof params.claim_request_mode === "string") {
+        lines.push(`Claim request mode: ${params.claim_request_mode}`);
     }
     if (typeof params.check_bahnhof_suffix === "string") {
         lines.push(`Station suffix check: ${params.check_bahnhof_suffix}`);
     }
-    if (params.confirm === true) {
-        lines.push("Settings change: explicitly confirmed");
+    if (toolName === PRIVATE_SETTINGS_CONFIGURE_TOOL_NAME &&
+        params.confirm === true) {
+        lines.push("Settings write requested");
     }
     const claim = params.claim;
     if (claim?.claimant?.email) {

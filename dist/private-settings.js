@@ -85,7 +85,7 @@ export function privateSettingsRoot(config = {}) {
 export function defaultPrivateSettings() {
     return {
         USE_DELAY_RETRIEVAL: true,
-        USE_CLAIM_REQUESTS: false,
+        USE_CLAIM_REQUESTS: true,
         USE_TICKET_PURCHASE: false,
         TEST_RUN_CLAIM_REQUEST: false,
         TEST_RUN_PURCHASE: false,

@@ -148,7 +148,11 @@ export function createPrivateSettingsToolDefinitions(tool: any) {
           claim_request_mode: Type.Optional(
             Type.Union([Type.Literal("review"), Type.Literal("auto")], {
               description:
-                "Final claim filing mode. review stops for summary screenshot inspection; auto allows confirmed submit mode.",
+                [
+                  "Final claim filing mode. review stops for summary screenshot inspection.",
+                  "auto permits a separately approved submit call after a summary screenshot",
+                  "and must not be inferred from an initial publish request.",
+                ].join(" "),
             }),
           ),
           delay_provider: Type.Optional(
@@ -172,7 +176,7 @@ export function createPrivateSettingsToolDefinitions(tool: any) {
           confirm: Type.Optional(
             Type.Boolean({
               description:
-                "Must be true only after the user explicitly confirms the previewed settings changes.",
+                "Must be true only after the user explicitly confirms the previewed settings changes; the model cannot provide that confirmation on the user's behalf.",
             }),
           ),
         },

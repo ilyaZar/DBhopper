@@ -27,9 +27,8 @@ import {
   readTopLevelSettings,
 } from "./plugin-settings.js";
 import {
-  buildDBhopperApprovalDescription,
   createDBhopperTools,
-  resolveApprovalToolNames,
+  registerClaimApprovalHook,
 } from "./tools.js";
 import type { DBhopperConfig } from "./types.js";
 
@@ -77,9 +76,9 @@ const configSchema = Type.Object(
         Type.Literal("mutating"),
         Type.Literal("none"),
       ], {
-        default: "all",
+        default: "none",
         description:
-          "Approval behavior. Defaults to all claim tools; use mutating for read-only claim tools without approval.",
+          "Routine approval behavior. Defaults to none; final claim submission always requires separate human approval.",
       }),
     ),
     timetableBaseUrl: Type.Optional(
@@ -311,7 +310,11 @@ function createClaimToolDefinitions(tool: any) {
           confirmSubmit: Type.Optional(
             Type.Boolean({
               description:
-                "Must be true only after the user explicitly confirms final submission.",
+                [
+                  "Must be true only after the user reviews the returned summary screenshot",
+                  "and explicitly confirms final submission in a new message.",
+                  "An initial publish request or model inference is not confirmation.",
+                ].join(" "),
             }),
           ),
           stop_after_station_resolution: Type.Optional(
@@ -388,37 +391,6 @@ function claimToolDefinition(
     factory: ({ config }: { config: DBhopperConfig }) =>
       createDBhopperTools(config).find((entry) => entry.name === definition.name) ?? null,
   });
-}
-
-function registerClaimApprovalHook(api: any) {
-  const approvalToolNames = resolveApprovalToolNames(api.pluginConfig ?? {});
-
-  api.on?.(
-    "before_tool_call",
-    (event: any) => {
-      if (!approvalToolNames.has(event.toolName)) {
-        return;
-      }
-      const featureSetting = featureSettingForToolName(event.toolName);
-      if (featureSetting && !readTopLevelSettings()[featureSetting]) {
-        return;
-      }
-
-      return {
-        requireApproval: {
-          title: "Run DBhopper claim operation",
-          description: buildDBhopperApprovalDescription({
-            toolName: event.toolName,
-            params: event.params,
-          }),
-          severity: event.params?.mode === "submit" ? "danger" : "warning",
-          timeoutMs: 120000,
-          timeoutBehavior: "deny",
-        },
-      };
-    },
-    { priority: 80, timeoutMs: 5000 },
-  );
 }
 
 function prepareClaimParameters() {

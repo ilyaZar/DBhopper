@@ -79,7 +79,7 @@ profile scan directories, and delay-provider defaults:
 
 ```toml
 use_delay_retrieval = true
-use_claim_requests = false
+use_claim_requests = true
 use_ticket_purchase = false
 test_run_claim_request = false
 test_run_purchase = false
@@ -169,7 +169,8 @@ The free Timetables subscription currently offers 60 calls per minute.
 
 ### 2. Autonomous claims
 
-Autonomous claim tools are disabled by default. Enable them explicitly:
+Claim tools are enabled by default in mandatory review mode. Keep this setting
+enabled to prepare claims and run visible dry-runs:
 
 ```toml
 use_claim_requests = true
@@ -187,7 +188,8 @@ IDs used for claim filing. Claim filing uses `ID_CLM` from `path_clm`.
 `claim_request_mode = "review"` is the default. Claim filing stops at the
 Mobilitätsgarantie summary page, returns `summaryScreenshot`, and does not click
 `Angaben absenden`. `claim_request_mode = "auto"` allows submit mode only when
-the tool call also passes `mode: "submit"` and `confirmSubmit: true`.
+the tool call also passes `mode: "submit"` and `confirmSubmit: true`; the native
+plugin then requires a critical, one-time human approval before execution.
 
 ### 3. Autonomous ticket buying
 
@@ -275,10 +277,9 @@ Mobilitätsgarantie claims:
 - `dbhopper_validate_claim` checks deterministic eligibility facts.
 - `dbhopper_run_claim` drives the browser filing flow for a prepared claim.
 
-`dbhopper_run_claim` defaults to dry-run behavior and submits only after the
-explicit confirmation fields are set. OpenClaw approval hooks can require
-approval for all claim tools or only mutating claim tools, depending on
-`approvalMode`.
+`dbhopper_run_claim` defaults to dry-run behavior. Routine calls do not require
+plugin approval by default. Final submission always triggers a separate
+one-time human approval, even when `approvalMode` is `none`.
 
 ### Autonomous ticket buying
 

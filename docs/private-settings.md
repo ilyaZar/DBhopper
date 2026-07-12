@@ -15,7 +15,7 @@ user-managed local runtime state and is not packaged.
 
 ```toml
 use_delay_retrieval = true
-use_claim_requests = false
+use_claim_requests = true
 use_ticket_purchase = false
 test_run_claim_request = false
 test_run_purchase = false
