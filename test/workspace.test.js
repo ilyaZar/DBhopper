@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 import {
+  findExistingSubmissionProof,
   listClaims,
   prepareClaim,
   readClaim,
@@ -81,6 +82,18 @@ describe("dbhopper workspace", () => {
       claims.map((claim) => claim.claimId).sort(),
       ["flat-claim", "nested-claim"],
     );
+  });
+
+  it("detects existing submission proof before a repeat submit", async () => {
+    const claimDir = await fs.mkdtemp(
+      path.join(os.tmpdir(), "dbhopper-submission-proof-"),
+    );
+    assert.equal(await findExistingSubmissionProof(claimDir), undefined);
+
+    const proofPath = path.join(claimDir, "submission-confirmation.pdf");
+    await fs.writeFile(proofPath, "proof", "utf8");
+
+    assert.equal(await findExistingSubmissionProof(claimDir), proofPath);
   });
 
   it("requires confirmation before writing", async () => {
@@ -312,7 +325,7 @@ describe("dbhopper workspace", () => {
     );
   });
 
-  it("writes a submitted recipe with profile and claim data joined", async () => {
+  it("writes a submitted recipe without private profile data", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "dbhopper-recipe-"));
     await writePrivateSettingsFixture(root);
     await writePrivateProfileFixture(
@@ -336,11 +349,14 @@ describe("dbhopper workspace", () => {
       configWithPrivateSettings(root),
     );
 
-    const recipePath = await writeSubmittedRecipe(prepared);
+    const recipePath = await writeSubmittedRecipe(prepared, {
+      submittedAt: new Date("2026-07-01T12:00:00.000Z"),
+    });
     const recipe = await fs.readFile(recipePath, "utf8");
 
-    assert.match(recipe, /email = "maria@example.org"/);
-    assert.match(recipe, /start_station = "Koeln Hbf"/);
+    assert.match(recipe, /submitted = true/);
+    assert.doesNotMatch(recipe, /maria@example\.org/);
+    assert.doesNotMatch(recipe, /first_name|iban|start_station/);
   });
 });
 

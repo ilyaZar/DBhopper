@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import type { Dirent } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { stringify } from "smol-toml";
 
 import type { ClaimFile, ClaimFileRole, DBhopperClaim, DBhopperConfig, PreparedClaim } from "./types.js";
 import {
@@ -12,7 +13,6 @@ import {
   profileFieldsInClaim,
   schemaValidationMessages,
   stringifyClaimToml,
-  stringifySubmittedRecipeToml,
 } from "./claim-toml.js";
 import {
   configuredClaimProfilesDir,
@@ -56,6 +56,8 @@ export interface WorkspacePaths {
 
 const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CLAIM_ID_MAX = 80;
+const SUBMITTED_RECIPE_FILE = "claim_submitted_recipe.toml";
+const SUBMISSION_PDF_FILE = "submission-confirmation.pdf";
 
 export function resolveWorkspace(config: DBhopperConfig = {}): WorkspacePaths {
   const root = path.resolve(config.workspaceRoot || PACKAGE_ROOT);
@@ -97,7 +99,7 @@ export function claimPaths(claimId: string, config: DBhopperConfig = {}) {
     claimId: safeId,
     claimDir,
     claimPath: path.join(claimDir, "claim.toml"),
-    recipePath: path.join(claimDir, "claim_submitted_recipe.toml"),
+    recipePath: path.join(claimDir, SUBMITTED_RECIPE_FILE),
   };
 }
 
@@ -119,7 +121,7 @@ export async function resolveClaimPaths(
     claimId: safeId,
     claimDir,
     claimPath: useFlatClaim ? flatClaimPath : nestedClaimPath,
-    recipePath: path.join(claimDir, "claim_submitted_recipe.toml"),
+    recipePath: path.join(claimDir, SUBMITTED_RECIPE_FILE),
   };
 }
 
@@ -199,6 +201,19 @@ export async function listClaims(config: DBhopperConfig = {}) {
   return claims.sort((a, b) => a.claimId.localeCompare(b.claimId));
 }
 
+export async function findExistingSubmissionProof(claimDir: string) {
+  const entries = await fs.readdir(claimDir, { withFileTypes: true });
+  const proof = entries
+    .filter((entry) => entry.isFile())
+    .map((entry) => entry.name)
+    .filter((name) =>
+      name === SUBMITTED_RECIPE_FILE ||
+      name === SUBMISSION_PDF_FILE
+    )
+    .sort()[0];
+  return proof ? path.join(claimDir, proof) : undefined;
+}
+
 export async function prepareClaim(
   params: PrepareClaimParams,
   config: DBhopperConfig = {},
@@ -226,7 +241,7 @@ export async function prepareClaim(
   const claimId = normalizeClaimId(params.claimId || incoming.ID_CLM);
   const claimDir = path.join(await resolveClaimStorageDir(config), claimId);
   const claimPath = path.join(claimDir, "claim.toml");
-  const recipePath = path.join(claimDir, "claim_submitted_recipe.toml");
+  const recipePath = path.join(claimDir, SUBMITTED_RECIPE_FILE);
   await fs.mkdir(claimDir, { recursive: true });
 
   if (!params.overwrite) {
@@ -295,13 +310,23 @@ export async function recordClaimArtifact(
   );
 }
 
-export async function writeSubmittedRecipe(prepared: PreparedClaim) {
+export async function writeSubmittedRecipe(
+  prepared: PreparedClaim,
+  params: {
+    submittedAt?: Date;
+  } = {},
+) {
   if (!prepared.recipePath) {
     throw new Error("prepared claim is missing recipePath");
   }
+  const recipe = {
+    ID_CLM: prepared.claimId,
+    submitted: true,
+    submitted_at: (params.submittedAt || new Date()).toISOString(),
+  };
   await fs.writeFile(
     `${prepared.recipePath}.tmp`,
-    stringifySubmittedRecipeToml(prepared.claim),
+    stringify(recipe),
     "utf8",
   );
   await fs.rename(`${prepared.recipePath}.tmp`, prepared.recipePath);

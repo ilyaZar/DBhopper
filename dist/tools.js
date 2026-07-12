@@ -3,7 +3,7 @@ import { PRIVATE_SETTINGS_CONFIGURE_TOOL_NAME } from "./tool-contracts.js";
 import { BAHNHOF_SUFFIX_CHECKS, probeBrowser, runBrowserClaim, } from "./browser.js";
 import { claimSchemaReference, validateClaim } from "./validation.js";
 import { errorMessage } from "./errors.js";
-import { listClaims, prepareClaim, readClaim, redactEmail, validateWorkspaceTomlFiles, writeSubmittedRecipe, } from "./workspace.js";
+import { findExistingSubmissionProof, listClaims, prepareClaim, readClaim, redactEmail, validateWorkspaceTomlFiles, writeSubmittedRecipe, } from "./workspace.js";
 import { readPrivateSettings } from "./private-settings.js";
 import { featureSettingForToolName, readTopLevelSettings, } from "./plugin-settings.js";
 const SIDE_EFFECT_TOOL_NAMES = new Set([
@@ -26,7 +26,7 @@ export function resolveApprovalToolNames(config = {}) {
 }
 export function requiresMandatoryHumanApproval({ toolName, params = {}, }) {
     return (toolName === CLAIM_TOOL_CONTRACTS.dbhopper_run_claim.name &&
-        (params.mode === "submit" || params.confirmSubmit === true));
+        params.mode === "submit");
 }
 export function registerClaimApprovalHook(api, readFeatureSettings = readTopLevelSettings) {
     const approvalToolNames = resolveApprovalToolNames(api.pluginConfig ?? {});
@@ -291,6 +291,21 @@ function runClaimTool() {
                 const claimRequestMode = privateSettings.settings.CLAIM_REQUEST_MODE;
                 const requestedMode = params.mode || "dry_run";
                 const browserMode = claimRequestMode === "auto" ? requestedMode : "dry_run";
+                if (browserMode === "submit") {
+                    const existingSubmissionProof = await findExistingSubmissionProof(prepared.claimDir);
+                    if (existingSubmissionProof) {
+                        return textResult({
+                            ok: false,
+                            operation: "run_claim",
+                            claimId: prepared.claimId,
+                            claimRequestMode,
+                            requestedMode,
+                            existingSubmissionProof,
+                            needsUserAction: true,
+                            message: "refusing duplicate claim submission because existing submission proof was found",
+                        });
+                    }
+                }
                 const validation = validateClaim(prepared.claim);
                 if (!validation.readyForBrowser) {
                     return textResult({

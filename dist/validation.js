@@ -118,7 +118,7 @@ export function claimSchemaReference() {
                 { role: "substitute_receipt", path: "ice-ticket.pdf" },
             ],
         },
-        submittedRecipeShape: "claim_submitted_recipe.toml records the selected claim after successful submit.",
+        submittedRecipeShape: "claim_submitted_recipe.toml records submission status without private claim data.",
     };
 }
 function validateJourney(claim, now, messages) {

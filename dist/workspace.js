@@ -1,13 +1,16 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { assertClaimTomlShape, mergeClaims, parseClaimToml, parsePrivateProfileToml, profileFieldsInClaim, schemaValidationMessages, stringifyClaimToml, stringifySubmittedRecipeToml, } from "./claim-toml.js";
+import { stringify } from "smol-toml";
+import { assertClaimTomlShape, mergeClaims, parseClaimToml, parsePrivateProfileToml, profileFieldsInClaim, schemaValidationMessages, stringifyClaimToml, } from "./claim-toml.js";
 import { configuredClaimProfilesDir, listBuyingProfileIdFiles, listClaimProfileIdFiles, listPaymentProfileIdFiles, privateSettingsStatus, resolveSelectedClaimProfileFile, } from "./private-settings.js";
 import { parseBuyingProfileToml, schemaValidationMessagesForBuyingProfile, } from "./buying-profile.js";
 import { parsePaymentProfileToml, schemaValidationMessagesForPaymentProfile, } from "./payment-profile.js";
 import { validationErrorFromException } from "./validation-messages.js";
 const PACKAGE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const CLAIM_ID_MAX = 80;
+const SUBMITTED_RECIPE_FILE = "claim_submitted_recipe.toml";
+const SUBMISSION_PDF_FILE = "submission-confirmation.pdf";
 export function resolveWorkspace(config = {}) {
     const root = path.resolve(config.workspaceRoot || PACKAGE_ROOT);
     return {
@@ -45,7 +48,7 @@ export function claimPaths(claimId, config = {}) {
         claimId: safeId,
         claimDir,
         claimPath: path.join(claimDir, "claim.toml"),
-        recipePath: path.join(claimDir, "claim_submitted_recipe.toml"),
+        recipePath: path.join(claimDir, SUBMITTED_RECIPE_FILE),
     };
 }
 export async function resolveClaimPaths(claimId, config = {}) {
@@ -62,7 +65,7 @@ export async function resolveClaimPaths(claimId, config = {}) {
         claimId: safeId,
         claimDir,
         claimPath: useFlatClaim ? flatClaimPath : nestedClaimPath,
-        recipePath: path.join(claimDir, "claim_submitted_recipe.toml"),
+        recipePath: path.join(claimDir, SUBMITTED_RECIPE_FILE),
     };
 }
 export async function readClaim(claimId, config = {}) {
@@ -130,6 +133,16 @@ export async function listClaims(config = {}) {
     }
     return claims.sort((a, b) => a.claimId.localeCompare(b.claimId));
 }
+export async function findExistingSubmissionProof(claimDir) {
+    const entries = await fs.readdir(claimDir, { withFileTypes: true });
+    const proof = entries
+        .filter((entry) => entry.isFile())
+        .map((entry) => entry.name)
+        .filter((name) => name === SUBMITTED_RECIPE_FILE ||
+        name === SUBMISSION_PDF_FILE)
+        .sort()[0];
+    return proof ? path.join(claimDir, proof) : undefined;
+}
 export async function prepareClaim(params, config = {}) {
     if (params.confirm !== true) {
         throw new Error("confirm must be true before writing a claim workspace");
@@ -150,7 +163,7 @@ export async function prepareClaim(params, config = {}) {
     const claimId = normalizeClaimId(params.claimId || incoming.ID_CLM);
     const claimDir = path.join(await resolveClaimStorageDir(config), claimId);
     const claimPath = path.join(claimDir, "claim.toml");
-    const recipePath = path.join(claimDir, "claim_submitted_recipe.toml");
+    const recipePath = path.join(claimDir, SUBMITTED_RECIPE_FILE);
     await fs.mkdir(claimDir, { recursive: true });
     if (!params.overwrite) {
         try {
@@ -201,11 +214,16 @@ export async function recordClaimArtifact(claimId, file, config = {}) {
     const profileSelection = await resolveProfileSelection(config);
     return materializeClaim(profileSelection ? await readPrivateProfile(profileSelection) : {}, storedClaim, prepared.claimId);
 }
-export async function writeSubmittedRecipe(prepared) {
+export async function writeSubmittedRecipe(prepared, params = {}) {
     if (!prepared.recipePath) {
         throw new Error("prepared claim is missing recipePath");
     }
-    await fs.writeFile(`${prepared.recipePath}.tmp`, stringifySubmittedRecipeToml(prepared.claim), "utf8");
+    const recipe = {
+        ID_CLM: prepared.claimId,
+        submitted: true,
+        submitted_at: (params.submittedAt || new Date()).toISOString(),
+    };
+    await fs.writeFile(`${prepared.recipePath}.tmp`, stringify(recipe), "utf8");
     await fs.rename(`${prepared.recipePath}.tmp`, prepared.recipePath);
     return prepared.recipePath;
 }

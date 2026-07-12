@@ -216,10 +216,6 @@ export function stringifyClaimToml(claim: DBhopperClaim) {
   return stringifyToml(stripPrivateClaimFields(claim));
 }
 
-export function stringifySubmittedRecipeToml(claim: DBhopperClaim) {
-  return stringifyToml(claim);
-}
-
 export function assertClaimTomlShape(claim: DBhopperClaim, source = "claim.toml") {
   assertSchema(normalizeTomlKeys(claim, source, CLAIM_TOML_ALIASES), claimFileSchema, source);
 }

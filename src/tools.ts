@@ -17,6 +17,7 @@ import { claimSchemaReference, validateClaim } from "./validation.js";
 import { errorMessage } from "./errors.js";
 import {
   claimPaths,
+  findExistingSubmissionProof,
   listClaims,
   prepareClaim,
   readClaim,
@@ -61,7 +62,7 @@ export function requiresMandatoryHumanApproval({
 }) {
   return (
     toolName === CLAIM_TOOL_CONTRACTS.dbhopper_run_claim.name &&
-    (params.mode === "submit" || params.confirmSubmit === true)
+    params.mode === "submit"
   );
 }
 
@@ -398,6 +399,24 @@ function runClaimTool() {
         const claimRequestMode = privateSettings.settings.CLAIM_REQUEST_MODE;
         const requestedMode = params.mode || "dry_run";
         const browserMode = claimRequestMode === "auto" ? requestedMode : "dry_run";
+        if (browserMode === "submit") {
+          const existingSubmissionProof = await findExistingSubmissionProof(
+            prepared.claimDir,
+          );
+          if (existingSubmissionProof) {
+            return textResult({
+              ok: false,
+              operation: "run_claim",
+              claimId: prepared.claimId,
+              claimRequestMode,
+              requestedMode,
+              existingSubmissionProof,
+              needsUserAction: true,
+              message:
+                "refusing duplicate claim submission because existing submission proof was found",
+            });
+          }
+        }
         const validation = validateClaim(prepared.claim);
         if (!validation.readyForBrowser) {
           return textResult({

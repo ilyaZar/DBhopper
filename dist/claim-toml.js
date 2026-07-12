@@ -160,9 +160,6 @@ export function parsePrivateProfileToml(text, source = "profile.toml") {
 export function stringifyClaimToml(claim) {
     return stringifyToml(stripPrivateClaimFields(claim));
 }
-export function stringifySubmittedRecipeToml(claim) {
-    return stringifyToml(claim);
-}
 export function assertClaimTomlShape(claim, source = "claim.toml") {
     assertSchema(normalizeTomlKeys(claim, source, CLAIM_TOML_ALIASES), claimFileSchema, source);
 }

@@ -72,9 +72,12 @@ export declare function listClaims(config?: DBhopperConfig): Promise<({
     journey?: undefined;
     claimant?: undefined;
 })[]>;
+export declare function findExistingSubmissionProof(claimDir: string): Promise<string | undefined>;
 export declare function prepareClaim(params: PrepareClaimParams, config?: DBhopperConfig): Promise<PreparedClaim>;
 export declare function recordClaimArtifact(claimId: string, file: ClaimFile, config?: DBhopperConfig): Promise<DBhopperClaim>;
-export declare function writeSubmittedRecipe(prepared: PreparedClaim): Promise<string>;
+export declare function writeSubmittedRecipe(prepared: PreparedClaim, params?: {
+    submittedAt?: Date;
+}): Promise<string>;
 export declare function validateWorkspaceTomlFiles(config?: DBhopperConfig): Promise<{
     ok: boolean;
     messages: import("./types.js").ValidationMessage[];

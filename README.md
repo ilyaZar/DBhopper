@@ -179,8 +179,8 @@ use_claim_requests = true
 Claim-specific journey, ticket, and file data is stored in
 `claims/<claim-id>/claim.toml`. Claimant and bank details stay in the selected
 claim profile and are joined in memory for validation and browser filing. A
-successful submit writes `claim_submitted_recipe.toml` next to the downloaded
-confirmation PDF as the joined audit recipe.
+successful submit writes a PII-free `claim_submitted_recipe.toml` marker next
+to any downloaded confirmation PDF.
 
 Use `assets/private/settings.toml` to select the claim profile and credential
 IDs used for claim filing. Claim filing uses `ID_CLM` from `path_clm`.
